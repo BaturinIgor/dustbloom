@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "farm": {
+    "width": 16,
+    "height": 16,
+    "startCoins": 100,
+    "startTilled": { "x": 6, "y": 6, "width": 4, "height": 4 },
+    "tillCost": 5
+  },
+  "crops": [
+    {
+      "id": "dustwheat",
+      "name": { "en": "Dustwheat", "ru": "Пыльный колос" },
+      "growSeconds": 30,
+      "seedCost": 2,
+      "sellPrice": 5,
+      "xp": 1,
+      "unlockLevel": 1
+    },
+    {
+      "id": "emberpumpkin",
+      "name": { "en": "Ember Pumpkin", "ru": "Угольная тыква" },
+      "growSeconds": 120,
+      "seedCost": 8,
+      "sellPrice": 22,
+      "xp": 4,
+      "unlockLevel": 1
+    },
+    {
+      "id": "moonturnip",
+      "name": { "en": "Moon Turnip", "ru": "Лунная репа" },
+      "growSeconds": 300,
+      "seedCost": 20,
+      "sellPrice": 60,
+      "xp": 10,
+      "unlockLevel": 1
+    }
+  ]
+}

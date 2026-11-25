@@ -1,0 +1,69 @@
+# XcodeGen spec. The .xcodeproj is generated, never committed:
+#   brew install xcodegen && cd client && xcodegen generate
+name: Dustbloom
+options:
+  bundleIdPrefix: game.dustbloom
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.10"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    DEVELOPMENT_TEAM: ${DEVELOPMENT_TEAM}
+    CODE_SIGN_STYLE: Automatic
+targets:
+  Dustbloom:
+    type: application
+    platform: iOS
+    sources:
+      - path: Dustbloom
+      # single source of truth for balance, shared with the Go server
+      - path: ../server/internal/game/data/crops.json
+        buildPhase: resources
+    info:
+      path: Dustbloom/Info.plist
+      properties:
+        CFBundleDisplayName: DUSTBLOOM
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        UILaunchScreen:
+          UIColorName: LaunchBackground
+        UIRequiresFullScreen: true
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        UIStatusBarStyle: UIStatusBarStyleLightContent
+        ITSAppUsesNonExemptEncryption: false
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: ${BUNDLE_ID}
+        TARGETED_DEVICE_FAMILY: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+  DustbloomTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [DustbloomTests]
+    dependencies:
+      - target: Dustbloom
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: ${BUNDLE_ID}.tests
+schemes:
+  Dustbloom:
+    build:
+      targets:
+        Dustbloom: all
+        DustbloomTests: [test]
+    run:
+      config: Debug
+      environmentVariables:
+        # leave empty to play offline; set to http://localhost:8080 to use the dev server
+        DUSTBLOOM_SERVER_URL: ""
+    test:
+      config: Debug
+      targets: [DustbloomTests]
+    archive:
+      config: Release
