@@ -1,16 +1,24 @@
 {
-  "version": 1,
+  "version": 2,
   "farm": {
     "width": 16,
     "height": 16,
     "startCoins": 100,
-    "startTilled": { "x": 6, "y": 6, "width": 4, "height": 4 },
+    "startTilled": {
+      "x": 6,
+      "y": 6,
+      "width": 4,
+      "height": 4
+    },
     "tillCost": 5
   },
   "crops": [
     {
       "id": "dustwheat",
-      "name": { "en": "Dustwheat", "ru": "Пыльный колос" },
+      "name": {
+        "en": "Dustwheat",
+        "ru": "Пыльный колос"
+      },
       "growSeconds": 30,
       "seedCost": 2,
       "sellPrice": 5,
@@ -19,7 +27,10 @@
     },
     {
       "id": "emberpumpkin",
-      "name": { "en": "Ember Pumpkin", "ru": "Угольная тыква" },
+      "name": {
+        "en": "Ember Pumpkin",
+        "ru": "Угольная тыква"
+      },
       "growSeconds": 120,
       "seedCost": 8,
       "sellPrice": 22,
@@ -28,12 +39,143 @@
     },
     {
       "id": "moonturnip",
-      "name": { "en": "Moon Turnip", "ru": "Лунная репа" },
+      "name": {
+        "en": "Moon Turnip",
+        "ru": "Лунная репа"
+      },
       "growSeconds": 300,
       "seedCost": 20,
       "sellPrice": 60,
       "xp": 10,
       "unlockLevel": 1
+    }
+  ],
+  "army": {
+    "baseSlots": 3,
+    "slotsPerLevel": 1,
+    "maxSlots": 12,
+    "queueSize": 3
+  },
+  "scarecrows": [
+    {
+      "id": "straw_guard",
+      "name": {
+        "en": "Straw Guard",
+        "ru": "Соломенный страж"
+      },
+      "cost": {
+        "dustwheat": 5
+      },
+      "coins": 5,
+      "buildSeconds": 20,
+      "hp": 20,
+      "attack": 4,
+      "unlockLevel": 1
+    },
+    {
+      "id": "pumpkin_brute",
+      "name": {
+        "en": "Pumpkin Brute",
+        "ru": "Тыквенный громила"
+      },
+      "cost": {
+        "emberpumpkin": 3,
+        "dustwheat": 2
+      },
+      "coins": 15,
+      "buildSeconds": 60,
+      "hp": 45,
+      "attack": 7,
+      "unlockLevel": 1
+    },
+    {
+      "id": "moon_witch",
+      "name": {
+        "en": "Moon Witch",
+        "ru": "Лунная ведьма"
+      },
+      "cost": {
+        "moonturnip": 2,
+        "emberpumpkin": 1
+      },
+      "coins": 30,
+      "buildSeconds": 120,
+      "hp": 28,
+      "attack": 14,
+      "unlockLevel": 2
+    }
+  ],
+  "raids": [
+    {
+      "id": "dust_rats",
+      "name": {
+        "en": "Dust Rat Nest",
+        "ru": "Гнездо пыльных крыс"
+      },
+      "enemies": [
+        {
+          "hp": 10,
+          "attack": 3
+        },
+        {
+          "hp": 10,
+          "attack": 3
+        },
+        {
+          "hp": 10,
+          "attack": 3
+        }
+      ],
+      "rewardCoins": 25,
+      "rewardXp": 3,
+      "cooldownSeconds": 120,
+      "unlockLevel": 1
+    },
+    {
+      "id": "rust_bandits",
+      "name": {
+        "en": "Rust Bandit Camp",
+        "ru": "Лагерь ржавых бандитов"
+      },
+      "enemies": [
+        {
+          "hp": 22,
+          "attack": 5
+        },
+        {
+          "hp": 22,
+          "attack": 5
+        },
+        {
+          "hp": 30,
+          "attack": 7
+        },
+        {
+          "hp": 22,
+          "attack": 5
+        }
+      ],
+      "rewardCoins": 80,
+      "rewardXp": 10,
+      "cooldownSeconds": 600,
+      "unlockLevel": 2
+    },
+    {
+      "id": "scrap_golem",
+      "name": {
+        "en": "Scrap Golem",
+        "ru": "Свалочный голем"
+      },
+      "enemies": [
+        {
+          "hp": 260,
+          "attack": 22
+        }
+      ],
+      "rewardCoins": 200,
+      "rewardXp": 25,
+      "cooldownSeconds": 1800,
+      "unlockLevel": 3
     }
   ]
 }

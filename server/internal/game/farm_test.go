@@ -58,11 +58,18 @@ func TestPlantGrowHarvest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Harvest: %v", err)
 	}
-	if res.Coins != wheat.SellPrice || res.XP != wheat.XP {
-		t.Fatalf("harvest result = %+v", res)
+	if res.Count != 1 || res.XP != wheat.XP || f.Barn["dustwheat"] != 1 {
+		t.Fatalf("harvest result = %+v, barn = %v", res, f.Barn)
 	}
-	if f.Coins != cfg.Farm.StartCoins-wheat.SeedCost+wheat.SellPrice {
-		t.Fatalf("coins after harvest = %d", f.Coins)
+	got, err := f.Sell(cfg, "dustwheat", 1)
+	if err != nil || got != wheat.SellPrice {
+		t.Fatalf("Sell = %d, %v", got, err)
+	}
+	if f.Coins != cfg.Farm.StartCoins-wheat.SeedCost+wheat.SellPrice || len(f.Barn) != 0 {
+		t.Fatalf("coins after sell = %d, barn = %v", f.Coins, f.Barn)
+	}
+	if _, err := f.Sell(cfg, "dustwheat", 1); !errors.Is(err, ErrNoCrops) {
+		t.Fatalf("sell from empty barn err = %v", err)
 	}
 	if f.Tiles[6*f.Width+6].Crop != "" {
 		t.Fatal("tile not cleared after harvest")

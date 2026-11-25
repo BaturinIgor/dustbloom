@@ -8,7 +8,10 @@
 //	GET  /v1/farm                   farm state + serverTime
 //	POST /v1/farm/till              {"x","y"}
 //	POST /v1/farm/plant             {"x","y","crop"}
-//	POST /v1/farm/harvest           {"x","y"} -> farm + harvest result
+//	POST /v1/farm/harvest           {"x","y"} -> farm + harvest result (crop goes to the barn)
+//	POST /v1/farm/sell              {"crop","count"} -> farm + sold coins
+//	POST /v1/army/build             {"scarecrow"} -> farm with the workshop queue
+//	POST /v1/raid                   {"raid"} -> farm + raid result with every hit
 //
 // Authenticated calls send "Authorization: Bearer <token>".
 package api
@@ -46,14 +49,20 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /v1/farm/till", s.auth(s.till))
 	mux.HandleFunc("POST /v1/farm/plant", s.auth(s.plant))
 	mux.HandleFunc("POST /v1/farm/harvest", s.auth(s.harvest))
+	mux.HandleFunc("POST /v1/farm/sell", s.auth(s.sell))
+	mux.HandleFunc("POST /v1/army/build", s.auth(s.build))
+	mux.HandleFunc("POST /v1/raid", s.auth(s.raid))
 	return mux
 }
 
 type farmResponse struct {
 	Farm       *game.Farm          `json:"farm"`
 	Level      int                 `json:"level"`
+	ArmySlots  int                 `json:"armySlots"`
 	ServerTime time.Time           `json:"serverTime"`
 	Harvest    *game.HarvestResult `json:"harvest,omitempty"`
+	Sold       int                 `json:"sold,omitempty"`
+	Raid       *game.RaidResult    `json:"raid,omitempty"`
 }
 
 type errorResponse struct {
@@ -79,7 +88,9 @@ func gameErrStatus(w http.ResponseWriter, err error) {
 	for _, known := range []error{
 		game.ErrOutOfBounds, game.ErrNotTilled, game.ErrAlreadyTilled,
 		game.ErrOccupied, game.ErrEmpty, game.ErrNotReady,
-		game.ErrUnknownCrop, game.ErrNotEnough, game.ErrLocked,
+		game.ErrUnknownCrop, game.ErrNotEnough, game.ErrLocked, game.ErrNoCrops,
+		game.ErrUnknownScarecrow, game.ErrQueueFull, game.ErrUnknownRaid,
+		game.ErrRaidCooldown, game.ErrNoArmy,
 	} {
 		if errors.Is(err, known) {
 			writeErr(w, http.StatusConflict, known.Error())
@@ -130,16 +141,17 @@ func (s *Server) guest(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"token": p.Token, "playerId": p.ID})
 }
 
-// mutate runs a farm action and answers with the new farm state.
-func (s *Server) mutate(w http.ResponseWriter, token string, fn func(f *game.Farm, now time.Time) (*game.HarvestResult, error)) {
+// mutate runs a farm action and answers with the new farm state. The action
+// fills in its own result fields (harvest, sold, raid) on resp.
+func (s *Server) mutate(w http.ResponseWriter, token string, fn func(f *game.Farm, now time.Time, resp *farmResponse) error) {
 	now := s.Now()
 	var resp farmResponse
 	err := s.Store.WithFarm(token, func(f *game.Farm) error {
-		h, err := fn(f, now)
-		if err != nil {
+		f.Settle(s.Config, now)
+		if err := fn(f, now, &resp); err != nil {
 			return err
 		}
-		resp = farmResponse{Farm: f, Level: f.Level(), ServerTime: now.UTC(), Harvest: h}
+		resp.Farm, resp.Level, resp.ArmySlots, resp.ServerTime = f, f.Level(), f.ArmySlots(s.Config), now.UTC()
 		return nil
 	})
 	if err != nil {
@@ -150,7 +162,7 @@ func (s *Server) mutate(w http.ResponseWriter, token string, fn func(f *game.Far
 }
 
 func (s *Server) getFarm(w http.ResponseWriter, r *http.Request, token string) {
-	s.mutate(w, token, func(f *game.Farm, now time.Time) (*game.HarvestResult, error) { return nil, nil })
+	s.mutate(w, token, func(*game.Farm, time.Time, *farmResponse) error { return nil })
 }
 
 type tileReq struct {
@@ -164,8 +176,8 @@ func (s *Server) till(w http.ResponseWriter, r *http.Request, token string) {
 	if !decode(w, r, &req) {
 		return
 	}
-	s.mutate(w, token, func(f *game.Farm, now time.Time) (*game.HarvestResult, error) {
-		return nil, f.Till(s.Config, req.X, req.Y)
+	s.mutate(w, token, func(f *game.Farm, now time.Time, _ *farmResponse) error {
+		return f.Till(s.Config, req.X, req.Y)
 	})
 }
 
@@ -174,8 +186,8 @@ func (s *Server) plant(w http.ResponseWriter, r *http.Request, token string) {
 	if !decode(w, r, &req) {
 		return
 	}
-	s.mutate(w, token, func(f *game.Farm, now time.Time) (*game.HarvestResult, error) {
-		return nil, f.Plant(s.Config, req.X, req.Y, req.Crop, now)
+	s.mutate(w, token, func(f *game.Farm, now time.Time, _ *farmResponse) error {
+		return f.Plant(s.Config, req.X, req.Y, req.Crop, now)
 	})
 }
 
@@ -184,11 +196,50 @@ func (s *Server) harvest(w http.ResponseWriter, r *http.Request, token string) {
 	if !decode(w, r, &req) {
 		return
 	}
-	s.mutate(w, token, func(f *game.Farm, now time.Time) (*game.HarvestResult, error) {
+	s.mutate(w, token, func(f *game.Farm, now time.Time, resp *farmResponse) error {
 		res, err := f.Harvest(s.Config, req.X, req.Y, now)
-		if err != nil {
-			return nil, err
-		}
-		return &res, nil
+		resp.Harvest = &res
+		return err
+	})
+}
+
+func (s *Server) sell(w http.ResponseWriter, r *http.Request, token string) {
+	var req struct {
+		Crop  string `json:"crop"`
+		Count int    `json:"count"`
+	}
+	if !decode(w, r, &req) {
+		return
+	}
+	s.mutate(w, token, func(f *game.Farm, now time.Time, resp *farmResponse) error {
+		coins, err := f.Sell(s.Config, req.Crop, req.Count)
+		resp.Sold = coins
+		return err
+	})
+}
+
+func (s *Server) build(w http.ResponseWriter, r *http.Request, token string) {
+	var req struct {
+		Scarecrow string `json:"scarecrow"`
+	}
+	if !decode(w, r, &req) {
+		return
+	}
+	s.mutate(w, token, func(f *game.Farm, now time.Time, _ *farmResponse) error {
+		return f.BuildScarecrow(s.Config, req.Scarecrow, now)
+	})
+}
+
+func (s *Server) raid(w http.ResponseWriter, r *http.Request, token string) {
+	var req struct {
+		Raid string `json:"raid"`
+	}
+	if !decode(w, r, &req) {
+		return
+	}
+	s.mutate(w, token, func(f *game.Farm, now time.Time, resp *farmResponse) error {
+		res, err := f.Raid(s.Config, req.Raid, now, uint64(now.UnixNano()))
+		resp.Raid = &res
+		return err
 	})
 }

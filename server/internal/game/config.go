@@ -44,13 +44,55 @@ type Crop struct {
 	UnlockLevel int               `json:"unlockLevel"`
 }
 
+// ArmyConfig limits how many scarecrows a player can field and queue.
+type ArmyConfig struct {
+	BaseSlots     int `json:"baseSlots"`
+	SlotsPerLevel int `json:"slotsPerLevel"`
+	MaxSlots      int `json:"maxSlots"`
+	QueueSize     int `json:"queueSize"`
+}
+
+// Scarecrow is a buildable combat unit made from crops.
+type Scarecrow struct {
+	ID           string            `json:"id"`
+	Name         map[string]string `json:"name"`
+	Cost         map[string]int    `json:"cost"` // crop id -> count from the barn
+	Coins        int               `json:"coins"`
+	BuildSeconds int               `json:"buildSeconds"`
+	HP           int               `json:"hp"`
+	Attack       int               `json:"attack"`
+	UnlockLevel  int               `json:"unlockLevel"`
+}
+
+// Enemy is one fighter in a raid target.
+type Enemy struct {
+	HP     int `json:"hp"`
+	Attack int `json:"attack"`
+}
+
+// Raid is a PvE camp in the wasteland the army can attack.
+type Raid struct {
+	ID              string            `json:"id"`
+	Name            map[string]string `json:"name"`
+	Enemies         []Enemy           `json:"enemies"`
+	RewardCoins     int               `json:"rewardCoins"`
+	RewardXP        int               `json:"rewardXp"`
+	CooldownSeconds int               `json:"cooldownSeconds"`
+	UnlockLevel     int               `json:"unlockLevel"`
+}
+
 // Config is the full game balance file shared with the client.
 type Config struct {
-	Version int        `json:"version"`
-	Farm    FarmConfig `json:"farm"`
-	Crops   []Crop     `json:"crops"`
+	Version    int         `json:"version"`
+	Farm       FarmConfig  `json:"farm"`
+	Crops      []Crop      `json:"crops"`
+	Army       ArmyConfig  `json:"army"`
+	Scarecrows []Scarecrow `json:"scarecrows"`
+	Raids      []Raid      `json:"raids"`
 
 	cropsByID map[string]Crop
+	scByID    map[string]Scarecrow
+	raidsByID map[string]Raid
 }
 
 // DefaultConfig parses the embedded balance file.
@@ -85,6 +127,31 @@ func ParseConfig(data []byte) (*Config, error) {
 		}
 		c.cropsByID[cr.ID] = cr
 	}
+	c.scByID = make(map[string]Scarecrow, len(c.Scarecrows))
+	for _, sc := range c.Scarecrows {
+		if sc.ID == "" || sc.HP <= 0 || sc.Attack <= 0 || sc.BuildSeconds <= 0 {
+			return nil, fmt.Errorf("config: scarecrow %q needs id, hp, attack and buildSeconds", sc.ID)
+		}
+		for crop, n := range sc.Cost {
+			if _, ok := c.cropsByID[crop]; !ok || n <= 0 {
+				return nil, fmt.Errorf("config: scarecrow %q has bad cost %q", sc.ID, crop)
+			}
+		}
+		if _, dup := c.scByID[sc.ID]; dup {
+			return nil, fmt.Errorf("config: duplicate scarecrow %q", sc.ID)
+		}
+		c.scByID[sc.ID] = sc
+	}
+	c.raidsByID = make(map[string]Raid, len(c.Raids))
+	for _, r := range c.Raids {
+		if r.ID == "" || len(r.Enemies) == 0 {
+			return nil, fmt.Errorf("config: raid %q needs id and enemies", r.ID)
+		}
+		if _, dup := c.raidsByID[r.ID]; dup {
+			return nil, fmt.Errorf("config: duplicate raid %q", r.ID)
+		}
+		c.raidsByID[r.ID] = r
+	}
 	return &c, nil
 }
 
@@ -92,4 +159,16 @@ func ParseConfig(data []byte) (*Config, error) {
 func (c *Config) Crop(id string) (Crop, bool) {
 	cr, ok := c.cropsByID[id]
 	return cr, ok
+}
+
+// Scarecrow looks up a scarecrow type by id.
+func (c *Config) Scarecrow(id string) (Scarecrow, bool) {
+	sc, ok := c.scByID[id]
+	return sc, ok
+}
+
+// Raid looks up a raid target by id.
+func (c *Config) Raid(id string) (Raid, bool) {
+	r, ok := c.raidsByID[id]
+	return r, ok
 }

@@ -17,6 +17,7 @@ var (
 	ErrUnknownCrop   = errors.New("unknown_crop")
 	ErrNotEnough     = errors.New("not_enough_coins")
 	ErrLocked        = errors.New("crop_locked")
+	ErrNoCrops       = errors.New("not_enough_crops")
 )
 
 // Tile is one cell of the farm.
@@ -33,6 +34,14 @@ type Farm struct {
 	Coins  int    `json:"coins"`
 	XP     int    `json:"xp"`
 	Tiles  []Tile `json:"tiles"` // row-major, index = y*Width + x
+
+	// Barn holds harvested crops: they are sold for coins or built into scarecrows.
+	Barn map[string]int `json:"barn,omitempty"`
+	// Army is the scarecrows ready to fight; Queue is the workshop.
+	Army  []Unit  `json:"army,omitempty"`
+	Queue []Build `json:"queue,omitempty"`
+	// RaidReadyAt holds each raid's cooldown end.
+	RaidReadyAt map[string]time.Time `json:"raidReadyAt,omitempty"`
 }
 
 // NewFarm creates a starting farm from the config.
@@ -117,10 +126,10 @@ func (f *Farm) Plant(cfg *Config, x, y int, cropID string, now time.Time) error 
 	return nil
 }
 
-// HarvestResult tells the client what to celebrate.
+// HarvestResult tells the client what to celebrate. The crop goes to the barn.
 type HarvestResult struct {
 	Crop    string `json:"crop"`
-	Coins   int    `json:"coins"`
+	Count   int    `json:"count"`
 	XP      int    `json:"xp"`
 	LevelUp bool   `json:"levelUp"`
 }
@@ -142,16 +151,41 @@ func (f *Farm) Harvest(cfg *Config, x, y int, now time.Time) (HarvestResult, err
 		return HarvestResult{}, ErrNotReady
 	}
 	before := f.Level()
-	f.Coins += crop.SellPrice
+	f.addCrops(crop.ID, 1)
 	f.XP += crop.XP
 	t.Crop = ""
 	t.PlantedAt = nil
 	return HarvestResult{
 		Crop:    crop.ID,
-		Coins:   crop.SellPrice,
+		Count:   1,
 		XP:      crop.XP,
 		LevelUp: f.Level() > before,
 	}, nil
+}
+
+func (f *Farm) addCrops(id string, n int) {
+	if f.Barn == nil {
+		f.Barn = map[string]int{}
+	}
+	f.Barn[id] += n
+	if f.Barn[id] <= 0 {
+		delete(f.Barn, id)
+	}
+}
+
+// Sell turns crops from the barn into coins.
+func (f *Farm) Sell(cfg *Config, cropID string, count int) (int, error) {
+	crop, ok := cfg.Crop(cropID)
+	if !ok {
+		return 0, ErrUnknownCrop
+	}
+	if count <= 0 || f.Barn[cropID] < count {
+		return 0, ErrNoCrops
+	}
+	f.addCrops(cropID, -count)
+	coins := crop.SellPrice * count
+	f.Coins += coins
+	return coins, nil
 }
 
 // Progress is how far a crop has grown, from 0 to 1.

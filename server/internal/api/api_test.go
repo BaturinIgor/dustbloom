@@ -97,14 +97,51 @@ func TestFarmFlow(t *testing.T) {
 	}
 	e.now = e.now.Add(31 * time.Second)
 	fr = farmResponse{}
-	if code := e.do("POST", "/v1/farm/harvest", tileReq{X: 6, Y: 6}, &fr); code != 200 || fr.Harvest == nil || fr.Harvest.Coins != 5 {
+	if code := e.do("POST", "/v1/farm/harvest", tileReq{X: 6, Y: 6}, &fr); code != 200 || fr.Harvest == nil || fr.Harvest.Count != 1 {
 		t.Fatalf("harvest = %d %+v", code, fr.Harvest)
+	}
+	if code := e.do("POST", "/v1/farm/sell", map[string]any{"crop": "dustwheat", "count": 1}, &fr); code != 200 || fr.Sold != 5 {
+		t.Fatalf("sell = %d, sold %d", code, fr.Sold)
 	}
 	if fr.Farm.Coins != 103 {
 		t.Fatalf("coins = %d, want 103", fr.Farm.Coins)
 	}
 	if code := e.do("POST", "/v1/farm/till", tileReq{X: 0, Y: 0}, &fr); code != 200 || !fr.Farm.Tiles[0].Tilled {
 		t.Fatalf("till = %d", code)
+	}
+}
+
+func TestArmyAndRaidFlow(t *testing.T) {
+	e := newEnv(t)
+	e.login("device-army-1")
+	var er errorResponse
+	if code := e.do("POST", "/v1/raid", map[string]string{"raid": "dust_rats"}, &er); code != 409 || er.Error != "no_army" {
+		t.Fatalf("raid without army = %d %q", code, er.Error)
+	}
+	// grow and harvest 5 wheat on the starting beds, then build a guard
+	for x := 6; x < 10; x++ {
+		for _, y := range []int{6, 7} {
+			e.do("POST", "/v1/farm/plant", tileReq{X: x, Y: y, Crop: "dustwheat"}, nil)
+		}
+	}
+	e.now = e.now.Add(31 * time.Second)
+	for x := 6; x < 10; x++ {
+		for _, y := range []int{6, 7} {
+			e.do("POST", "/v1/farm/harvest", tileReq{X: x, Y: y}, nil)
+		}
+	}
+	var fr farmResponse
+	if code := e.do("POST", "/v1/army/build", map[string]string{"scarecrow": "straw_guard"}, &fr); code != 200 || len(fr.Farm.Queue) != 1 {
+		t.Fatalf("build = %d queue %v", code, fr.Farm.Queue)
+	}
+	e.now = e.now.Add(21 * time.Second)
+	fr = farmResponse{}
+	if code := e.do("GET", "/v1/farm", nil, &fr); code != 200 || len(fr.Farm.Army) != 1 || fr.ArmySlots != 3 {
+		t.Fatalf("army after build time = %d %+v slots %d", code, fr.Farm.Army, fr.ArmySlots)
+	}
+	fr = farmResponse{}
+	if code := e.do("POST", "/v1/raid", map[string]string{"raid": "dust_rats"}, &fr); code != 200 || fr.Raid == nil || len(fr.Raid.Hits) == 0 {
+		t.Fatalf("raid = %d %+v", code, fr.Raid)
 	}
 }
 
