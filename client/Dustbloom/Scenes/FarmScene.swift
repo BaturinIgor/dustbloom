@@ -1,7 +1,8 @@
 import SpriteKit
 import UIKit
 
-/// The farm: a grid of pixel tiles you can pan, pinch-zoom and tap.
+/// The farm: pixel tiles you can pan, pinch-zoom and tap, with buildings,
+/// evening light and ambient life around them.
 @MainActor
 final class FarmScene: SKScene {
     weak var store: FarmStore? {
@@ -9,9 +10,15 @@ final class FarmScene: SKScene {
     }
 
     /// Size of one 16 px tile on screen, in points (16 px x 3).
-    private let tileSize: CGFloat = 48
-    private let world = SKNode()
+    let tileSize: CGFloat = 48
+    /// One art pixel in points.
+    let px: CGFloat = 3
+    /// Decorative wasteland drawn beyond the farm edge, in tiles.
+    private let pad = 6
+
+    let world = SKNode()
     private let cam = SKCameraNode()
+    private var layout: FarmLayout?
     private var groundNodes: [SKSpriteNode] = []
     private var cropNodes: [SKSpriteNode] = []
     private var cropStages: [Int] = []
@@ -19,6 +26,8 @@ final class FarmScene: SKScene {
     private var props: [Int: SKSpriteNode] = [:]
     private var didBuild = false
     private var lastRefresh: TimeInterval = 0
+    private let light: SKSpriteNode
+    private let vignette: SKSpriteNode
 
     private var touchStart: CGPoint?
     private var panned = false
@@ -31,6 +40,8 @@ final class FarmScene: SKScene {
     // MARK: - lifecycle
 
     override init(size: CGSize) {
+        light = SKSpriteNode(texture: Textures.smooth("fx_light"))
+        vignette = SKSpriteNode(texture: Textures.smooth("fx_vignette"))
         super.init(size: size)
         scaleMode = .resizeFill
         backgroundColor = Palette.dustDeep
@@ -45,6 +56,14 @@ final class FarmScene: SKScene {
             addChild(cam)
             camera = cam
             cam.setScale(0.9)
+            // evening light and vignette ride on the camera, above the world
+            light.blendMode = .add
+            light.alpha = 0.55
+            light.zPosition = 900
+            vignette.zPosition = 901
+            cam.addChild(light)
+            cam.addChild(vignette)
+            layoutOverlays()
         }
         let p = UIPinchGestureRecognizer(target: self, action: #selector(handlePinch(_:)))
         view.addGestureRecognizer(p)
@@ -56,25 +75,51 @@ final class FarmScene: SKScene {
         if let pinch { view.removeGestureRecognizer(pinch) }
     }
 
+    override func didChangeSize(_ oldSize: CGSize) {
+        super.didChangeSize(oldSize)
+        layoutOverlays()
+    }
+
+    private func layoutOverlays() {
+        light.size = size
+        vignette.size = size
+    }
+
     // MARK: - building
 
-    private func position(x: Int, y: Int, farm: Farm) -> CGPoint {
+    /// Centre of tile (x, y) in world coordinates. Works outside the farm too.
+    func position(x: Int, y: Int, farm: Farm) -> CGPoint {
         CGPoint(
             x: (CGFloat(x) + 0.5 - CGFloat(farm.width) / 2) * tileSize,
             y: (CGFloat(farm.height) / 2 - CGFloat(y) - 0.5) * tileSize
         )
     }
 
+    /// Things lower on screen draw in front.
+    func depth(row: Int) -> CGFloat { 1 + CGFloat(row + pad) * 0.01 }
+
     private func build() {
         guard let store else { return }
         didBuild = true
+        let farm = store.farm
+        let layout = FarmLayout(config: store.config)
+        self.layout = layout
         world.removeAllChildren()
         groundNodes = []
         cropNodes = []
         cropStages = []
         groundNames = []
         props = [:]
-        let farm = store.farm
+
+        // decorative wasteland around the farm (not interactive)
+        for y in -pad..<(farm.height + pad) {
+            for x in -pad..<(farm.width + pad) where x < 0 || y < 0 || x >= farm.width || y >= farm.height {
+                let n = SKSpriteNode(texture: Textures.named(layout.groundName(farm, x: x, y: y)),
+                                     size: CGSize(width: tileSize, height: tileSize))
+                n.position = position(x: x, y: y, farm: farm)
+                world.addChild(n)
+            }
+        }
         for y in 0..<farm.height {
             for x in 0..<farm.width {
                 let ground = SKSpriteNode(texture: nil, size: CGSize(width: tileSize, height: tileSize))
@@ -86,7 +131,7 @@ final class FarmScene: SKScene {
                 let crop = SKSpriteNode(texture: nil, size: CGSize(width: tileSize, height: tileSize * 1.5))
                 crop.anchorPoint = CGPoint(x: 0.5, y: 0)
                 crop.position = CGPoint(x: 0, y: -tileSize / 2)
-                crop.zPosition = 1
+                crop.zPosition = depth(row: y)
                 crop.isHidden = true
                 ground.addChild(crop)
                 cropNodes.append(crop)
@@ -94,64 +139,91 @@ final class FarmScene: SKScene {
                 groundNames.append("")
             }
         }
-        placeProps(farm: farm)
+        placePieces(layout: layout, farm: farm)
+        placeWildProps(farm: farm, start: store.config.farm.startTilled)
+        startAmbience(layout: layout)
+        let s = store.config.farm.startTilled
+        cam.position = position(x: s.x + 2, y: s.y - 1, farm: farm)
         refreshAll(animated: false)
     }
 
-    /// Decorations: a scarecrow guarding the start patch, rocks and dead
-    /// trees in the wasteland. A prop hides once life reaches its tile.
-    private func placeProps(farm: Farm) {
-        guard let start = store?.config.farm.startTilled else { return }
-        var spots: [(x: Int, y: Int, name: String, w: CGFloat, h: CGFloat)] = [
-            (start.x - 2, start.y + 1, "prop_scarecrow", 1, 2),
-        ]
-        for y in 0..<farm.height {
-            for x in 0..<farm.width {
+    /// Adds a sprite standing on the bottom-centre of its footprint, with its
+    /// baked evening shadow underneath.
+    @discardableResult
+    func stand(_ name: String, x: Int, y: Int, w: Int, h: Int, farm: Farm, shadow: String? = nil) -> SKSpriteNode {
+        let tex = Textures.named(name)
+        let node = SKSpriteNode(texture: tex, size: CGSize(width: tex.size().width * px, height: tex.size().height * px))
+        node.anchorPoint = CGPoint(x: 0.5, y: 0)
+        let left = position(x: x, y: y + h - 1, farm: farm).x - tileSize / 2
+        let bottom = position(x: x, y: y + h - 1, farm: farm).y - tileSize / 2
+        node.position = CGPoint(x: left + CGFloat(w) * tileSize / 2, y: bottom)
+        node.zPosition = depth(row: y + h - 1)
+        world.addChild(node)
+        if let shadow {
+            let st = Textures.named(shadow)
+            let s = SKSpriteNode(texture: st, size: CGSize(width: st.size().width * px, height: st.size().height * px))
+            s.anchorPoint = .zero
+            s.position = CGPoint(x: node.position.x - node.size.width / 2, y: bottom)
+            s.zPosition = 0.5
+            world.addChild(s)
+        }
+        return node
+    }
+
+    private func placePieces(layout: FarmLayout, farm: Farm) {
+        for piece in layout.pieces {
+            switch piece.sprite {
+            case "prop_house":
+                let house = stand("prop_house", x: piece.x, y: piece.y, w: piece.width, h: piece.height,
+                                  farm: farm, shadow: "shadow_house")
+                chimneySmoke(on: house)
+            case "prop_windmill":
+                let mill = stand("prop_windmill", x: piece.x, y: piece.y, w: piece.width, h: piece.height,
+                                 farm: farm, shadow: "shadow_windmill")
+                let sails = SKSpriteNode(texture: Textures.named("prop_windmill_sails"),
+                                         size: CGSize(width: 40 * px, height: 40 * px))
+                // hub sits 8 px below the top of the 48 px tower sprite
+                sails.position = CGPoint(x: 0, y: (48 - 8) * px)
+                sails.zPosition = 0.001
+                mill.addChild(sails)
+                sails.run(.repeatForever(.rotate(byAngle: -.pi * 2, duration: 9)))
+            case "prop_pond":
+                let pond = stand("prop_pond_0", x: piece.x, y: piece.y, w: piece.width, h: piece.height, farm: farm)
+                pond.zPosition = 0.4
+                pond.run(.repeatForever(.animate(with: [Textures.named("prop_pond_0"), Textures.named("prop_pond_1")],
+                                                 timePerFrame: 0.7)))
+            case "prop_scarecrow":
+                let s = stand("prop_scarecrow", x: piece.x, y: piece.y, w: 1, h: 2, farm: farm, shadow: "shadow_scarecrow")
+                let lean = SKAction.sequence([.rotate(toAngle: 0.03, duration: 1.6), .rotate(toAngle: -0.03, duration: 1.6)])
+                lean.timingMode = .easeInEaseOut
+                s.run(.repeatForever(lean))
+            case "prop_stones":
+                stand("prop_stones", x: piece.x, y: piece.y, w: 1, h: 1, farm: farm).zPosition = 0.3
+            default:
+                stand(piece.sprite, x: piece.x, y: piece.y, w: piece.width, h: piece.height, farm: farm)
+            }
+        }
+    }
+
+    /// Rocks and dead trees in the wasteland. They fade once life reaches them.
+    private func placeWildProps(farm: Farm, start: GameConfig.Area) {
+        for y in -pad..<(farm.height + pad) {
+            for x in -pad..<(farm.width + pad) {
                 let dx = max(start.x - x, 0, x - (start.x + start.width - 1))
                 let dy = max(start.y - y, 0, y - (start.y + start.height - 1))
-                guard max(dx, dy) >= 4 else { continue }
-                let h = (x &* 31 &+ y &* 17) % 23
-                if h == 0 { spots.append((x, y, "prop_dead_tree", 2, 2)) }
-                else if h == 7 || h == 15 { spots.append((x, y, "prop_rock", 1, 1)) }
+                guard max(dx, dy) >= 5 else { continue }
+                let h = abs(x &* 31 &+ y &* 17) % 23
+                let node: SKSpriteNode
+                if h == 0 {
+                    node = stand("prop_dead_tree", x: x, y: y - 1, w: 1, h: 2, farm: farm, shadow: "shadow_dead_tree")
+                } else if h == 7 || h == 15 {
+                    node = stand("prop_rock", x: x, y: y, w: 1, h: 1, farm: farm, shadow: "shadow_rock")
+                } else {
+                    continue
+                }
+                if let i = farm.index(x: x, y: y) { props[i] = node }
             }
         }
-        for spot in spots {
-            guard let i = farm.index(x: spot.x, y: spot.y) else { continue }
-            let node = SKSpriteNode(texture: Textures.named(spot.name),
-                                    size: CGSize(width: tileSize * spot.w, height: tileSize * spot.h))
-            node.anchorPoint = CGPoint(x: 0.5, y: 0)
-            let p = position(x: spot.x, y: spot.y, farm: farm)
-            node.position = CGPoint(x: p.x, y: p.y - tileSize / 2)
-            node.zPosition = 1
-            world.addChild(node)
-            props[i] = node
-        }
-    }
-
-    /// Grass grows within 2.3 tiles of any bed (same rule as art/generate_sprites.py).
-    private func isGreen(_ farm: Farm, _ x: Int, _ y: Int) -> Bool {
-        for yy in max(0, y - 2)...min(farm.height - 1, y + 2) {
-            for xx in max(0, x - 2)...min(farm.width - 1, x + 2) where farm.tiles[yy * farm.width + xx].tilled {
-                let d = Double((xx - x) * (xx - x) + (yy - y) * (yy - y))
-                if d <= 2.3 * 2.3 { return true }
-            }
-        }
-        return false
-    }
-
-    private func groundName(x: Int, y: Int, farm: Farm) -> String {
-        if farm.tiles[y * farm.width + x].tilled { return "tile_bed" }
-        guard isGreen(farm, x, y) else { return "tile_dust_\(abs(x &* 7 &+ y &* 13) % 3)" }
-        func g(_ xx: Int, _ yy: Int) -> Bool {
-            guard xx >= 0, yy >= 0, xx < farm.width, yy < farm.height else { return true }
-            return isGreen(farm, xx, yy)
-        }
-        let mask = (g(x, y - 1) ? 1 : 0) | (g(x + 1, y) ? 2 : 0) | (g(x, y + 1) ? 4 : 0) | (g(x - 1, y) ? 8 : 0)
-        if mask == 15 {
-            let v = (x * 5 + y * 3) % 7
-            return "tile_grass_\(v == 0 ? 1 : v == 3 ? 2 : 0)"
-        }
-        return "tile_grass_edge_\(mask)"
     }
 
     private func refreshAll(animated: Bool) {
@@ -165,13 +237,16 @@ final class FarmScene: SKScene {
     }
 
     private func refreshTile(x: Int, y: Int, animated: Bool) {
-        guard let store, let i = store.farm.index(x: x, y: y) else { return }
+        guard let store, let layout, let i = store.farm.index(x: x, y: y) else { return }
         let tile = store.farm.tiles[i]
-        let name = groundName(x: x, y: y, farm: store.farm)
+        let name = layout.groundName(store.farm, x: x, y: y)
         if groundNames[i] != name {
             groundNames[i] = name
             groundNodes[i].texture = Textures.named(name)
-            props[i]?.isHidden = name != "" && !name.hasPrefix("tile_dust")
+            if let prop = props[i] {
+                let alive = !name.hasPrefix("tile_dust")
+                prop.run(.fadeAlpha(to: alive ? 0 : 1, duration: animated ? 0.4 : 0))
+            }
         }
 
         let node = cropNodes[i]
@@ -260,6 +335,10 @@ final class FarmScene: SKScene {
         let x = Int(floor(p.x / tileSize + CGFloat(farm.width) / 2))
         let y = Int(floor(CGFloat(farm.height) / 2 - p.y / tileSize))
         guard farm.index(x: x, y: y) != nil else { return }
+        if layout?.isBlocked(x: x, y: y) == true {
+            lightTap.impactOccurred(intensity: 0.4)
+            return
+        }
         handleTap(x: x, y: y)
     }
 
@@ -293,7 +372,7 @@ final class FarmScene: SKScene {
         switch outcome {
         case .tilled:
             lightTap.impactOccurred()
-            refreshTile(x: x, y: y, animated: true)
+            refreshAll(animated: true)  // grass spreads around the new bed
             dustPuff(at: ground.position)
             ground.run(.sequence([.scale(to: 1.08, duration: 0.06), .scale(to: 1, duration: 0.1)]))
         case .planted:
@@ -320,7 +399,7 @@ final class FarmScene: SKScene {
         let c = SKSpriteNode(texture: Textures.named("ui_cursor"), size: CGSize(width: tileSize, height: tileSize))
         c.name = "cursor"
         c.position = p
-        c.zPosition = 5
+        c.zPosition = 50
         c.setScale(1.25)
         world.addChild(c)
         c.run(.sequence([.scale(to: 1, duration: 0.12), .wait(forDuration: 0.6), .fadeOut(withDuration: 0.25), .removeFromParent()]))
@@ -330,7 +409,7 @@ final class FarmScene: SKScene {
         for k in 0..<6 {
             let d = SKSpriteNode(color: Palette.dustLight, size: CGSize(width: 6, height: 6))
             d.position = p
-            d.zPosition = 4
+            d.zPosition = 40
             world.addChild(d)
             let a = CGFloat(k) / 6 * .pi * 2
             d.run(.sequence([
@@ -342,8 +421,8 @@ final class FarmScene: SKScene {
 
     private func sparkle(on node: SKSpriteNode) {
         let s = SKSpriteNode(texture: Textures.named("fx_sparkle"), size: CGSize(width: 24, height: 24))
-        s.position = CGPoint(x: CGFloat.random(in: -14...14), y: CGFloat.random(in: 22...40))
-        s.zPosition = 2
+        s.position = CGPoint(x: CGFloat.random(in: -14...14), y: CGFloat.random(in: 30...60))
+        s.zPosition = 0.01
         s.setScale(0.2)
         node.addChild(s)
         s.run(.sequence([.scale(to: 1, duration: 0.15), .scale(to: 0.2, duration: 0.25), .removeFromParent()]))
@@ -355,7 +434,7 @@ final class FarmScene: SKScene {
         let ghost = SKSpriteNode(texture: tex, size: node.size)
         ghost.anchorPoint = node.anchorPoint
         ghost.position = parent.convert(node.position, to: world)
-        ghost.zPosition = 6
+        ghost.zPosition = 60
         world.addChild(ghost)
         let jump = SKAction.moveBy(x: 0, y: 40, duration: 0.18)
         jump.timingMode = .easeOut
@@ -369,7 +448,7 @@ final class FarmScene: SKScene {
         for k in 0..<min(result.coins, 8) {
             let c = SKSpriteNode(texture: Textures.named("ui_coin"), size: CGSize(width: 24, height: 24))
             c.position = CGPoint(x: origin.x, y: origin.y + 20)
-            c.zPosition = 7
+            c.zPosition = 61
             world.addChild(c)
             let dx = CGFloat.random(in: -40...40)
             let up = SKAction.moveBy(x: dx, y: CGFloat.random(in: 40...70), duration: 0.25)
@@ -379,14 +458,44 @@ final class FarmScene: SKScene {
             c.run(.sequence([.wait(forDuration: Double(k) * 0.03), up, .group([away, .fadeOut(withDuration: 0.45)]), .removeFromParent()]))
         }
 
-        let label = SKLabelNode(text: "+\(result.coins)")
-        label.fontName = "AvenirNext-Heavy"
-        label.fontSize = 22
-        label.fontColor = Palette.gold
-        label.position = CGPoint(x: origin.x, y: origin.y + 56)
-        label.zPosition = 8
+        let label = PixelLabel.make("+\(result.coins)", gold: true, scale: 3)
+        label.position = CGPoint(x: origin.x, y: origin.y + 64)
+        label.zPosition = 62
         world.addChild(label)
-        label.run(.sequence([.group([.moveBy(x: 0, y: 34, duration: 0.8), .sequence([.wait(forDuration: 0.4), .fadeOut(withDuration: 0.4)])]), .removeFromParent()]))
+        label.setScale(0.4)
+        label.run(.sequence([
+            .scale(to: 1, duration: 0.12),
+            .group([.moveBy(x: 0, y: 34, duration: 0.8), .sequence([.wait(forDuration: 0.4), .fadeOut(withDuration: 0.4)])]),
+            .removeFromParent(),
+        ]))
+    }
+}
+
+/// Numbers drawn with the game's pixel font sprites (font_0 ... font_9, font_plus, font_L, font_V).
+enum PixelLabel {
+    static func glyphName(_ ch: Character, gold: Bool) -> String? {
+        let key: String
+        switch ch {
+        case "+": key = "plus"
+        case "0"..."9", "L", "V": key = String(ch)
+        default: return nil
+        }
+        return (gold ? "font_gold_" : "font_") + key
+    }
+
+    @MainActor
+    static func make(_ text: String, gold: Bool, scale: CGFloat) -> SKNode {
+        let node = SKNode()
+        let names = text.compactMap { glyphName($0, gold: gold) }
+        let step = 6 * scale  // 7 px glyphs share one column
+        var x = -CGFloat(names.count - 1) * step / 2
+        for name in names {
+            let g = SKSpriteNode(texture: Textures.named(name), size: CGSize(width: 7 * scale, height: 10 * scale))
+            g.position = CGPoint(x: x, y: 0)
+            node.addChild(g)
+            x += step
+        }
+        return node
     }
 }
 
@@ -400,6 +509,13 @@ enum Textures {
         let t = SKTexture(imageNamed: name)
         t.filteringMode = .nearest
         cache[name] = t
+        return t
+    }
+
+    /// Smooth textures (light, vignette) are scaled with linear filtering.
+    static func smooth(_ name: String) -> SKTexture {
+        let t = SKTexture(imageNamed: name)
+        t.filteringMode = .linear
         return t
     }
 }

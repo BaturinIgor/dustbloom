@@ -562,6 +562,298 @@ def scarecrow():
     return dark_outline(im)
 
 
+def farmhouse():
+    """48x48 farmhouse: crimson shingle roof, plank walls, glowing windows."""
+    im = new(48, 48)
+    # foundation stones
+    for x in range(4, 44):
+        put(im, x, 44, "d4" if (x // 3) % 2 else "d3")
+        put(im, x, 45, "d2")
+        put(im, x, 46, "d1")
+    # plank walls
+    for y in range(24, 44):
+        for x in range(5, 43):
+            c = "w3" if x < 24 else "w2"
+            if (x - 5) % 5 == 0:
+                c = "w1"
+            elif (x - 5) % 5 == 1 and x < 24:
+                c = "w4"
+            put(im, x, y, c)
+    for x in range(5, 43):  # shadow under the eaves
+        put(im, x, 24, "w0")
+        put(im, x, 25, "w1")
+    # door
+    rect(im, 20, 30, 28, 43, "w0")
+    rect(im, 21, 31, 27, 43, "w1")
+    for y in range(31, 44):
+        put(im, 24, y, "w0")
+    put(im, 26, 37, "y4")
+    rect(im, 19, 29, 29, 29, "w4")
+    # windows with warm light and a flower box
+    for wx in (8, 32):
+        rect(im, wx, 29, wx + 7, 36, "w0")
+        for y in range(30, 36):
+            for x in range(wx + 1, wx + 7):
+                put(im, x, y, "y4" if y < 33 else "y3")
+        put(im, wx + 1, 30, "y5")
+        put(im, wx + 2, 30, "y5")
+        for y in range(30, 36):
+            put(im, wx + 4, y, "w0")
+        for x in range(wx + 1, wx + 7):
+            put(im, x, 33, "w0")
+        rect(im, wx - 1, 37, wx + 8, 38, "w1")
+        for x in range(wx, wx + 8, 2):
+            put(im, x, 36, "r2" if (x // 2) % 2 else "y4")
+            put(im, x + 1, 36, "g3")
+    # roof: shingle rows, widening downwards
+    for y in range(4, 25):
+        half = 14 + (y - 4) * 9 // 20
+        for x in range(24 - half, 24 + half):
+            row = (y - 4) // 3
+            shift = 2 if row % 2 else 0
+            c = "c2" if x < 24 else "c1"
+            if (y - 4) % 3 == 2:
+                c = "r1" if x < 24 else "c1"
+            elif (x + shift) % 4 == 0:
+                c = "c1"
+            elif (y - 4) % 3 == 0 and x < 24:
+                c = "c3"
+            put(im, x, y, c)
+    for x in range(9, 39):  # ridge cap
+        put(im, x, 3, "w2")
+        put(im, x, 2, "w4" if x < 24 else "w3")
+    # chimney
+    rect(im, 33, 0, 37, 8, "d3")
+    rect(im, 32, 0, 38, 1, "d4")
+    for y in range(2, 9):
+        put(im, 37, y, "d1")
+        put(im, 33, y, "d4")
+    dark_outline(im)
+    return im
+
+
+def windmill_tower():
+    """32x48 stone and timber tower; the sails are a separate sprite that spins."""
+    im = new(32, 48)
+    for y in range(10, 46):
+        half = 6 + (y - 10) * 6 // 36
+        for x in range(16 - half, 16 + half):
+            c = "d4" if x < 16 else "d3"
+            if (y // 4 + x // 4) % 2 == 0 and (y % 4 == 0 or x % 4 == 0):
+                c = "d2"
+            if x == 16 - half:
+                c = "d5"
+            put(im, x, y, c)
+    # timber cap
+    for y in range(3, 11):
+        half = 4 + (y - 3)
+        for x in range(16 - half, 16 + half):
+            put(im, x, y, "w2" if x < 16 else "w1")
+            if y == 3 + (y % 2) and x < 16:
+                put(im, x, y, "w3")
+    rect(im, 13, 36, 18, 45, "w0")  # door
+    rect(im, 14, 37, 17, 45, "w1")
+    rect(im, 14, 20, 17, 24, "w0")  # window
+    rect(im, 15, 21, 16, 23, "y3")
+    rect(im, 14, 6, 17, 9, "w0")  # hub
+    return dark_outline(im)
+
+
+def windmill_sails():
+    """40x40, four lattice sails around a hub; rotate this node in-game."""
+    im = new(40, 40)
+    c = 20
+    for ang in range(4):
+        a = ang * math.pi / 2 + math.pi / 4
+        dx, dy = math.cos(a), math.sin(a)
+        px, py = -dy, dx
+        for r in range(2, 19):
+            x, y = c + dx * r, c + dy * r
+            put(im, x, y, "w1")
+            if r > 5:
+                for w in range(1, 5):
+                    sx, sy = x + px * w, y + py * w
+                    put(im, sx, sy, "white" if w < 4 else "w3")
+                    if r % 4 == 0:
+                        put(im, sx, sy, "w2")
+    rect(im, 18, 18, 21, 21, "w0")
+    put(im, 19, 19, "w4")
+    return dark_outline(im)
+
+
+def pond(frame):
+    """48x32 pond with shore, depth, lily pads, reeds and moving glints."""
+    im = new(48, 32)
+    cx, cy, rx, ry = 24, 16, 22, 13
+    for y in range(32):
+        for x in range(48):
+            d = ((x + 0.5 - cx) / rx) ** 2 + ((y + 0.5 - cy) / ry) ** 2
+            if d > 1:
+                continue
+            if d > 0.82:
+                c = "s4" if y < cy else "s3"  # sandy shore
+                if d > 0.93:
+                    c = "s5" if y < cy else "s2"
+            elif d > 0.62:
+                c = "m2"
+            elif d > 0.3:
+                c = "m1" if dither(x, y, (0.62 - d) * 3) else "m2"
+            else:
+                c = "m0" if dither(x, y, (0.3 - d) * 4) else "m1"
+            put(im, x, y, c)
+    # shore shadow line on the water (top edge)
+    for x in range(48):
+        for y in range(32):
+            d = ((x + 0.5 - cx) / rx) ** 2 + ((y + 0.5 - cy) / ry) ** 2
+            if 0.74 < d <= 0.82 and y < cy:
+                put(im, x, y, "m1")
+    # glints that move between frames
+    off = 3 if frame else 0
+    for gx, gy, n in ((12 + off, 12, 4), (26 - off, 19, 3), (32 + off, 10, 2), (18, 22 - (1 if frame else 0), 2)):
+        for i in range(n):
+            put(im, gx + i, gy, "m4" if i else "m5")
+    # lily pads
+    for lx, ly in ((30, 18), (14, 16)):
+        for y in range(ly - 2, ly + 2):
+            for x in range(lx - 3, lx + 3):
+                if ((x + 0.5 - lx) / 3) ** 2 + ((y + 0.5 - ly) / 2) ** 2 <= 1 and not (x == lx and y < ly):
+                    put(im, x, y, "g3" if y < ly else "g2")
+    put(im, 31, 16, "r3")
+    put(im, 32, 16, "r2")
+    put(im, 31, 15, "white")
+    # reeds
+    for rx_, h in ((5, 9), (7, 12), (9, 8), (41, 10), (43, 7)):
+        for j in range(h):
+            put(im, rx_, 22 - j, "g2" if j < h - 3 else "g3")
+        rect(im, rx_, 22 - h, rx_, 22 - h + 2, "w1")
+    return dark_outline(im)
+
+
+def stepping_stones():
+    im = new()
+    for sx, sy in ((3, 3), (9, 6), (4, 10), (10, 12)):
+        ball(im, sx + 1.5, sy + 1, 2.4, 1.6, ("d1", "d2", "d3", "d4", "d5", "d6"))
+        put(im, sx, sy + 3, "g0")
+        put(im, sx + 2, sy + 3, "g0")
+    return im
+
+
+def firefly():
+    im = new(8, 8)
+    for y in range(8):
+        for x in range(8):
+            d = math.hypot(x + 0.5 - 4, y + 0.5 - 4)
+            if d < 3.8:
+                put(im, x, y, "y4", int(max(0, 110 - d * 30)))
+    put(im, 3, 3, "y5")
+    put(im, 4, 3, "white")
+    put(im, 3, 4, "y4")
+    put(im, 4, 4, "y5")
+    return im
+
+
+def mote():
+    im = new(4, 4)
+    put(im, 1, 1, "d6", 200)
+    put(im, 2, 1, "d6", 120)
+    put(im, 1, 2, "d6", 120)
+    return im
+
+
+def smoke():
+    im = new(8, 8)
+    for y in range(8):
+        for x in range(8):
+            d = math.hypot(x + 0.5 - 4, y + 0.5 - 4)
+            if d < 3.6:
+                put(im, x, y, "d6" if x + y < 7 else "d4", 210)
+    return im
+
+
+# ------------------------------------------------------------------ pixel font
+GLYPHS = {
+    "0": ["01110", "10001", "10011", "10101", "11001", "10001", "01110"],
+    "1": ["00100", "01100", "00100", "00100", "00100", "00100", "01110"],
+    "2": ["01110", "10001", "00001", "00110", "01000", "10000", "11111"],
+    "3": ["11110", "00001", "00001", "01110", "00001", "00001", "11110"],
+    "4": ["00010", "00110", "01010", "10010", "11111", "00010", "00010"],
+    "5": ["11111", "10000", "11110", "00001", "00001", "10001", "01110"],
+    "6": ["00110", "01000", "10000", "11110", "10001", "10001", "01110"],
+    "7": ["11111", "00001", "00010", "00100", "01000", "01000", "01000"],
+    "8": ["01110", "10001", "10001", "01110", "10001", "10001", "01110"],
+    "9": ["01110", "10001", "10001", "01111", "00001", "00010", "01100"],
+    "+": ["00000", "00100", "00100", "11111", "00100", "00100", "00000"],
+    "L": ["10000", "10000", "10000", "10000", "10000", "10000", "11111"],
+    "V": ["10001", "10001", "10001", "10001", "01010", "01010", "00100"],
+}
+
+
+def glyph(ch, fill=("y5", "y3"), edge="ink"):
+    """7x10 glyph: 5x7 shape with a two-tone fill (light top, darker bottom),
+    a 1 px outline and a 1 px drop shadow under the outline."""
+    im = new(7, 10)
+    for y, row in enumerate(GLYPHS[ch]):
+        for x, bit in enumerate(row):
+            if bit == "1":
+                put(im, x + 1, y + 1, fill[0] if y < 3 else fill[1])
+    shape = im.copy()
+    for y in range(im.height):
+        for x in range(im.width):
+            if shape.getpixel((x, y))[3]:
+                continue
+            if edge and any(get(shape, x + dx, y + dy)[3] for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1))):
+                put(im, x, y, edge)
+    return im
+
+
+def text_image(text, fill=("y5", "y3"), edge="ink"):
+    """Glyphs share their outline column, so letters sit 1 px apart."""
+    gl = [glyph(c, fill, edge) for c in text]
+    w = sum(g.width - 1 for g in gl) + 1
+    im = new(w, 10)
+    x = 0
+    for g in gl:
+        im.alpha_composite(g, (x, 0))
+        x += g.width - 1
+    return im
+
+
+# ------------------------------------------------------------------ pixel UI frames (pre-scaled x3)
+def nine_slice(fill, light, shade, outline="ink", size=12, corner=4):
+    im = new(size, size)
+    for y in range(size):
+        for x in range(size):
+            cut = (x in (0, size - 1)) and (y in (0, size - 1))
+            if cut:
+                continue
+            edge = x in (0, size - 1) or y in (0, size - 1)
+            c = outline if edge else fill
+            if not edge:
+                if y == 1 or x == 1:
+                    c = light
+                if y == size - 2 or x == size - 2:
+                    c = shade
+                if y == size - 3 and 1 < x < size - 2:
+                    c = shade
+            put(im, x, y, c)
+    put(im, 1, 1, outline)
+    put(im, size - 2, 1, outline)
+    put(im, 1, size - 2, outline)
+    put(im, size - 2, size - 2, outline)
+    return im
+
+
+def ui_frames():
+    parch = ("#f4e6c4", "#fff7e6", "#d9bf88")
+    P["p0"], P["p1"], P["p2"] = parch
+    P["ps0"], P["ps1"], P["ps2"] = "#e2cc9a", "#efdcb0", "#c4a670"
+    return {
+        "ui_panel": nine_slice("p0", "p1", "p2"),
+        "ui_slot": nine_slice("ps0", "ps1", "ps2", outline="w1"),
+        "ui_slot_selected": nine_slice("y3", "y5", "y1", outline="w0"),
+    }
+
+
 # ------------------------------------------------------------------ ui bits
 def coin():
     im = new()
@@ -618,6 +910,43 @@ def write_app_icon(src):
         }, f, indent=2)
 
 
+def cast_shadow(im, base_y=None, shear=0.55, squash=0.45, alpha=80):
+    """Bake a long evening shadow: the sprite's silhouette laid on the ground,
+    sheared to the right (sun low on the left). Same canvas height, wider."""
+    w, h = im.size
+    base_y = h if base_y is None else base_y
+    sh = int(base_y * squash)
+    out = new(w + int(base_y * shear) + 2, h)
+    for y in range(base_y):
+        for x in range(w):
+            if im.getpixel((x, y))[3] > 100:
+                dist = base_y - y  # height above ground
+                ny = base_y - 1 - int(dist * squash * 0.35)
+                nx = x + int(dist * shear)
+                if 0 <= ny < h and get(out, nx, ny)[3] == 0:
+                    put(out, nx, ny, "ink", alpha)
+                    put(out, nx + 1, ny, "ink", alpha)
+    return out
+
+
+def light_textures():
+    """Smooth (non-pixel) overlays: warm sunset light and a vignette."""
+    w, h = 64, 128
+    light = Image.new("RGBA", (w, h))
+    for y in range(h):
+        for x in range(w):
+            d = math.hypot((x - 4) / w, (y - 10) / h * 0.9)
+            a = max(0.0, 1 - d * 1.05)
+            light.putpixel((x, y), (255, 178, 96, int(150 * a * a)))
+    vig = Image.new("RGBA", (w, h))
+    for y in range(h):
+        for x in range(w):
+            d = math.hypot((x + 0.5 - w / 2) / (w / 2), (y + 0.5 - h / 2) / (h / 2))
+            a = max(0.0, min(1.0, (d - 0.55) / 0.6))
+            vig.putpixel((x, y), (22, 12, 30, int(200 * a)))
+    return light, vig
+
+
 def build_sprites():
     dust = [tile_dust(s) for s in (1, 2, 3)]
     grass = [tile_grass(11), tile_grass(12, flowers=1), tile_grass(13, flowers=2)]
@@ -645,34 +974,74 @@ def build_sprites():
     s["prop_rock"] = rock()
     s["prop_dead_tree"] = dead_tree()
     s["prop_scarecrow"] = scarecrow()
+    s["prop_house"] = farmhouse()
+    s["prop_windmill"] = windmill_tower()
+    s["prop_windmill_sails"] = windmill_sails()
+    s["prop_pond_0"] = pond(0)
+    s["prop_pond_1"] = pond(1)
+    s["prop_stones"] = stepping_stones()
+    for name in ("prop_house", "prop_windmill", "prop_scarecrow", "prop_dead_tree", "prop_rock"):
+        s["shadow_" + name[5:]] = cast_shadow(s[name])
+    s["fx_firefly"] = firefly()
+    s["fx_mote"] = mote()
+    s["fx_smoke"] = smoke()
     s["ui_coin"] = coin()
     s["ui_cursor"] = cursor()
     s["fx_sparkle"] = sparkle()
+    for ch in GLYPHS:
+        key = {"+": "plus"}.get(ch, ch)
+        s["font_" + key] = glyph(ch, ("w0", "ink"), None)       # HUD: ink on parchment
+        s["font_gold_" + key] = glyph(ch)                        # floating gains
     return s
 
 
-# ---- ground rule shared with the client (FarmScene.groundTexture)
-def is_green(tilled, x, y, w, h):
-    """Grass grows around tilled beds: the farm brings life to the wasteland.
-    A tile is green when the nearest bed is within 2.3 tiles (rounded corners)."""
-    best = 99.0
-    for yy in range(max(0, y - 3), min(h, y + 4)):
-        for xx in range(max(0, x - 3), min(w, x + 4)):
-            if tilled[yy][xx]:
-                best = min(best, math.hypot(xx - x, yy - y))
-    return best <= 2.3
+# ---- world layout shared with the client (FarmScene.swift, Layout)
+# Offsets are relative to the start patch's top-left tile (config startTilled).
+STRUCTURES = [
+    # name, dx, dy (top-left tile), width, height in tiles
+    ("prop_house", -1, -5, 3, 3),
+    ("prop_windmill", 3, -5, 2, 3),
+    ("prop_pond", 3, 5, 3, 2),
+]
+DECOR = [
+    ("prop_stones", 0, -2),
+    ("prop_stones", 0, -1),
+    ("prop_scarecrow", -1, 2),
+]
 
 
-def ground_name(tilled, x, y, w, h):
-    if tilled[y][x]:
+def life_sources(tilled, start, w, h):
+    src = [row[:] for row in tilled]
+    sx, sy = start
+    for _, dx, dy, ww, hh in STRUCTURES:
+        for y in range(sy + dy, sy + dy + hh):
+            for x in range(sx + dx, sx + dx + ww):
+                if 0 <= x < w and 0 <= y < h:
+                    src[y][x] = True
+    return src
+
+
+def is_green(src, x, y, w, h):
+    """Grass grows around beds and buildings: the farm brings life to the
+    wasteland. Green when the nearest life source is within 2.3 tiles."""
+    for yy in range(max(0, y - 2), min(h, y + 3)):
+        for xx in range(max(0, x - 2), min(w, x + 3)):
+            if src[yy][xx] and (xx - x) ** 2 + (yy - y) ** 2 <= 2.3 ** 2:
+                return True
+    return False
+
+
+def ground_name(tilled, src, x, y, w, h):
+    if 0 <= x < w and 0 <= y < h and tilled[y][x]:
         return "tile_bed"
-    if not is_green(tilled, x, y, w, h):
+    inside = 0 <= x < w and 0 <= y < h
+    if not inside or not is_green(src, x, y, w, h):
         return "tile_dust_%d" % ((x * 7 + y * 13) % 3)
 
     def g(xx, yy):
         if not (0 <= xx < w and 0 <= yy < h):
-            return True
-        return is_green(tilled, xx, yy, w, h)
+            return False
+        return is_green(src, xx, yy, w, h)
     mask = (1 if g(x, y - 1) else 0) | (2 if g(x + 1, y) else 0) | (4 if g(x, y + 1) else 0) | (8 if g(x - 1, y) else 0)
     if mask == 15:
         v = (x * 5 + y * 3) % 7
@@ -680,108 +1049,189 @@ def ground_name(tilled, x, y, w, h):
     return "tile_grass_edge_%d" % mask
 
 
-def find_font(size):
-    for p in ("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-              "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"):
-        if os.path.exists(p):
-            return ImageFont.truetype(p, size)
-    return ImageFont.load_default()
-
-
-def render_preview(s):
-    """Phone-screen mockup, 390x844 pt rendered at @2x, tiles 48 pt (16 px x3)."""
-    W, H, PX = 390, 844, 3
-    cols, rows = 12, 22
-    tilled = [[False] * cols for _ in range(rows)]
-    for y in range(9, 13):
-        for x in range(4, 8):
-            tilled[y][x] = True
-    world = Image.new("RGBA", (cols * T, rows * T))
-    for y in range(rows):
-        for x in range(cols):
-            world.alpha_composite(s[ground_name(tilled, x, y, cols, rows)], (x * T, y * T))
-    # props
-    for x in range(3, 9):
-        world.alpha_composite(s["prop_fence"], (x * T, 7 * T - 6))
-    world.alpha_composite(s["prop_scarecrow"], (2 * T + 4, 10 * T - 4))
-    world.alpha_composite(s["prop_rock"], (9 * T + 6, 4 * T))
-    world.alpha_composite(s["prop_rock"], (1 * T, 16 * T + 4))
-    world.alpha_composite(s["prop_dead_tree"], (8 * T, 15 * T))
-    world.alpha_composite(s["prop_dead_tree"], (0 * T, 2 * T))
-    crops = {
-        (4, 9): "dustwheat_3", (5, 9): "dustwheat_3", (6, 9): "dustwheat_2", (7, 9): "dustwheat_1",
-        (4, 10): "emberpumpkin_3", (5, 10): "emberpumpkin_3", (6, 10): "emberpumpkin_2", (7, 10): "emberpumpkin_1",
-        (4, 11): "moonturnip_3", (5, 11): "moonturnip_2", (6, 11): "moonturnip_1", (7, 11): "dustwheat_0",
-        (4, 12): "dustwheat_3", (5, 12): "emberpumpkin_0",
+def nine_slice_draw(dst, tile, box, scale):
+    """Draw a 12x12 nine-slice sprite into box (x0,y0,x1,y1) at pixel scale."""
+    x0, y0, x1, y1 = box
+    c = 4 * scale
+    big = tile.resize((tile.width * scale, tile.height * scale), Image.NEAREST)
+    W, H = x1 - x0, y1 - y0
+    parts = {
+        "tl": (0, 0, c, c), "tr": (big.width - c, 0, big.width, c),
+        "bl": (0, big.height - c, c, big.height), "br": (big.width - c, big.height - c, big.width, big.height),
     }
-    for (x, y), name in sorted(crops.items(), key=lambda kv: kv[0][1]):
-        world.alpha_composite(s[name], (x * T, (y + 1) * T - CH))
-    world.alpha_composite(s["ui_cursor"], (5 * T, 10 * T))
-    world.alpha_composite(s["fx_sparkle"], (5 * T + 11, 10 * T - 9))
-    world.alpha_composite(s["fx_sparkle"], (4 * T + 2, 9 * T - 13))
+    mid = big.crop((c, c, big.width - c, big.height - c)).resize((W - 2 * c, H - 2 * c), Image.NEAREST)
+    top = big.crop((c, 0, big.width - c, c)).resize((W - 2 * c, c), Image.NEAREST)
+    bot = big.crop((c, big.height - c, big.width - c, big.height)).resize((W - 2 * c, c), Image.NEAREST)
+    lef = big.crop((0, c, c, big.height - c)).resize((c, H - 2 * c), Image.NEAREST)
+    rig = big.crop((big.width - c, c, big.width, big.height - c)).resize((c, H - 2 * c), Image.NEAREST)
+    dst.alpha_composite(mid, (x0 + c, y0 + c))
+    dst.alpha_composite(top, (x0 + c, y0))
+    dst.alpha_composite(bot, (x0 + c, y1 - c))
+    dst.alpha_composite(lef, (x0, y0 + c))
+    dst.alpha_composite(rig, (x1 - c, y0 + c))
+    dst.alpha_composite(big.crop(parts["tl"]), (x0, y0))
+    dst.alpha_composite(big.crop(parts["tr"]), (x1 - c, y0))
+    dst.alpha_composite(big.crop(parts["bl"]), (x0, y1 - c))
+    dst.alpha_composite(big.crop(parts["br"]), (x1 - c, y1 - c))
 
-    # camera: crop a phone-sized window centred on the farm
-    view_w, view_h = W // PX, H // PX  # in pixels
-    cx, cy = 6 * T, 11 * T
-    view = world.crop((cx - view_w // 2, cy - view_h // 2, cx - view_w // 2 + view_w, cy - view_h // 2 + view_h))
-    screen = view.resize((view_w * PX * 2, view_h * PX * 2), Image.NEAREST)
 
-    # warm evening light + vignette (also used in-game as an overlay)
+def render_preview(s, frames):
+    """Phone-screen mockup: 390x844 pt at @2x, tiles 48 pt (16 px x3), same
+    layout rules as the game."""
+    W, H, PX, K = 390, 844, 3, 2
+    fw, fh = 16, 16
+    start = (6, 6)
+    tilled = [[False] * fw for _ in range(fh)]
+    for y in range(6, 10):
+        for x in range(6, 10):
+            tilled[y][x] = True
+    src = life_sources(tilled, start, fw, fh)
+    pad = 6  # decorative wasteland beyond the farm edge
+    ww, wh = (fw + 2 * pad) * T, (fh + 2 * pad) * T
+    world = Image.new("RGBA", (ww, wh))
+
+    def at(tx, ty):  # tile -> world pixel
+        return (tx + pad) * T, (ty + pad) * T
+
+    for y in range(-pad, fh + pad):
+        for x in range(-pad, fw + pad):
+            world.alpha_composite(s[ground_name(tilled, src, x, y, fw, fh)], at(x, y))
+
+    objects = []  # (sort_y, name, px, py)
+
+    def obj(name, tx, ty, tw, th, ox=0, oy=0):
+        im = s[name]
+        bx, by = at(tx, ty)
+        px = bx + (tw * T - im.width) // 2 + ox if name != "prop_house" else bx + ox
+        py = by + th * T - im.height + oy
+        objects.append((by + th * T, name, px, py))
+
+    sx, sy = start
+    for name, dx, dy, tw, th in STRUCTURES:
+        n = name + ("_0" if name == "prop_pond" else "")
+        obj(n, sx + dx, sy + dy, tw, th)
+    for name, dx, dy in DECOR:
+        h = s[name].height // T
+        obj(name, sx + dx, sy + dy - (h - 1), 1, h)
+    for name, x, y, th in (("prop_dead_tree", 3, 13, 2), ("prop_rock", 13, 12, 1), ("prop_rock", 2, 1, 1),
+                           ("prop_dead_tree", 13, -1, 2), ("prop_rock", 4, 15, 1)):
+        obj(name, x, y - (th - 1), 2 if th == 2 else 1, th)
+    # fence pieces flanking the path
+    for x in (sx - 2, sx - 1, sx + 1, sx + 2, sx + 3):
+        obj("prop_fence", x, sy - 2, 1, 1, oy=-4)
+
+    crops = {
+        (6, 6): "dustwheat_3", (7, 6): "dustwheat_3", (8, 6): "dustwheat_2", (9, 6): "dustwheat_1",
+        (6, 7): "emberpumpkin_3", (7, 7): "emberpumpkin_3", (8, 7): "emberpumpkin_2", (9, 7): "emberpumpkin_1",
+        (6, 8): "moonturnip_3", (7, 8): "moonturnip_3", (8, 8): "moonturnip_2", (9, 8): "dustwheat_0",
+        (6, 9): "moonturnip_1", (7, 9): "emberpumpkin_0",
+    }
+    for (x, y), name in crops.items():
+        bx, by = at(x, y)
+        objects.append((by + T - 0.5, name, bx, by + T - CH))
+
+    # shadows first (on the ground), then objects back to front
+    for sort_y, name, px, py in objects:
+        key = "shadow_" + name[5:]
+        if name.startswith("prop_") and key in s:
+            world.alpha_composite(s[key], (px, py))
+    for sort_y, name, px, py in sorted(objects, key=lambda o: o[0]):
+        world.alpha_composite(s[name], (px, py))
+        if name == "prop_windmill":
+            sails = s["prop_windmill_sails"].rotate(12, resample=Image.NEAREST)
+            world.alpha_composite(sails, (px + 16 - 20, py + 8 - 20))
+        if name == "prop_house":
+            for i, (ox, oy) in enumerate(((35, -6), (37, -12), (40, -19))):
+                sm = s["fx_smoke"].copy()
+                sm.putalpha(sm.getchannel("A").point(lambda a, i=i: int(a * (1 - i * 0.28))))
+                world.alpha_composite(sm, (px + ox, py + oy))
+
+    # life fx: fireflies over the grass, dust motes over the wasteland
+    rnd = random.Random(9)
+    for _ in range(140):
+        tx, ty = rnd.randint(-pad, fw + pad - 1), rnd.randint(-pad, fh + pad - 1)
+        inside = 0 <= tx < fw and 0 <= ty < fh
+        px, py = at(tx, ty)
+        px += rnd.randint(0, 12)
+        py += rnd.randint(0, 12)
+        if inside and is_green(src, tx, ty, fw, fh) and not tilled[ty][tx]:
+            if rnd.random() < 0.35:
+                world.alpha_composite(s["fx_firefly"], (px, py))
+        elif rnd.random() < 0.5:
+            world.alpha_composite(s["fx_mote"], (px, py))
+
+    # sparkles on ripe crops + cursor on the one being harvested
+    for (x, y) in ((6, 6), (7, 8)):
+        bx, by = at(x, y)
+        world.alpha_composite(s["fx_sparkle"], (bx + 10, by - 9))
+    cbx, cby = at(7, 7)
+    world.alpha_composite(s["ui_cursor"], (cbx, cby))
+
+    # camera
+    vw, vh = W // PX, H // PX
+    cx, cy = at(8, 6)
+    cx += 0
+    cy += 8
+    view = world.crop((cx - vw // 2, cy - vh // 2, cx - vw // 2 + vw, cy - vh // 2 + vh))
+    screen = view.resize((vw * PX * K, vh * PX * K), Image.NEAREST)
     sw, sh = screen.size
-    light = Image.new("RGBA", (sw, sh), (0, 0, 0, 0))
-    ld = ImageDraw.Draw(light)
-    ld.ellipse((-sw * 0.3, -sh * 0.05, sw * 1.3, sh * 1.0), fill=(255, 200, 120, 36))
-    light = light.filter(ImageFilter.GaussianBlur(120))
-    screen.alpha_composite(light)
-    vig = Image.new("L", (sw, sh), 0)
-    ImageDraw.Draw(vig).ellipse((-sw * 0.25, -sh * 0.12, sw * 1.25, sh * 1.12), fill=255)
-    vig = vig.filter(ImageFilter.GaussianBlur(160))
-    dark = Image.new("RGBA", (sw, sh), (20, 12, 26, 150))
-    dark.putalpha(Image.eval(vig, lambda v: int((255 - v) * 0.6)))
-    screen.alpha_composite(dark)
 
-    # HUD (mirrors HUDView.swift), drawn at @2x
-    hud = ImageDraw.Draw(screen)
-    k = 2
-    parch, shade, outl, ink = rgba("white")[:3], (226, 204, 154), (43, 29, 22), (58, 42, 32)
-    gold, gold_d = (255, 224, 138), (232, 180, 67)
-    f = find_font(17 * k)
-    fs = find_font(13 * k)
+    # lighting: the same overlays the game uses (fx_light additive, fx_vignette)
+    light, vig = frames["fx_light"], frames["fx_vignette"]
+    lt = light.resize((sw, sh), Image.BILINEAR)
+    base = screen.convert("RGB")
+    add = Image.new("RGB", (sw, sh))
+    add.paste(lt.convert("RGB"), mask=lt.getchannel("A"))
+    from PIL import ImageChops
+    base = ImageChops.add(base, ImageChops.multiply(add, Image.new("RGB", (sw, sh), (170, 170, 170))))
+    screen = base.convert("RGBA")
+    screen.alpha_composite(vig.resize((sw, sh), Image.BILINEAR))
 
-    def pill(x, y, w, text, icon=None):
-        hud.rounded_rectangle((x, y, x + w, y + 34 * k), radius=17 * k, fill=(244, 230, 196), outline=outl, width=3 * k)
-        tx = x + 12 * k
-        if icon is not None:
-            screen.alpha_composite(icon.resize((22 * k, 22 * k), Image.NEAREST), (tx, y + 6 * k))
-            tx += 28 * k
-        hud.text((tx, y + 7 * k), text, font=f, fill=ink)
+    # HUD: pixel panels and pixel font, the same assets HUDView.swift uses
+    U = PX * K  # one art pixel on screen
+    def pixtext(text, x, y, scale=U, ink=True):
+        im = text_image(text, ("w0", "ink"), None) if ink else text_image(text)
+        im = im.resize((im.width * scale, im.height * scale), Image.NEAREST)
+        screen.alpha_composite(im, (x, y))
+        return im.width
 
-    top = 58 * k
-    pill(16 * k, top, 110 * k, "126", s["ui_coin"])
-    pill(134 * k, top, 72 * k, "LV 3")
+    top = 54 * K
+    # coin pill
+    nine_slice_draw(screen, frames["ui_panel"], (16 * K, top, 16 * K + 120 * K, top + 42 * K), U)
+    coin = s["ui_coin"].resize((16 * U // 2 * 1, 16 * U // 2), Image.NEAREST)
+    coin = s["ui_coin"].resize((14 * K * 2, 14 * K * 2), Image.NEAREST)
+    screen.alpha_composite(coin, (24 * K, top + 7 * K))
+    pixtext("126", 52 * K, top + 6 * K, U)
+    # level pill
+    nine_slice_draw(screen, frames["ui_panel"], (144 * K, top, 144 * K + 92 * K, top + 42 * K), U)
+    pixtext("LV3", 156 * K, top + 6 * K, U)
+
     # crop bar
-    bw, bh = 3 * 74 * k + 2 * 12 * k + 20 * k, 96 * k
-    bx, by = (sw - bw) // 2, sh - bh - 34 * k
-    hud.rounded_rectangle((bx, by, bx + bw, by + bh), radius=14 * k, fill=(244, 230, 196), outline=outl, width=3 * k)
-    for i, (cid, cost) in enumerate((("dustwheat", 2), ("emberpumpkin", 8), ("moonturnip", 20))):
-        x = bx + 10 * k + i * (74 * k + 12 * k)
-        y = by + 10 * k
+    slot_w, slot_h, gap = 88 * K, 96 * K, 10 * K
+    bw = 3 * slot_w + 2 * gap + 24 * K
+    bh = slot_h + 24 * K
+    bx, by = (sw - bw) // 2, sh - bh - 30 * K
+    nine_slice_draw(screen, frames["ui_panel"], (bx, by, bx + bw, by + bh), U)
+    for i, (cid, cost) in enumerate((("dustwheat", "2"), ("emberpumpkin", "8"), ("moonturnip", "20"))):
+        x = bx + 12 * K + i * (slot_w + gap)
+        y = by + 12 * K
         sel = i == 1
-        hud.rounded_rectangle((x, y, x + 74 * k, y + 76 * k), radius=10 * k,
-                              fill=gold if sel else shade, outline=gold_d if sel else None, width=3 * k)
-        spr = s[cid + "_3"].crop((0, 4, CW, CH))  # trim empty top
-        spr = spr.resize((spr.width * 3 * k // 1, spr.height * 3 * k // 1), Image.NEAREST)
-        spr = spr.resize((spr.width * 2 // 3, spr.height * 2 // 3), Image.NEAREST)
-        screen.alpha_composite(spr, (x + (74 * k - spr.width) // 2, y + 2 * k))
-        screen.alpha_composite(s["ui_coin"].resize((14 * k, 14 * k), Image.NEAREST), (x + 22 * k, y + 56 * k))
-        hud.text((x + 40 * k, y + 54 * k), str(cost), font=fs, fill=ink)
+        lift = 4 * K if sel else 0
+        nine_slice_draw(screen, frames["ui_slot_selected" if sel else "ui_slot"], (x, y - lift, x + slot_w, y + slot_h - lift), U)
+        spr = s[cid + "_3"].crop((0, 4, CW, CH - 2))
+        spr = spr.resize((spr.width * U, spr.height * U), Image.NEAREST)
+        screen.alpha_composite(spr, (x + (slot_w - spr.width) // 2, y + 2 * K - lift))
+        cw = 16 * K
+        tw = (len(cost) * 6 + 1) * 2 * K
+        tx = x + (slot_w - (cw + 3 * K + tw)) // 2
+        ty = y + slot_h - 26 * K - lift
+        screen.alpha_composite(s["ui_coin"].resize((cw, cw), Image.NEAREST), (tx, ty + 1 * K))
+        pixtext(cost, tx + cw + 3 * K, ty, 2 * K)
 
-    # floating "+22" over the harvested pumpkin
-    fb = find_font(22 * k)
-    hx, hy = (5 * T - (cx - view_w // 2)) * PX * k + 6 * k, (10 * T - 14 - (cy - view_h // 2)) * PX * k
-    for ox, oy in ((-3, 0), (3, 0), (0, -3), (0, 3)):
-        hud.text((hx + ox, hy + oy), "+22", font=fb, fill=outl)
-    hud.text((hx, hy), "+22", font=fb, fill=gold)
+    # floating +22 over the harvested pumpkin
+    hx = (cbx - (cx - vw // 2)) * U - 2 * K
+    hy = (cby - 20 - (cy - vh // 2)) * U
+    pixtext("+22", hx, hy, 3 * K, ink=False)
     return screen
 
 
@@ -791,14 +1241,24 @@ def main():
         json.dump({"info": {"author": "xcode", "version": 1}}, f, indent=2)
 
     s = build_sprites()
-    # drop images from older generator versions
+    frames = ui_frames()
+    light, vig = light_textures()
+    frames["fx_light"], frames["fx_vignette"] = light, vig
+
+    keep = set(s) | set(frames) | {"logo_wordmark"}
     for d in os.listdir(ASSETS):
-        if d.endswith(".imageset") and d[:-9] not in s and d != "logo_wordmark.imageset":
+        if d.endswith(".imageset") and d[:-9] not in keep:
             for f in os.listdir(os.path.join(ASSETS, d)):
                 os.remove(os.path.join(ASSETS, d, f))
             os.rmdir(os.path.join(ASSETS, d))
     for name, im in s.items():
         save_imageset(name, im)
+    for name in ("ui_panel", "ui_slot", "ui_slot_selected"):
+        # pre-scaled x3 so SwiftUI nine-slice cap insets are 12 pt
+        im = frames[name]
+        save_imageset(name, im.resize((im.width * 3, im.height * 3), Image.NEAREST))
+    save_imageset("fx_light", light)
+    save_imageset("fx_vignette", vig)
 
     src = os.path.join(ROOT, "art", "source")
     if os.path.exists(os.path.join(src, "wordmark.png")):
@@ -806,16 +1266,16 @@ def main():
     if os.path.exists(os.path.join(src, "app_icon_1024.png")):
         write_app_icon(os.path.join(src, "app_icon_1024.png"))
 
-    render_preview(s).convert("RGB").save(os.path.join(ROOT, "art", "preview.png"))
+    render_preview(s, frames).convert("RGB").save(os.path.join(ROOT, "art", "preview.png"))
 
-    items = [v for k, v in s.items() if not k.startswith("tile_grass_edge")]
+    items = [v for k, v in s.items() if not k.startswith(("tile_grass_edge", "font_", "shadow_"))]
     sw = sum(im.width + 2 for im in items)
-    sheet = Image.new("RGBA", (sw, 32), (40, 34, 50, 255))
+    sheet = Image.new("RGBA", (sw, 48), (40, 34, 50, 255))
     x = 0
     for im in items:
-        sheet.alpha_composite(im, (x, 32 - im.height))
+        sheet.alpha_composite(im, (x, 48 - im.height))
         x += im.width + 2
-    sheet.resize((sheet.width * 5, sheet.height * 5), Image.NEAREST).save(os.path.join(ROOT, "art", "sheet.png"))
+    sheet.resize((sheet.width * 4, sheet.height * 4), Image.NEAREST).save(os.path.join(ROOT, "art", "sheet.png"))
     print("wrote %d sprites" % len(s))
 
 

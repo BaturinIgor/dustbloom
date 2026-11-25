@@ -84,4 +84,16 @@ final class FarmTests: XCTestCase {
         XCTAssertNotNil(resp.farm.tiles[0].plantedAt)
         XCTAssertNil(resp.farm.tiles[1].crop)
     }
+
+    func testLayoutBlocksBuildingsAndGrowsGrass() {
+        let farm = Farm(config: config)
+        let layout = FarmLayout(config: config)
+        let s = config.farm.startTilled
+        XCTAssertTrue(layout.isBlocked(x: s.x, y: s.y - 4), "house tile")
+        XCTAssertFalse(layout.isBlocked(x: s.x, y: s.y), "bed tile")
+        XCTAssertEqual(layout.groundName(farm, x: s.x, y: s.y), "tile_bed")
+        XCTAssertTrue(layout.isGreen(farm, s.x - 2, s.y))
+        XCTAssertFalse(layout.isGreen(farm, 0, farm.height - 1))
+        XCTAssertTrue(layout.groundName(farm, x: -3, y: -3).hasPrefix("tile_dust"))
+    }
 }
