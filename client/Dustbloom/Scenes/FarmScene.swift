@@ -384,7 +384,6 @@ final class FarmScene: SKScene {
             refreshTile(x: x, y: y, animated: true)
         case .harvested(let result):
             Sfx.play(.harvest)
-            Sfx.play(.coin, volume: 0.8, after: 0.12)
             if result.levelUp { Sfx.play(.levelUp, after: 0.35) }
             heavyTap.impactOccurred()
             harvestBurst(from: cropNodes[i], result: result)
@@ -436,7 +435,7 @@ final class FarmScene: SKScene {
         s.run(.sequence([.scale(to: 1, duration: 0.15), .scale(to: 0.2, duration: 0.25), .removeFromParent()]))
     }
 
-    /// The ripe crop jumps out, coins fly up and the gain floats away.
+    /// The ripe crop jumps out, flies down into the barn and "+1" floats away.
     private func harvestBurst(from node: SKSpriteNode, result: HarvestResult) {
         guard let parent = node.parent, let tex = node.texture else { return }
         let ghost = SKSpriteNode(texture: tex, size: node.size)
@@ -446,27 +445,20 @@ final class FarmScene: SKScene {
         world.addChild(ghost)
         let jump = SKAction.moveBy(x: 0, y: 40, duration: 0.18)
         jump.timingMode = .easeOut
+        // the barn button sits at the bottom left of the screen
+        let viewH = view?.bounds.height ?? size.height
+        let barn = world.convert(convertPoint(fromView: CGPoint(x: 60, y: viewH - 60)), from: self)
+        let toBarn = SKAction.move(to: barn, duration: 0.4)
+        toBarn.timingMode = .easeIn
         ghost.run(.sequence([
             .group([jump, .sequence([.scaleX(to: 0.8, y: 1.25, duration: 0.09), .scale(to: 1.2, duration: 0.09)])]),
-            .group([.scale(to: 0.2, duration: 0.2), .fadeOut(withDuration: 0.2)]),
+            .group([toBarn, .scale(to: 0.35, duration: 0.4)]),
+            .fadeOut(withDuration: 0.08),
             .removeFromParent(),
         ]))
 
         let origin = ghost.position
-        for k in 0..<min(result.coins, 8) {
-            let c = SKSpriteNode(texture: Textures.named("ui_coin"), size: CGSize(width: 24, height: 24))
-            c.position = CGPoint(x: origin.x, y: origin.y + 20)
-            c.zPosition = 61
-            world.addChild(c)
-            let dx = CGFloat.random(in: -40...40)
-            let up = SKAction.moveBy(x: dx, y: CGFloat.random(in: 40...70), duration: 0.25)
-            up.timingMode = .easeOut
-            let away = SKAction.moveBy(x: dx * 0.3, y: 400, duration: 0.45)
-            away.timingMode = .easeIn
-            c.run(.sequence([.wait(forDuration: Double(k) * 0.03), up, .group([away, .fadeOut(withDuration: 0.45)]), .removeFromParent()]))
-        }
-
-        let label = PixelLabel.make("+\(result.coins)", gold: true, scale: 3)
+        let label = PixelLabel.make("+\(result.count)", gold: false, scale: 3)
         label.position = CGPoint(x: origin.x, y: origin.y + 64)
         label.zPosition = 62
         world.addChild(label)

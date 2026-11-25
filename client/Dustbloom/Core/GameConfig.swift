@@ -31,18 +31,70 @@ struct GameConfig: Codable, Equatable {
         var unlockLevel: Int
 
         /// Name in the device language, falling back to English.
-        var localizedName: String {
-            let lang = Locale.current.language.languageCode?.identifier ?? "en"
-            return name[lang] ?? name["en"] ?? id
-        }
+        var localizedName: String { GameConfig.localized(name, fallback: id) }
+    }
+
+    struct ArmyConfig: Codable, Equatable {
+        var baseSlots: Int
+        var slotsPerLevel: Int
+        var maxSlots: Int
+        var queueSize: Int
+    }
+
+    /// A combat scarecrow built from barn crops.
+    struct Scarecrow: Codable, Equatable, Identifiable {
+        var id: String
+        var name: [String: String]
+        var cost: [String: Int]
+        var coins: Int
+        var buildSeconds: Int
+        var hp: Int
+        var attack: Int
+        var unlockLevel: Int
+
+        var localizedName: String { GameConfig.localized(name, fallback: id) }
+    }
+
+    struct Enemy: Codable, Equatable {
+        var hp: Int
+        var attack: Int
+    }
+
+    /// A wasteland camp the army can raid.
+    struct Raid: Codable, Equatable, Identifiable {
+        var id: String
+        var name: [String: String]
+        var enemies: [Enemy]
+        var rewardCoins: Int
+        var rewardXp: Int
+        var cooldownSeconds: Int
+        var unlockLevel: Int
+
+        var localizedName: String { GameConfig.localized(name, fallback: id) }
     }
 
     var version: Int
     var farm: FarmConfig
     var crops: [Crop]
+    var army: ArmyConfig
+    var scarecrows: [Scarecrow]
+    var raids: [Raid]
 
     func crop(_ id: String) -> Crop? {
         crops.first { $0.id == id }
+    }
+
+    func scarecrow(_ id: String) -> Scarecrow? {
+        scarecrows.first { $0.id == id }
+    }
+
+    func raid(_ id: String) -> Raid? {
+        raids.first { $0.id == id }
+    }
+
+    static func localized(_ names: [String: String], fallback: String) -> String {
+        let lang = Locale.current.language.languageCode?.identifier ?? "en"
+        return names[lang] ?? names["en"] ?? fallback
     }
 
     static func load(from bundle: Bundle = .main) -> GameConfig {

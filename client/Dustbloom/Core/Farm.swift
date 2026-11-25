@@ -11,6 +11,12 @@ enum FarmError: String, Error, Codable {
     case unknownCrop = "unknown_crop"
     case notEnoughCoins = "not_enough_coins"
     case cropLocked = "crop_locked"
+    case notEnoughCrops = "not_enough_crops"
+    case unknownScarecrow = "unknown_scarecrow"
+    case queueFull = "queue_full"
+    case unknownRaid = "unknown_raid"
+    case raidCooldown = "raid_cooldown"
+    case noArmy = "no_army"
 }
 
 struct Tile: Codable, Equatable {
@@ -19,9 +25,10 @@ struct Tile: Codable, Equatable {
     var plantedAt: Date?
 }
 
+/// A harvested crop goes to the barn; it is sold or built into scarecrows.
 struct HarvestResult: Codable, Equatable {
     var crop: String
-    var coins: Int
+    var count: Int
     var xp: Int
     var levelUp: Bool
 }
@@ -34,6 +41,29 @@ struct Farm: Codable, Equatable {
     var coins: Int
     var xp: Int
     var tiles: [Tile]
+    /// Crop id -> count. Missing keys mean zero.
+    var barn: [String: Int] = [:]
+    var army: [ArmyUnit] = []
+    var queue: [Build] = []
+    var raidReadyAt: [String: Date] = [:]
+
+    private enum CodingKeys: String, CodingKey {
+        case width, height, coins, xp, tiles, barn, army, queue, raidReadyAt
+    }
+
+    /// Older saves and the server's omitempty fields may lack the army keys.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        width = try c.decode(Int.self, forKey: .width)
+        height = try c.decode(Int.self, forKey: .height)
+        coins = try c.decode(Int.self, forKey: .coins)
+        xp = try c.decode(Int.self, forKey: .xp)
+        tiles = try c.decode([Tile].self, forKey: .tiles)
+        barn = try c.decodeIfPresent([String: Int].self, forKey: .barn) ?? [:]
+        army = try c.decodeIfPresent([ArmyUnit].self, forKey: .army) ?? []
+        queue = try c.decodeIfPresent([Build].self, forKey: .queue) ?? []
+        raidReadyAt = try c.decodeIfPresent([String: Date].self, forKey: .raidReadyAt) ?? [:]
+    }
 
     init(config: GameConfig) {
         width = config.farm.width
@@ -96,11 +126,26 @@ struct Farm: Codable, Equatable {
         guard let crop = config.crop(cropID) else { throw FarmError.unknownCrop }
         guard Farm.progress(crop: crop, plantedAt: plantedAt, now: now) >= 1 else { throw FarmError.notReady }
         let before = level
-        coins += crop.sellPrice
+        barn[cropID, default: 0] += 1
         xp += crop.xp
         tiles[i].crop = nil
         tiles[i].plantedAt = nil
-        return HarvestResult(crop: cropID, coins: crop.sellPrice, xp: crop.xp, levelUp: level > before)
+        return HarvestResult(crop: cropID, count: 1, xp: crop.xp, levelUp: level > before)
+    }
+
+    /// Sells crops from the barn. Returns the coins earned.
+    mutating func sell(cropID: String, count: Int, config: GameConfig) throws -> Int {
+        guard let crop = config.crop(cropID) else { throw FarmError.unknownCrop }
+        guard count > 0, barn[cropID, default: 0] >= count else { throw FarmError.notEnoughCrops }
+        take(cropID, count)
+        let earned = crop.sellPrice * count
+        coins += earned
+        return earned
+    }
+
+    mutating func take(_ cropID: String, _ count: Int) {
+        let left = barn[cropID, default: 0] - count
+        barn[cropID] = left > 0 ? left : nil
     }
 
     /// Growth from 0 to 1.

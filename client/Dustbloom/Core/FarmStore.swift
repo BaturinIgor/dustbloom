@@ -102,6 +102,71 @@ final class FarmStore: ObservableObject {
         return outcome
     }
 
+    // MARK: - barn, workshop, raids
+
+    /// Sells crops from the barn. Returns the coins earned, or nil on failure.
+    @discardableResult
+    func sell(_ cropID: String, count: Int) -> Int? {
+        var next = farm
+        guard let earned = try? next.sell(cropID: cropID, count: count, config: config) else { return nil }
+        farm = next
+        save()
+        sync { try await $0.sell(crop: cropID, count: count) }
+        return earned
+    }
+
+    func build(_ scarecrowID: String) -> FarmError? {
+        var next = farm
+        do {
+            try next.buildScarecrow(scarecrowID, now: now, config: config)
+        } catch let error as FarmError {
+            return error
+        } catch {
+            return nil
+        }
+        farm = next
+        save()
+        sync { try await $0.build(scarecrow: scarecrowID) }
+        return nil
+    }
+
+    /// Online the server fights the raid; offline it is simulated here.
+    func raid(_ raidID: String) async -> Result<RaidResult, FarmError> {
+        if isOnline, let api {
+            do {
+                let resp = try await api.raid(raidID)
+                apply(resp)
+                if let r = resp.raid { return .success(r) }
+                return .failure(.unknownRaid)
+            } catch APIClient.APIError.game(let code) {
+                return .failure(code)
+            } catch {
+                isOnline = false  // fall through to the offline fight
+            }
+        }
+        var next = farm
+        do {
+            let r = try next.raid(raidID, now: now, config: config)
+            farm = next
+            save()
+            return .success(r)
+        } catch let error as FarmError {
+            return .failure(error)
+        } catch {
+            return .failure(.unknownRaid)
+        }
+    }
+
+    /// Moves finished scarecrows into the army; call on a timer from the UI.
+    func settle() {
+        var next = farm
+        next.settle(now: now, config: config)
+        if next != farm {
+            farm = next
+            save()
+        }
+    }
+
     func progress(of tile: Tile) -> Double? {
         guard let id = tile.crop, let planted = tile.plantedAt, let crop = config.crop(id) else { return nil }
         return Farm.progress(crop: crop, plantedAt: planted, now: now)

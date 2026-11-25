@@ -7,6 +7,8 @@ struct APIClient {
         var level: Int
         var serverTime: Date
         var harvest: HarvestResult?
+        var sold: Int?
+        var raid: RaidResult?
     }
 
     enum APIError: Error {
@@ -54,6 +56,19 @@ struct APIClient {
 
     func harvest(x: Int, y: Int) async throws -> FarmResponse {
         try await send("POST", "/v1/farm/harvest", body: TileBody(x: x, y: y, crop: nil))
+    }
+
+    func sell(crop: String, count: Int) async throws -> FarmResponse {
+        struct Body: Encodable { var crop: String; var count: Int }
+        return try await send("POST", "/v1/farm/sell", body: Body(crop: crop, count: count))
+    }
+
+    func build(scarecrow: String) async throws -> FarmResponse {
+        try await send("POST", "/v1/army/build", body: ["scarecrow": scarecrow])
+    }
+
+    func raid(_ id: String) async throws -> FarmResponse {
+        try await send("POST", "/v1/raid", body: ["raid": id])
     }
 
     private struct TileBody: Encodable {
