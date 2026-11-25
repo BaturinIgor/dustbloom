@@ -26,10 +26,21 @@ final class FarmStore: ObservableObject {
 
     private static let saveKey = "dustbloom.farm.v1"
 
+    /// Demo mode for videos and screenshots (env DUSTBLOOM_DEMO=1): a fresh
+    /// farm with spare coins, time running 15x faster, nothing saved.
+    let isDemo: Bool
+    private let demoStart = Date()
+
     init(config: GameConfig = .load()) {
         self.config = config
         self.selectedCrop = config.crops.first?.id ?? ""
-        if let data = UserDefaults.standard.data(forKey: FarmStore.saveKey),
+        let demo = ProcessInfo.processInfo.environment["DUSTBLOOM_DEMO"] == "1"
+        self.isDemo = demo
+        if demo {
+            var fresh = Farm(config: config)
+            fresh.coins = 500
+            farm = fresh
+        } else if let data = UserDefaults.standard.data(forKey: FarmStore.saveKey),
            let saved = try? JSONDecoder().decode(Farm.self, from: data),
            saved.width == config.farm.width, saved.height == config.farm.height {
             farm = saved
@@ -42,7 +53,10 @@ final class FarmStore: ObservableObject {
         }
     }
 
-    var now: Date { Date().addingTimeInterval(clockOffset) }
+    var now: Date {
+        if isDemo { return demoStart.addingTimeInterval(Date().timeIntervalSince(demoStart) * 15) }
+        return Date().addingTimeInterval(clockOffset)
+    }
 
     /// Logs in and pulls the server farm. Falls back to offline on failure.
     func connect() async {
@@ -94,6 +108,7 @@ final class FarmStore: ObservableObject {
     }
 
     func save() {
+        guard !isDemo else { return }
         if let data = try? JSONEncoder().encode(farm) {
             UserDefaults.standard.set(data, forKey: FarmStore.saveKey)
         }

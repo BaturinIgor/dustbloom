@@ -142,6 +142,7 @@ final class FarmScene: SKScene {
         placePieces(layout: layout, farm: farm)
         placeWildProps(farm: farm, start: store.config.farm.startTilled)
         startAmbience(layout: layout)
+        if store.isDemo { startDemo(layout: layout) }
         let s = store.config.farm.startTilled
         cam.position = position(x: s.x + 2, y: s.y, farm: farm)
         refreshAll(animated: false)
@@ -365,7 +366,7 @@ final class FarmScene: SKScene {
 
     // MARK: - actions & juice
 
-    private func handleTap(x: Int, y: Int) {
+    func handleTap(x: Int, y: Int) {
         guard let store, let i = store.farm.index(x: x, y: y) else { return }
         let outcome = store.tap(x: x, y: y)
         let ground = groundNodes[i]
