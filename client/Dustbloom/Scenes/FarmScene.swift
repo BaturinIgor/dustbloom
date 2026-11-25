@@ -69,6 +69,7 @@ final class FarmScene: SKScene {
         view.addGestureRecognizer(p)
         pinch = p
         if store != nil, !didBuild { build() }
+        Sfx.prepare()
     }
 
     override func willMove(from view: SKView) {
@@ -372,18 +373,24 @@ final class FarmScene: SKScene {
         let ground = groundNodes[i]
         switch outcome {
         case .tilled:
+            Sfx.play(.till)
             lightTap.impactOccurred()
             refreshAll(animated: true)  // grass spreads around the new bed
             dustPuff(at: ground.position)
             ground.run(.sequence([.scale(to: 1.08, duration: 0.06), .scale(to: 1, duration: 0.1)]))
         case .planted:
+            Sfx.play(.plant)
             lightTap.impactOccurred(intensity: 0.7)
             refreshTile(x: x, y: y, animated: true)
         case .harvested(let result):
+            Sfx.play(.harvest)
+            Sfx.play(.coin, volume: 0.8, after: 0.12)
+            if result.levelUp { Sfx.play(.levelUp, after: 0.35) }
             heavyTap.impactOccurred()
             harvestBurst(from: cropNodes[i], result: result)
             refreshTile(x: x, y: y, animated: false)
         case .failed:
+            Sfx.play(.error)
             warning.notificationOccurred(.warning)
             ground.run(.sequence([
                 .moveBy(x: 4, y: 0, duration: 0.04), .moveBy(x: -8, y: 0, duration: 0.06),

@@ -40,6 +40,7 @@ struct HUDView: View {
                                 store.selectedCrop = crop.id
                             }
                             UISelectionFeedbackGenerator().selectionChanged()
+                            Sfx.play(.select, volume: 0.6)
                         }
                     }
                 }

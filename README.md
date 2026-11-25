@@ -16,6 +16,7 @@ watch them grow and harvest them. Offline by default; can sync with the dev serv
 | `server/` | Game server in Go (standard library only). Authoritative farm rules and JSON API |
 | `server/internal/game/data/crops.json` | Balance file, shared by server and client |
 | `art/` | Sprite generator, source logo, previews |
+| `audio/` | Sound effect synthesizer (all sounds are generated, rights are ours) |
 | `docs/` | Style guide and developer notes |
 | `scripts/ios.sh` | Build, test and TestFlight upload on a Mac |
 
