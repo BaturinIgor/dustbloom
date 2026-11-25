@@ -1001,7 +1001,7 @@ STRUCTURES = [
     # name, dx, dy (top-left tile), width, height in tiles
     ("prop_house", -1, -5, 3, 3),
     ("prop_windmill", 3, -5, 2, 3),
-    ("prop_pond", 3, 5, 3, 2),
+    ("prop_pond", 4, 2, 3, 2),
 ]
 DECOR = [
     ("prop_stones", 0, -2),
