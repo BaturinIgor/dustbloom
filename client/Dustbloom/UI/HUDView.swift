@@ -78,7 +78,7 @@ private struct CropButton: View {
                 Image("\(crop.id)_3")
                     .interpolation(.none)
                     .resizable()
-                    .frame(width: 48, height: 48)
+                    .frame(width: 40, height: 60)
                 HStack(spacing: 2) {
                     Image("ui_coin").interpolation(.none).resizable().frame(width: 14, height: 14)
                     Text("\(crop.seedCost)")

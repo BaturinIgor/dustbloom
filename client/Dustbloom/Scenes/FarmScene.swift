@@ -15,6 +15,8 @@ final class FarmScene: SKScene {
     private var groundNodes: [SKSpriteNode] = []
     private var cropNodes: [SKSpriteNode] = []
     private var cropStages: [Int] = []
+    private var groundNames: [String] = []
+    private var props: [Int: SKSpriteNode] = [:]
     private var didBuild = false
     private var lastRefresh: TimeInterval = 0
 
@@ -70,6 +72,8 @@ final class FarmScene: SKScene {
         groundNodes = []
         cropNodes = []
         cropStages = []
+        groundNames = []
+        props = [:]
         let farm = store.farm
         for y in 0..<farm.height {
             for x in 0..<farm.width {
@@ -78,7 +82,8 @@ final class FarmScene: SKScene {
                 world.addChild(ground)
                 groundNodes.append(ground)
 
-                let crop = SKSpriteNode(texture: nil, size: CGSize(width: tileSize, height: tileSize))
+                // crop sprites are 16x24 px: taller than a tile, base on the bed
+                let crop = SKSpriteNode(texture: nil, size: CGSize(width: tileSize, height: tileSize * 1.5))
                 crop.anchorPoint = CGPoint(x: 0.5, y: 0)
                 crop.position = CGPoint(x: 0, y: -tileSize / 2)
                 crop.zPosition = 1
@@ -86,15 +91,67 @@ final class FarmScene: SKScene {
                 ground.addChild(crop)
                 cropNodes.append(crop)
                 cropStages.append(-1)
+                groundNames.append("")
             }
         }
+        placeProps(farm: farm)
         refreshAll(animated: false)
     }
 
-    private func groundTexture(x: Int, y: Int, tile: Tile) -> SKTexture {
-        if tile.tilled { return Textures.named("tile_soil") }
-        let variant = abs(x &* 7 &+ y &* 13) % 3
-        return Textures.named("tile_dust_\(variant)")
+    /// Decorations: a scarecrow guarding the start patch, rocks and dead
+    /// trees in the wasteland. A prop hides once life reaches its tile.
+    private func placeProps(farm: Farm) {
+        guard let start = store?.config.farm.startTilled else { return }
+        var spots: [(x: Int, y: Int, name: String, w: CGFloat, h: CGFloat)] = [
+            (start.x - 2, start.y + 1, "prop_scarecrow", 1, 2),
+        ]
+        for y in 0..<farm.height {
+            for x in 0..<farm.width {
+                let dx = max(start.x - x, 0, x - (start.x + start.width - 1))
+                let dy = max(start.y - y, 0, y - (start.y + start.height - 1))
+                guard max(dx, dy) >= 4 else { continue }
+                let h = (x &* 31 &+ y &* 17) % 23
+                if h == 0 { spots.append((x, y, "prop_dead_tree", 2, 2)) }
+                else if h == 7 || h == 15 { spots.append((x, y, "prop_rock", 1, 1)) }
+            }
+        }
+        for spot in spots {
+            guard let i = farm.index(x: spot.x, y: spot.y) else { continue }
+            let node = SKSpriteNode(texture: Textures.named(spot.name),
+                                    size: CGSize(width: tileSize * spot.w, height: tileSize * spot.h))
+            node.anchorPoint = CGPoint(x: 0.5, y: 0)
+            let p = position(x: spot.x, y: spot.y, farm: farm)
+            node.position = CGPoint(x: p.x, y: p.y - tileSize / 2)
+            node.zPosition = 1
+            world.addChild(node)
+            props[i] = node
+        }
+    }
+
+    /// Grass grows within 2.3 tiles of any bed (same rule as art/generate_sprites.py).
+    private func isGreen(_ farm: Farm, _ x: Int, _ y: Int) -> Bool {
+        for yy in max(0, y - 2)...min(farm.height - 1, y + 2) {
+            for xx in max(0, x - 2)...min(farm.width - 1, x + 2) where farm.tiles[yy * farm.width + xx].tilled {
+                let d = Double((xx - x) * (xx - x) + (yy - y) * (yy - y))
+                if d <= 2.3 * 2.3 { return true }
+            }
+        }
+        return false
+    }
+
+    private func groundName(x: Int, y: Int, farm: Farm) -> String {
+        if farm.tiles[y * farm.width + x].tilled { return "tile_bed" }
+        guard isGreen(farm, x, y) else { return "tile_dust_\(abs(x &* 7 &+ y &* 13) % 3)" }
+        func g(_ xx: Int, _ yy: Int) -> Bool {
+            guard xx >= 0, yy >= 0, xx < farm.width, yy < farm.height else { return true }
+            return isGreen(farm, xx, yy)
+        }
+        let mask = (g(x, y - 1) ? 1 : 0) | (g(x + 1, y) ? 2 : 0) | (g(x, y + 1) ? 4 : 0) | (g(x - 1, y) ? 8 : 0)
+        if mask == 15 {
+            let v = (x * 5 + y * 3) % 7
+            return "tile_grass_\(v == 0 ? 1 : v == 3 ? 2 : 0)"
+        }
+        return "tile_grass_edge_\(mask)"
     }
 
     private func refreshAll(animated: Bool) {
@@ -110,7 +167,12 @@ final class FarmScene: SKScene {
     private func refreshTile(x: Int, y: Int, animated: Bool) {
         guard let store, let i = store.farm.index(x: x, y: y) else { return }
         let tile = store.farm.tiles[i]
-        groundNodes[i].texture = groundTexture(x: x, y: y, tile: tile)
+        let name = groundName(x: x, y: y, farm: store.farm)
+        if groundNames[i] != name {
+            groundNames[i] = name
+            groundNodes[i].texture = Textures.named(name)
+            props[i]?.isHidden = name != "" && !name.hasPrefix("tile_dust")
+        }
 
         let node = cropNodes[i]
         guard let id = tile.crop, let p = store.progress(of: tile) else {

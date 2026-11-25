@@ -16,7 +16,7 @@ Every action should visibly add colour to the world.
 | Role | Colours |
 | --- | --- |
 | Outline | `#2B1D16` |
-| Wasteland (dust) | `#4F4959` `#5F5869` `#716A7B` `#857E8E` `#9C95A3` `#B8B1BB` |
+| Wasteland (dust) | `#433C4F` `#544C60` `#655D71` `#776F82` `#8B8395` `#A49CAB` `#C2BBC6` |
 | Living soil | `#2F1C13` `#452A1C` `#5C3A26` `#774D32` `#91623F` |
 | Greens | `#1C4227` `#2A6331` `#3F8A37` `#69B443` `#A9DE63` |
 | Gold, wheat | `#7D4F10` `#B97F1A` `#E8B443` `#FFE08A` `#FFF4C8` |
