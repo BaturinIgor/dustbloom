@@ -28,7 +28,7 @@ struct HUDView: View {
                 }
             }
             .padding(.horizontal, 16)
-            .padding(.top, 8)
+            .padding(.top, 16)
 
             Spacer()
 

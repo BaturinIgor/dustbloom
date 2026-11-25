@@ -143,7 +143,7 @@ final class FarmScene: SKScene {
         placeWildProps(farm: farm, start: store.config.farm.startTilled)
         startAmbience(layout: layout)
         let s = store.config.farm.startTilled
-        cam.position = position(x: s.x + 2, y: s.y - 1, farm: farm)
+        cam.position = position(x: s.x + 2, y: s.y, farm: farm)
         refreshAll(animated: false)
     }
 
