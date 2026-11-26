@@ -54,6 +54,10 @@ struct APIClient {
         try await send("POST", "/v1/farm/till", body: TileBody(x: x, y: y, crop: nil))
     }
 
+    func clear(x: Int, y: Int) async throws -> FarmResponse {
+        try await send("POST", "/v1/farm/clear", body: TileBody(x: x, y: y, crop: nil))
+    }
+
     func plant(x: Int, y: Int, crop: String) async throws -> FarmResponse {
         try await send("POST", "/v1/farm/plant", body: TileBody(x: x, y: y, crop: crop))
     }

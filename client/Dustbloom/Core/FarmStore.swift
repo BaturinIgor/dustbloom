@@ -6,6 +6,9 @@ enum TapOutcome: Equatable {
     /// First tap on grass: show the price, a second tap on the same tile tills.
     case confirmTill(cost: Int)
     case tilled
+    /// First tap on a rock or dead tree: show the price; a second tap clears it.
+    case confirmClear(cost: Int)
+    case cleared(ClearResult)
     case planted(String)
     case harvested(HarvestResult)
     case failed(FarmError)
@@ -167,6 +170,10 @@ final class FarmStore: ObservableObject {
             plotOffer = PlotOffer(px: x / ps, py: y / ps)
             return .nothing
         }
+        if !tile.tilled, farm.obstacle(x: x, y: y, config: config) != nil {
+            guard !swipe else { return .nothing }
+            return clearTap(x: x, y: y)
+        }
         if !tile.tilled && (swipe || !(pendingTill.map { $0.x == x && $0.y == y } ?? false)) {
             guard !swipe else { return .nothing }
             pendingTill = (x, y)
@@ -202,6 +209,28 @@ final class FarmStore: ObservableObject {
         farm = next
         save()
         return outcome
+    }
+
+    private func clearTap(x: Int, y: Int) -> TapOutcome {
+        guard let kind = farm.obstacle(x: x, y: y, config: config) else { return .nothing }
+        guard pendingTill.map({ $0.x == x && $0.y == y }) ?? false else {
+            pendingTill = (x, y)
+            return .confirmClear(cost: config.obstacles?[kind]?.coins ?? 0)
+        }
+        pendingTill = nil
+        var next = farm
+        do {
+            let result = try next.clear(x: x, y: y, config: config)
+            farm = next
+            save()
+            sync { try await $0.clear(x: x, y: y) }
+            Analytics.shared.track("clear", ["kind": kind])
+            return .cleared(result)
+        } catch let error as FarmError {
+            return .failed(error)
+        } catch {
+            return .nothing
+        }
     }
 
     // MARK: - land

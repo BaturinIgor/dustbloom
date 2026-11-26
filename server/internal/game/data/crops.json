@@ -1,5 +1,5 @@
 {
-  "version": 9,
+  "version": 10,
   "farm": {
     "width": 16,
     "height": 16,
@@ -2744,5 +2744,15 @@
         ]
       }
     ]
+  },
+  "obstacles": {
+    "rock": {
+      "coins": 15,
+      "xp": 2
+    },
+    "dead_tree": {
+      "coins": 30,
+      "xp": 4
+    }
   }
 }

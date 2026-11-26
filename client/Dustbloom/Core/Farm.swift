@@ -33,6 +33,8 @@ enum FarmError: String, Error, Codable {
     case maxLevel = "max_level"
     case unknownBuilding = "unknown_building"
     case manorTooLow = "manor_too_low"
+    case obstacle
+    case noObstacle = "no_obstacle"
 }
 
 struct Tile: Codable, Equatable {
@@ -80,9 +82,11 @@ struct Farm: Codable, Equatable {
     /// Working building levels and the one under construction.
     var buildings: [String: Int] = [:]
     var work: Work?
+    /// Tile indices whose rock or dead tree was cleared.
+    var cleared: [Int] = []
 
     private enum CodingKeys: String, CodingKey {
-        case width, height, coins, xp, tiles, barn, army, queue, raidReadyAt, plots, orders, items, manor, manorReadyAt, buildings, work
+        case width, height, coins, xp, tiles, barn, army, queue, raidReadyAt, plots, orders, items, manor, manorReadyAt, buildings, work, cleared
     }
 
     /// Older saves and the server's omitempty fields may lack the army keys.
@@ -104,6 +108,7 @@ struct Farm: Codable, Equatable {
         manorReadyAt = try c.decodeIfPresent(Date.self, forKey: .manorReadyAt)
         buildings = try c.decodeIfPresent([String: Int].self, forKey: .buildings) ?? [:]
         work = try c.decodeIfPresent(Work.self, forKey: .work)
+        cleared = try c.decodeIfPresent([Int].self, forKey: .cleared) ?? []
     }
 
     init(config: GameConfig) {
@@ -198,6 +203,7 @@ struct Farm: Codable, Equatable {
         guard !tiles[i].tilled else { throw FarmError.alreadyTilled }
         ensurePlots(config: config)
         guard owns(x: x, y: y, config: config) else { throw FarmError.notOwned }
+        guard obstacle(x: x, y: y, config: config) == nil else { throw FarmError.obstacle }
         guard coins >= config.farm.tillCost else { throw FarmError.notEnoughCoins }
         coins -= config.farm.tillCost
         tiles[i].tilled = true

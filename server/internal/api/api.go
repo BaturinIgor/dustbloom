@@ -7,6 +7,7 @@
 //	POST /v1/auth/guest             {"deviceId"} -> {"token","playerId"}
 //	GET  /v1/farm                   farm state + serverTime
 //	POST /v1/farm/till              {"x","y"}
+//	POST /v1/farm/clear             {"x","y"}  remove a rock or dead tree
 //	POST /v1/farm/plant             {"x","y","crop"}
 //	POST /v1/farm/harvest           {"x","y"} -> farm + harvest result (crop goes to the barn)
 //	POST /v1/farm/sell              {"crop","count"} -> farm + sold coins
@@ -60,6 +61,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /v1/auth/guest", s.guest)
 	mux.HandleFunc("GET /v1/farm", s.auth(s.getFarm))
 	mux.HandleFunc("POST /v1/farm/till", s.auth(s.till))
+	mux.HandleFunc("POST /v1/farm/clear", s.auth(s.clear))
 	mux.HandleFunc("POST /v1/farm/plant", s.auth(s.plant))
 	mux.HandleFunc("POST /v1/farm/harvest", s.auth(s.harvest))
 	mux.HandleFunc("POST /v1/farm/sell", s.auth(s.sell))
@@ -90,6 +92,7 @@ type farmResponse struct {
 	Saved      int                 `json:"saved,omitempty"` // speedup seconds used
 	Used       map[string]int      `json:"used,omitempty"`  // speedups spent
 	Loot       map[string]int      `json:"loot,omitempty"`  // chest contents
+	Clear      *game.ClearResult   `json:"clear,omitempty"`
 }
 
 type errorResponse struct {
@@ -122,6 +125,7 @@ func gameErrStatus(w http.ResponseWriter, err error) {
 		game.ErrUnknownItem, game.ErrNoItems, game.ErrWrongTarget, game.ErrNothingToSpeed,
 		game.ErrUnknownTarget, game.ErrNotAChest, game.ErrNotASpeedup,
 		game.ErrBusy, game.ErrMaxLevel, game.ErrUnknownBuilding, game.ErrManorTooLow,
+		game.ErrObstacle, game.ErrNoObstacle,
 	} {
 		if errors.Is(err, known) {
 			writeErr(w, http.StatusConflict, known.Error())
@@ -253,6 +257,18 @@ func (s *Server) till(w http.ResponseWriter, r *http.Request, token string) {
 	}
 	s.mutate(w, token, func(f *game.Farm, now time.Time, _ *farmResponse) error {
 		return f.Till(s.Config, req.X, req.Y)
+	})
+}
+
+func (s *Server) clear(w http.ResponseWriter, r *http.Request, token string) {
+	var req tileReq
+	if !decode(w, r, &req) {
+		return
+	}
+	s.mutate(w, token, func(f *game.Farm, now time.Time, resp *farmResponse) error {
+		res, err := f.Clear(s.Config, req.X, req.Y)
+		resp.Clear = &res
+		return err
 	})
 }
 

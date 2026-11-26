@@ -71,6 +71,8 @@ type Farm struct {
 	// construction (the manor and buildings share one builder).
 	Buildings map[string]int `json:"buildings,omitempty"`
 	Work      *Work          `json:"work,omitempty"`
+	// Cleared lists tile indices whose rock or dead tree was removed.
+	Cleared []int `json:"cleared,omitempty"`
 }
 
 // NewFarm creates a starting farm from the config.
@@ -200,6 +202,9 @@ func (f *Farm) Till(cfg *Config, x, y int) error {
 	f.EnsurePlots(cfg)
 	if !f.Owns(cfg, x, y) {
 		return ErrNotOwned
+	}
+	if f.ObstacleAt(cfg, x, y) != "" {
+		return ErrObstacle
 	}
 	if f.Coins < cfg.Farm.TillCost {
 		return ErrNotEnough

@@ -170,7 +170,8 @@ final class FarmScene: SKScene {
     /// footprint, with its baked shadow underneath. Iso art draws the
     /// footprint's front corner at the bottom centre of the sprite.
     @discardableResult
-    func stand(_ name: String, x: Int, y: Int, w: Int, h: Int, farm: Farm, shadow: String? = nil) -> SKSpriteNode {
+    func stand(_ name: String, x: Int, y: Int, w: Int, h: Int, farm: Farm, shadow: String? = nil,
+               shadowName: String? = nil) -> SKSpriteNode {
         let tex = Textures.named(name)
         let node = SKSpriteNode(texture: tex, size: CGSize(width: tex.size().width * px, height: tex.size().height * px))
         node.anchorPoint = CGPoint(x: 0.5, y: 0)
@@ -185,6 +186,7 @@ final class FarmScene: SKScene {
             s.position = CGPoint(x: node.position.x - node.size.width / 2, y: corner.y)
             s.zPosition = 0.5
             if shadow.hasPrefix("shadow_manor") { s.name = "manorShadow" }
+            if let shadowName { s.name = shadowName }
             world.addChild(s)
         }
         return node
@@ -234,15 +236,17 @@ final class FarmScene: SKScene {
         }
     }
 
-    /// Rocks and dead trees inside the farm. They fade once life reaches them;
-    /// the ones outside the farm are part of the baked wasteland.
+    /// Rocks and dead trees inside the farm stay until the player clears
+    /// them; the ones outside the farm are part of the baked wasteland.
     private func placeWildProps(farm: Farm, start: GameConfig.Area) {
+        guard let config = store?.config else { return }
         for y in 0..<farm.height {
             for x in 0..<farm.width {
-                guard let sprite = wildProp(x: x, y: y, start: start), let i = farm.index(x: x, y: y) else { continue }
+                guard let kind = farm.obstacle(x: x, y: y, config: config), let i = farm.index(x: x, y: y) else { continue }
+                let sprite = "prop_" + kind
                 props[i] = sprite == "prop_dead_tree"
-                    ? stand(sprite, x: x, y: y - 1, w: 1, h: 2, farm: farm, shadow: "shadow_dead_tree")
-                    : stand(sprite, x: x, y: y, w: 1, h: 1, farm: farm, shadow: "shadow_rock")
+                    ? stand(sprite, x: x, y: y - 1, w: 1, h: 2, farm: farm, shadow: "shadow_dead_tree", shadowName: "shadow_\(i)")
+                    : stand(sprite, x: x, y: y, w: 1, h: 1, farm: farm, shadow: "shadow_rock", shadowName: "shadow_\(i)")
             }
         }
     }
@@ -269,10 +273,6 @@ final class FarmScene: SKScene {
         if groundNames[i] != name {
             groundNames[i] = name
             groundNodes[i].texture = Textures.named(name)
-            if let prop = props[i] {
-                let alive = !name.hasPrefix("tile_dust")
-                prop.run(.fadeAlpha(to: alive ? 0 : 1, duration: animated ? 0.4 : 0))
-            }
         }
 
         let node = cropNodes[i]
@@ -451,6 +451,29 @@ final class FarmScene: SKScene {
             Sfx.play(.select, volume: 0.5)
             lightTap.impactOccurred(intensity: 0.5)
             priceBubble(at: ground.position, cost: cost)
+        case .confirmClear(let cost):
+            Sfx.play(.select, volume: 0.5)
+            lightTap.impactOccurred(intensity: 0.5)
+            priceBubble(at: ground.position, cost: cost)
+        case .cleared(let result):
+            world.childNode(withName: "priceBubble")?.removeFromParent()
+            Sfx.play(.till)
+            if result.levelUp { Sfx.play(.levelUp, after: 0.35) }
+            heavyTap.impactOccurred()
+            dustPuff(at: ground.position)
+            if let prop = props.removeValue(forKey: i) {
+                prop.run(.sequence([
+                    .group([.scaleY(to: 0.2, duration: 0.25), .fadeOut(withDuration: 0.25)]),
+                    .removeFromParent(),
+                ]))
+                world.children.filter { $0.name == "shadow_\(i)" }.forEach { $0.removeFromParent() }
+            }
+            let label = PixelLabel.make("+\(result.xp)", gold: true, scale: 3)
+            label.position = CGPoint(x: ground.position.x, y: ground.position.y + 40)
+            label.zPosition = 62
+            world.addChild(label)
+            label.run(.sequence([.group([.moveBy(x: 0, y: 34, duration: 0.8), .fadeOut(withDuration: 0.8)]), .removeFromParent()]))
+            refreshAll(animated: true)
         case .tilled:
             world.childNode(withName: "priceBubble")?.removeFromParent()
             Sfx.play(.till)

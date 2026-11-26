@@ -92,6 +92,13 @@ struct GameConfig: Codable, Equatable {
     var items: ItemsConfig
     var manor: ManorConfig
     var buildings: BuildingsConfig
+    /// Rocks and dead trees on bought land: what clearing one costs and gives.
+    var obstacles: [String: Obstacle]?
+
+    struct Obstacle: Codable, Equatable {
+        var coins: Int
+        var xp: Int
+    }
 
     func crop(_ id: String) -> Crop? {
         crops.first { $0.id == id }

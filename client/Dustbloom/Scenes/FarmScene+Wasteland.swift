@@ -6,15 +6,9 @@ import UIKit
 /// diamonds), into a single texture and shown as one sprite.
 extension FarmScene {
     /// Rock or dead tree standing on (x, y), far enough from the starting beds.
+    /// Same rule as the obstacles on the farm (Core/Obstacles.swift).
     func wildProp(x: Int, y: Int, start: GameConfig.Area) -> String? {
-        let dx = max(start.x - x, 0, x - (start.x + start.width - 1))
-        let dy = max(start.y - y, 0, y - (start.y + start.height - 1))
-        guard max(dx, dy) >= 5 else { return nil }
-        switch abs(x &* 31 &+ y &* 17) % 23 {
-        case 0: return "prop_dead_tree"
-        case 7, 15: return "prop_rock"
-        default: return nil
-        }
+        Farm.obstacleKind(x: x, y: y, start: start).map { "prop_" + $0 }
     }
 
     func bakeWasteland(layout: FarmLayout, farm: Farm, start: GameConfig.Area) {
