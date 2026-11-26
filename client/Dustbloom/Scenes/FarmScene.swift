@@ -27,6 +27,9 @@ final class FarmScene: SKScene {
     private var props: [Int: SKSpriteNode] = [:]
     private var didBuild = false
     private var lastRefresh: TimeInterval = 0
+    private var lastTilled: [Bool] = []
+    /// Live ambient motes and fireflies, capped in FarmScene+Ambience.
+    var ambientCount = 0
     private let light: SKSpriteNode
     private let vignette: SKSpriteNode
 
@@ -124,16 +127,9 @@ final class FarmScene: SKScene {
         cropStages = []
         groundNames = []
         props = [:]
+        lastTilled = []
+        ambientCount = 0
 
-        // decorative wasteland around the farm (not interactive)
-        for y in -pad..<(farm.height + pad) {
-            for x in -pad..<(farm.width + pad) where x < 0 || y < 0 || x >= farm.width || y >= farm.height {
-                let n = SKSpriteNode(texture: Textures.named(layout.groundName(farm, x: x, y: y)),
-                                     size: CGSize(width: tileSize, height: tileSize))
-                n.position = position(x: x, y: y, farm: farm)
-                world.addChild(n)
-            }
-        }
         for y in 0..<farm.height {
             for x in 0..<farm.width {
                 let ground = SKSpriteNode(texture: nil, size: CGSize(width: tileSize, height: tileSize))
@@ -153,7 +149,8 @@ final class FarmScene: SKScene {
                 groundNames.append("")
             }
         }
-        placeFog(farm: farm)
+        // wasteland, rocks and fog outside the farm never change: one baked sprite
+        bakeWasteland(layout: layout, farm: farm, start: store.config.farm.startTilled)
         placePieces(layout: layout, farm: farm)
         placeWildProps(farm: farm, start: store.config.farm.startTilled)
         landLayer = SKNode()
@@ -234,41 +231,38 @@ final class FarmScene: SKScene {
         }
     }
 
-    /// Rocks and dead trees in the wasteland. They fade once life reaches them.
+    /// Rocks and dead trees inside the farm. They fade once life reaches them;
+    /// the ones outside the farm are part of the baked wasteland.
     private func placeWildProps(farm: Farm, start: GameConfig.Area) {
-        for y in -pad..<(farm.height + pad) {
-            for x in -pad..<(farm.width + pad) {
-                let dx = max(start.x - x, 0, x - (start.x + start.width - 1))
-                let dy = max(start.y - y, 0, y - (start.y + start.height - 1))
-                guard max(dx, dy) >= 5 else { continue }
-                let h = abs(x &* 31 &+ y &* 17) % 23
-                let node: SKSpriteNode
-                if h == 0 {
-                    node = stand("prop_dead_tree", x: x, y: y - 1, w: 1, h: 2, farm: farm, shadow: "shadow_dead_tree")
-                } else if h == 7 || h == 15 {
-                    node = stand("prop_rock", x: x, y: y, w: 1, h: 1, farm: farm, shadow: "shadow_rock")
-                } else {
-                    continue
-                }
-                if let i = farm.index(x: x, y: y) { props[i] = node }
+        for y in 0..<farm.height {
+            for x in 0..<farm.width {
+                guard let sprite = wildProp(x: x, y: y, start: start), let i = farm.index(x: x, y: y) else { continue }
+                props[i] = sprite == "prop_dead_tree"
+                    ? stand(sprite, x: x, y: y - 1, w: 1, h: 2, farm: farm, shadow: "shadow_dead_tree")
+                    : stand(sprite, x: x, y: y, w: 1, h: 1, farm: farm, shadow: "shadow_rock")
             }
         }
     }
 
+    /// Crops are checked every tick; the ground (grass spreading around beds)
+    /// is only recomputed when the set of tilled beds changed.
     private func refreshAll(animated: Bool) {
         guard let store else { return }
         let farm = store.farm
+        let tilled = farm.tiles.map(\.tilled)
+        let groundDirty = tilled != lastTilled
+        lastTilled = tilled
         for y in 0..<farm.height {
             for x in 0..<farm.width {
-                refreshTile(x: x, y: y, animated: animated)
+                refreshTile(x: x, y: y, animated: animated, ground: groundDirty)
             }
         }
     }
 
-    private func refreshTile(x: Int, y: Int, animated: Bool) {
+    private func refreshTile(x: Int, y: Int, animated: Bool, ground: Bool = true) {
         guard let store, let layout, let i = store.farm.index(x: x, y: y) else { return }
         let tile = store.farm.tiles[i]
-        let name = layout.groundName(store.farm, x: x, y: y)
+        let name = ground ? layout.groundName(store.farm, x: x, y: y) : groundNames[i]
         if groundNames[i] != name {
             groundNames[i] = name
             groundNodes[i].texture = Textures.named(name)
@@ -610,21 +604,6 @@ enum Textures {
 // MARK: - land plots, fog, price bubbles
 
 extension FarmScene {
-    /// Darkens the far wasteland so the world fades out instead of ending.
-    fileprivate func placeFog(farm: Farm) {
-        for y in -pad..<(farm.height + pad) {
-            for x in -pad..<(farm.width + pad) {
-                let d = max(-x, x - (farm.width - 1), -y, y - (farm.height - 1))
-                guard d > 5 else { continue }
-                let fog = SKSpriteNode(color: Palette.dustDeep, size: CGSize(width: tileSize, height: tileSize))
-                fog.alpha = min(0.85, CGFloat(d - 5) / 10)
-                fog.position = position(x: x, y: y, farm: farm)
-                fog.zPosition = 45  // over wild props, under cursor and gains
-                world.addChild(fog)
-            }
-        }
-    }
-
     /// Owned land is bright and fenced; plots for sale are dimmed and carry
     /// a sign with the price.
     func rebuildLand() {

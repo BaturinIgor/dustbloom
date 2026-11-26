@@ -27,7 +27,7 @@ extension FarmScene {
     }
 
     private func spawnAmbient(layout: FarmLayout) {
-        guard let store, world.children.filter({ $0.name == "ambient" }).count < 28, let cam = camera else { return }
+        guard let store, ambientCount < 28, let cam = camera else { return }
         let farm = store.farm
         // pick a random tile near what the camera sees
         let half = size.width * cam.xScale / tileSize / 2 + 1
@@ -60,10 +60,12 @@ extension FarmScene {
         node.zPosition = 80
         node.alpha = 0
         world.addChild(node)
+        ambientCount += 1
         node.run(.sequence([
             .fadeIn(withDuration: 0.6),
             .wait(forDuration: life - 1.2),
             .fadeOut(withDuration: 0.6),
+            .run { [weak self] in self?.ambientCount -= 1 },
             .removeFromParent(),
         ]), withKey: "life")
     }
