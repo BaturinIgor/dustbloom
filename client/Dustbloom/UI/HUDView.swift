@@ -14,7 +14,7 @@ struct HUDView: View {
 
     var body: some View {
         VStack {
-            HStack(spacing: 8) {
+            HStack(alignment: .center, spacing: 8) {
                 // who you are and how strong your farm is; tap for the profile
                 ProfileBadge {
                     showProfile = true

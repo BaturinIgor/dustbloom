@@ -32,7 +32,8 @@ struct ProfileBadge: View {
             .padding(4)
             .padding(.trailing, 4)
             .background(
-                Capsule().fill(Color.black.opacity(0.32))
+                Capsule().fill(Color(uiColor: UIColor(hex: 0x2E1A10)).opacity(0.9))
+                    .overlay(Capsule().stroke(Color(uiColor: Palette.goldDeep).opacity(0.7), lineWidth: 2))
             )
             .frame(minHeight: 44)
         }

@@ -72,7 +72,7 @@ final class FarmScene: SKScene {
             addChild(world)
             addChild(cam)
             camera = cam
-            cam.setScale(0.9)
+            cam.setScale(1.1)
             // evening light and vignette ride on the camera, above the world
             light.blendMode = .add
             light.alpha = 0.55
@@ -160,8 +160,9 @@ final class FarmScene: SKScene {
         rebuildLand()
         startAmbience(layout: layout)
         if store.isDemo { startDemo(layout: layout) }
+        // frame the yard: manor and mill above, beds in the middle, pond below
         let s = store.config.farm.startTilled
-        cam.position = position(x: s.x + 2, y: s.y, farm: farm)
+        cam.position = grid(farm).center(fx: CGFloat(s.x) + 1.5, fy: CGFloat(s.y))
         refreshAll(animated: false)
     }
 

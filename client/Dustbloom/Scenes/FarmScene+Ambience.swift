@@ -3,11 +3,17 @@ import SpriteKit
 /// Ambient life: chimney smoke, fireflies over the grass, dust drifting over
 /// the wasteland. Cheap sprite actions, capped so they never pile up.
 extension FarmScene {
+    /// Chimney top above the manor's front corner, in points, per tier
+    /// (art/hd/iso_objects.py MANOR); tier 0 is a hut without a chimney.
+    static let chimneyTop: [CGPoint?] = [
+        nil, CGPoint(x: 6, y: 141), CGPoint(x: 7, y: 151), CGPoint(x: 7, y: 158),
+        CGPoint(x: 7, y: 174), CGPoint(x: 8, y: 183),
+    ]
+
     func chimneySmoke(on house: SKSpriteNode) {
-        // chimney top in the 48x48 house sprite: x 35, y 0 (from the top)
-        let origin = CGPoint(x: (35 - 24) * px, y: 48 * px)
-        let puff = SKAction.run { [weak house] in
-            guard let house else { return }
+        let puff = SKAction.run { [weak self, weak house] in
+            guard let self, let house, Self.chimneyTop.indices.contains(self.manorShownTier),
+                  let origin = Self.chimneyTop[self.manorShownTier] else { return }
             let s = SKSpriteNode(texture: Textures.named("fx_smoke"), size: CGSize(width: 8 * 3, height: 8 * 3))
             s.position = origin
             s.zPosition = 0.002
