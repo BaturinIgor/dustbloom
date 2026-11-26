@@ -38,14 +38,17 @@ extension FarmScene {
                 self.handleTap(x: i % farm.width, y: i / farm.width)
                 return
             }
-            // 3. every few idle steps, till a new bed next to the farm
-            guard steps % 4 == 0 else { return }
+            // 3. every few idle steps, till a new bed next to the farm, but
+            // only where the whole bed is on screen, clear of the HUD
+            guard steps % 4 == 0, beds.count < Self.demoMaxBeds else { return }
             for i in beds {
                 let bx = i % farm.width, by = i / farm.width
                 for (dx, dy) in [(1, 0), (0, 1), (-1, 0), (0, -1)] {
                     let x = bx + dx, y = by + dy
                     guard let t = farm.tile(x: x, y: y), !t.tilled, !layout.isBlocked(x: x, y: y),
-                          farm.owns(x: x, y: y, config: store.config) else { continue }
+                          farm.owns(x: x, y: y, config: store.config),
+                          y > store.config.farm.startTilled.y - 2,  // keep the yard by the house free
+                          self.demoFits(x: x, y: y, farm: farm) else { continue }
                     self.handleTap(x: x, y: y)  // shows the price
                     self.handleTap(x: x, y: y)  // confirms
                     return
@@ -53,5 +56,20 @@ extension FarmScene {
             }
         }
         run(.sequence([.wait(forDuration: 0.8), .repeatForever(.sequence([step, .wait(forDuration: 0.4)]))]), withKey: "demo")
+    }
+
+    static let demoMaxBeds = 24
+
+    /// True when tile (x, y) sits fully inside the visible area, with room
+    /// for the top bar and the seed bar, so the video never shows cut beds.
+    func demoFits(x: Int, y: Int, farm: Farm) -> Bool {
+        let p = position(x: x, y: y, farm: farm)
+        let s = cam.xScale
+        let half = tileSize / 2
+        let left = cam.position.x - size.width / 2 * s + 8 * s
+        let right = cam.position.x + size.width / 2 * s - 8 * s
+        let top = cam.position.y + size.height / 2 * s - 150 * s
+        let bottom = cam.position.y - size.height / 2 * s + 230 * s
+        return p.x - half >= left && p.x + half <= right && p.y + half <= top && p.y - half >= bottom
     }
 }

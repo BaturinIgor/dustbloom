@@ -18,7 +18,7 @@ final class FarmScene: SKScene {
     let pad = 16
 
     let world = SKNode()
-    private let cam = SKCameraNode()
+    let cam = SKCameraNode()
     private var layout: FarmLayout?
     private var groundNodes: [SKSpriteNode] = []
     private var cropNodes: [SKSpriteNode] = []
