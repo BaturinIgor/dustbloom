@@ -94,9 +94,7 @@ func (b Balance) Land(wave int) int {
 // WaveHP is the total enemy HP of a wave, bosses included.
 func (b Balance) WaveHP(wave int) float64 {
 	hp := b.HPBase * math.Pow(b.HPGrowth, float64(wave-1))
-	if l := b.Land(wave); l <= len(b.LandHP) {
-		hp *= b.LandHP[l-1]
-	}
+	hp *= b.LandFactor(wave)
 	inLand := (wave-1)%b.WavesPerLand + 1
 	switch {
 	case inLand == b.WavesPerLand || inLand == b.WavesPerLand/2:
@@ -177,4 +175,23 @@ func (b Balance) OfflineCap(land int) float64 {
 // pollen that every player earns daily; it keeps a stuck player moving.
 func (b Balance) TalentMult(pollen float64) float64 {
 	return 1 + b.TalentK*math.Pow(pollen, b.TalentExp)
+}
+
+// StartDPS is the damage of a brand-new squad: two level-1 heroes and one crop.
+func (b Balance) StartDPS() float64 { return 2*b.HeroBaseDps + b.CropBaseDps }
+
+// LandFactor is the fitted per-land HP factor at a wave. LandHP holds one
+// value per land start plus one for the end of the last land; inside a land
+// the factor glides geometrically to the next one, so there is no sudden wall
+// when a new land begins.
+func (b Balance) LandFactor(wave int) float64 {
+	if len(b.LandHP) == 0 {
+		return 1
+	}
+	k := b.Land(wave) - 1
+	if k+1 >= len(b.LandHP) {
+		return b.LandHP[len(b.LandHP)-1]
+	}
+	t := float64((wave-1)%b.WavesPerLand) / float64(b.WavesPerLand)
+	return math.Exp(math.Log(b.LandHP[k])*(1-t) + math.Log(b.LandHP[k+1])*t)
 }

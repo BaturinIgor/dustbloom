@@ -22,6 +22,9 @@ targets:
       # single source of truth for balance, shared with the Go server
       - path: ../server/internal/game/data/crops.json
         buildPhase: resources
+      # Farm Defense economy, tuned by server/cmd/balance-sim
+      - path: ../server/internal/defense/balance.json
+        buildPhase: resources
     info:
       path: Dustbloom/Info.plist
       properties:

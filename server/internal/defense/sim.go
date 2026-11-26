@@ -51,7 +51,7 @@ type state struct {
 
 func newState(b Balance) *state {
 	s := &state{b: b, heroes: make([]int, b.HeroSlotsMax), crops: make([]int, b.CropSlotsMax)}
-	s.heroes[0] = 1
+	s.heroes[0], s.heroes[1], s.crops[0] = 1, 1, 1
 	return s
 }
 
@@ -137,10 +137,11 @@ func (s *state) tryHarvest(now float64) {
 	for i := range s.heroes {
 		s.heroes[i] = 0
 	}
-	s.heroes[0] = 1
+	s.heroes[0], s.heroes[1] = 1, 1
 	for i := range s.crops {
 		s.crops[i] = 0
 	}
+	s.crops[0] = 1
 	s.coins, s.seeds = 0, 0
 	s.wave = (s.b.Land(s.maxWave) - 1) * s.b.WavesPerLand
 	s.stuckSince = now
@@ -202,22 +203,26 @@ func LandDays(b Balance, logs []DayLog) []int {
 	return out
 }
 
-// Fit adjusts LandHP land by land so the free profile clears each land on
-// its target day.
+// Fit adjusts LandHP so the free profile clears each land on its target
+// day: the first value is capped so the starting squad wins the first waves
+// easily, then each next value is bisected for the land that ends there.
 func Fit(b Balance, free Profile, days int) Balance {
-	b.LandHP = make([]float64, b.Lands)
+	b.LandHP = make([]float64, b.Lands+1)
+	start := 0.5 * b.StartDPS() * b.KillWindowSeconds / b.HPBase
 	for i := range b.LandHP {
-		b.LandHP[i] = 1
+		b.LandHP[i] = start
 	}
 	for k := 0; k < b.Lands; k++ {
 		base := b.LandHP[k]
-		lo, hi := math.Log(base)-12, math.Log(base)+12
-		for i := 0; i < 40; i++ {
-			mid := (lo + hi) / 2
-			x := math.Exp(mid)
-			for j := k; j < b.Lands; j++ {
+		lo, hi := math.Log(base)-6, math.Log(base)+14
+		set := func(x float64) {
+			for j := k + 1; j <= b.Lands; j++ {
 				b.LandHP[j] = x
 			}
+		}
+		for i := 0; i < 40; i++ {
+			mid := (lo + hi) / 2
+			set(math.Exp(mid))
 			d := LandDays(b, Simulate(b, free, days))[k]
 			if d == 0 || d > b.LandTargetDays[k] {
 				hi = mid
@@ -225,10 +230,7 @@ func Fit(b Balance, free Profile, days int) Balance {
 				lo = mid
 			}
 		}
-		x := math.Exp(lo)
-		for j := k; j < b.Lands; j++ {
-			b.LandHP[j] = x
-		}
+		set(math.Exp(lo))
 	}
 	return b
 }

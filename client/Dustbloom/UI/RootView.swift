@@ -10,7 +10,8 @@ struct RootView: View {
     var body: some View {
         ZStack {
             if loaded {
-                GameView()
+                // Farm Defense prototype; the old farm screen (GameView) stays in code for the day phase
+                DefenseView()
                     .transition(.opacity)
             } else {
                 IntroView(ready: connected) {
