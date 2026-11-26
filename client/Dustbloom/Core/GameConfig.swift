@@ -94,6 +94,8 @@ struct GameConfig: Codable, Equatable {
     var buildings: BuildingsConfig
     /// Rocks and dead trees on bought land: what clearing one costs and gives.
     var obstacles: [String: Obstacle]?
+    /// The quest list; nil in configs from before quests.
+    var quests: QuestConfig?
 
     struct Obstacle: Codable, Equatable {
         var coins: Int

@@ -262,6 +262,24 @@ final class FarmStore: ObservableObject {
         return nil
     }
 
+    // MARK: - quests
+
+    func claimQuest(_ id: String) -> Result<QuestResult, FarmError> {
+        var next = farm
+        do {
+            let result = try next.claimQuest(id, config: config)
+            farm = next
+            save()
+            sync { try await $0.claimQuest(id) }
+            Analytics.shared.track("quest_claim", ["quest": id])
+            return .success(result)
+        } catch let error as FarmError {
+            return .failure(error)
+        } catch {
+            return .failure(.unknownQuest)
+        }
+    }
+
     // MARK: - barn, workshop, raids
 
     /// Sells crops from the barn. Returns the coins earned, or nil on failure.

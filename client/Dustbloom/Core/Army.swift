@@ -63,6 +63,8 @@ extension Farm {
         for (crop, n) in sc.cost { take(crop, n) }
         coins -= sc.coins
         let start = max(now, queue.last?.readyAt ?? now)
+        count("build")
+        count("build:" + id)
         queue.append(Build(type: id, readyAt: start.addingTimeInterval(TimeInterval(faster(Effect.buildTime, sc.buildSeconds, config: config)))))
     }
 
@@ -110,6 +112,8 @@ extension Farm {
 
         var result = RaidResult(raid: raidID, won: won, lost: lost, coins: 0, xp: 0, levelUp: false, hits: hits)
         if won {
+            count("raid_win")
+            count("raid_win:" + raidID)
             coins += raid.rewardCoins
             let up = gainXP(raid.rewardXp, config: config)
             let drops = raid.drops ?? [:]

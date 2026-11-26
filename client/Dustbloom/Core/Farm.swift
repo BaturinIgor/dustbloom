@@ -35,6 +35,8 @@ enum FarmError: String, Error, Codable {
     case manorTooLow = "manor_too_low"
     case obstacle
     case noObstacle = "no_obstacle"
+    case unknownQuest = "unknown_quest"
+    case questNotDone = "quest_not_done"
 }
 
 struct Tile: Codable, Equatable {
@@ -84,9 +86,12 @@ struct Farm: Codable, Equatable {
     var work: Work?
     /// Tile indices whose rock or dead tree was cleared.
     var cleared: [Int] = []
+    /// Lifetime action counters for quests and the claimed quest ids.
+    var stats: [String: Int] = [:]
+    var questsDone: [String] = []
 
     private enum CodingKeys: String, CodingKey {
-        case width, height, coins, xp, tiles, barn, army, queue, raidReadyAt, plots, orders, items, manor, manorReadyAt, buildings, work, cleared
+        case width, height, coins, xp, tiles, barn, army, queue, raidReadyAt, plots, orders, items, manor, manorReadyAt, buildings, work, cleared, stats, questsDone
     }
 
     /// Older saves and the server's omitempty fields may lack the army keys.
@@ -109,6 +114,8 @@ struct Farm: Codable, Equatable {
         buildings = try c.decodeIfPresent([String: Int].self, forKey: .buildings) ?? [:]
         work = try c.decodeIfPresent(Work.self, forKey: .work)
         cleared = try c.decodeIfPresent([Int].self, forKey: .cleared) ?? []
+        stats = try c.decodeIfPresent([String: Int].self, forKey: .stats) ?? [:]
+        questsDone = try c.decodeIfPresent([String].self, forKey: .questsDone) ?? []
     }
 
     init(config: GameConfig) {
@@ -196,6 +203,7 @@ struct Farm: Codable, Equatable {
         guard coins >= price.coins else { throw FarmError.notEnoughCoins }
         coins -= price.coins
         plots[py * config.farm.plotsX + px] = true
+        count("plot")
     }
 
     mutating func till(x: Int, y: Int, config: GameConfig) throws {
@@ -207,6 +215,7 @@ struct Farm: Codable, Equatable {
         guard coins >= config.farm.tillCost else { throw FarmError.notEnoughCoins }
         coins -= config.farm.tillCost
         tiles[i].tilled = true
+        count("till")
     }
 
     mutating func plant(x: Int, y: Int, cropID: String, now: Date, config: GameConfig) throws {
@@ -221,6 +230,7 @@ struct Farm: Codable, Equatable {
         tiles[i].plantedAt = now
         let g = faster(Effect.grow, crop.growSeconds, config: config)
         tiles[i].grow = g != crop.growSeconds ? g : nil
+        count("plant")
     }
 
     mutating func harvest(x: Int, y: Int, now: Date, config: GameConfig) throws -> HarvestResult {
@@ -229,6 +239,8 @@ struct Farm: Codable, Equatable {
         guard let crop = config.crop(cropID) else { throw FarmError.unknownCrop }
         guard Farm.progress(seconds: tiles[i].growSeconds(crop), plantedAt: plantedAt, now: now) >= 1 else { throw FarmError.notReady }
         barn[cropID, default: 0] += 1
+        count("harvest")
+        count("harvest:" + cropID)
         let up = gainXP(crop.xp, config: config)
         tiles[i].crop = nil
         tiles[i].plantedAt = nil
@@ -243,6 +255,7 @@ struct Farm: Codable, Equatable {
         take(cropID, count)
         let earned = more(Effect.sell, crop.sellPrice * count, config: config)
         coins += earned
+        count("sell", count)
         return earned
     }
 

@@ -66,6 +66,7 @@ extension Farm {
         let o = orders[i]
         for (k, n) in o.items { take(k, n) }
         coins += o.coins
+        count("order")
         let up = gainXP(o.xp, config: config)
         var rng = SystemRandomNumberGenerator()
         orders[i] = newOrder(config: config, using: &rng)

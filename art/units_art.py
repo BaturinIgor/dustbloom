@@ -250,6 +250,29 @@ def icon_orders():
     return dark_outline(im)
 
 
+def icon_quests():
+    """Rolled quest scroll with a red wax seal and a tick."""
+    im = new(16, 16)
+    rect(im, 3, 3, 12, 12, "y5")  # paper
+    rect(im, 3, 3, 4, 12, "white")
+    rect(im, 11, 3, 12, 12, "y4")
+    for y in (5, 7):
+        line(im, 5, y, 10, y, "w2")
+    line(im, 5, 9, 8, 9, "w2")
+    for x in range(2, 14):  # rolled ends
+        put(im, x, 2, "w1" if x in (2, 13) else "y3")
+        put(im, x, 13, "w1" if x in (2, 13) else "y3")
+        put(im, x, 1, "y4")
+        put(im, x, 14, "w2")
+    for (x, y) in ((10, 9), (11, 9), (9, 10), (12, 10), (9, 11), (12, 11), (10, 12), (11, 12)):
+        put(im, x, y, "r1")  # wax seal rim
+    for (x, y) in ((10, 10), (11, 10), (10, 11), (11, 11)):
+        put(im, x, y, "r2")
+    put(im, 10, 10, "r3")
+    put(im, 12, 13, "r1")  # ribbon tail
+    return dark_outline(im)
+
+
 def stage1_sprites():
     return {
         "unit_straw_guard": straw_guard(),
@@ -262,6 +285,7 @@ def stage1_sprites():
         "icon_workshop": icon_hammer(),
         "icon_raid": icon_swords(),
         "icon_orders": icon_orders(),
+        "icon_quests": icon_quests(),
     }
 
 

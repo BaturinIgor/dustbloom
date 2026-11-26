@@ -13,6 +13,7 @@ struct APIClient {
         var saved: Int?
         var used: [String: Int]?
         var loot: [String: Int]?
+        var quest: QuestResult?
     }
 
     enum APIError: Error {
@@ -112,6 +113,10 @@ struct APIClient {
 
     func upgradeBuilding(_ id: String) async throws -> FarmResponse {
         try await send("POST", "/v1/buildings/upgrade", body: ["building": id])
+    }
+
+    func claimQuest(_ id: String) async throws -> FarmResponse {
+        try await send("POST", "/v1/quests/claim", body: ["id": id])
     }
 
     /// Analytics batch, already encoded by Analytics.

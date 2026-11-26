@@ -10,6 +10,7 @@ struct HUDView: View {
     @State private var sheet: ArmyTab?
     @State private var showSettings = false
     @State private var showProfile = false
+    @State private var showQuests = false
     @Environment(\.requestReview) private var requestReview
 
     var body: some View {
@@ -48,6 +49,19 @@ struct HUDView: View {
             }
             .padding(.horizontal, 16)
             .padding(.top, 16)
+
+            // quest tracker on the left edge, under the profile
+            HStack {
+                QuestTracker {
+                    showQuests = true
+                    Analytics.shared.track("open_sheet", ["tab": "quests"])
+                    Sfx.play(.select, volume: 0.6)
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                }
+                Spacer()
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 4)
 
             Spacer()
 
@@ -105,6 +119,9 @@ struct HUDView: View {
         .sheet(item: $sheet) { t in ArmySheet(tab: t).environmentObject(store) }
         .sheet(isPresented: $showProfile) {
             ProfileSheet().environmentObject(store).presentationDetents([.large])
+        }
+        .sheet(isPresented: $showQuests) {
+            QuestSheet().environmentObject(store)
         }
         .sheet(isPresented: $showSettings) {
             SettingsSheet().environmentObject(store).presentationDetents([.medium, .large])

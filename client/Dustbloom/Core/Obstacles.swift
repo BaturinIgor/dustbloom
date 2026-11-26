@@ -37,6 +37,7 @@ extension Farm {
         guard coins >= o.coins else { throw FarmError.notEnoughCoins }
         coins -= o.coins
         cleared.append(y * width + x)
+        count("clear")
         let up = gainXP(o.xp, config: config)
         return ClearResult(kind: kind, xp: o.xp, levelUp: up.levelUp, items: up.items.isEmpty ? nil : up.items)
     }
