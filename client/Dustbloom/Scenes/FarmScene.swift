@@ -443,7 +443,7 @@ final class FarmScene: SKScene {
                 .moveBy(x: 4, y: 0, duration: 0.04),
             ]))
         case .nothing:
-            if store.plotOffer != nil { Sfx.play(.select, volume: 0.5) }
+            if store.plotOffer != nil || store.growOffer != nil { Sfx.play(.select, volume: 0.5) }
             if swipe { return }
         }
         cursor(at: ground.position)

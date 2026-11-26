@@ -1,11 +1,11 @@
 import SwiftUI
 import UIKit
 
-/// The three stage-1 screens in one bottom sheet over the farm:
-/// Barn (sell crops), Workshop (build scarecrows), Raids (send the army).
+/// The stage-1 screens in one bottom sheet over the farm: Barn (sell crops),
+/// Orders, Workshop (build scarecrows), Raids (send the army), Storage (Склад).
 /// Layout rules: docs/ui-guidelines.md.
 enum ArmyTab: String, CaseIterable, Identifiable {
-    case barn, orders, workshop, raids
+    case barn, orders, workshop, raids, storage
     var id: String { rawValue }
 
     var icon: String {
@@ -14,6 +14,7 @@ enum ArmyTab: String, CaseIterable, Identifiable {
         case .orders: return "icon_orders"
         case .workshop: return "icon_workshop"
         case .raids: return "icon_raid"
+        case .storage: return "icon_storage"
         }
     }
 
@@ -24,6 +25,7 @@ enum ArmyTab: String, CaseIterable, Identifiable {
         case .orders: return ru ? "Заказы" : "Orders"
         case .workshop: return ru ? "Мастерская" : "Workshop"
         case .raids: return ru ? "Набеги" : "Raids"
+        case .storage: return ru ? "Склад" : "Storage"
         }
     }
 }
@@ -58,7 +60,7 @@ struct ArmySheet: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            // tab bar: three equal slots, centred
+            // tab bar: five equal slots, centred
             HStack(spacing: 8) {
                 ForEach(ArmyTab.allCases) { t in
                     Button {
@@ -69,6 +71,8 @@ struct ArmySheet: View {
                         VStack(spacing: 2) {
                             Image(t.icon).interpolation(.none).resizable().frame(width: 32, height: 32)
                             label(t.title, size: 13)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.6)
                         }
                         .frame(maxWidth: .infinity, minHeight: 64)
                         .background(slot(t == tab))
@@ -82,6 +86,7 @@ struct ArmySheet: View {
                 case .orders: OrdersTab()
                 case .workshop: WorkshopTab()
                 case .raids: RaidsTab()
+                case .storage: StorageTab()
                 }
             }
         }
@@ -236,6 +241,17 @@ private struct WorkshopTab: View {
                 if !store.farm.queue.isEmpty {
                     TimelineView(.periodic(from: .now, by: 1)) { _ in
                         label("\(L.queue): \(store.farm.queue.count) · \(timeLeft(store.farm.queue[0].readyAt, store.now))", size: 13)
+                    }
+                }
+            }
+            if !store.farm.queue.isEmpty {
+                TimelineView(.periodic(from: .now, by: 1)) { _ in
+                    if let last = store.farm.queue.last {
+                        HStack {
+                            label((L.ru ? "Вся очередь: " : "Whole queue: ") + timeLeft(last.readyAt, store.now), size: 13)
+                            Spacer()
+                            SpeedUpButton(target: SpeedTarget(kind: SpeedTarget.recruit))
+                        }
                     }
                 }
             }

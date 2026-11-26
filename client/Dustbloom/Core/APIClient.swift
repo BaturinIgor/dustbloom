@@ -10,6 +10,9 @@ struct APIClient {
         var sold: Int?
         var raid: RaidResult?
         var order: OrderResult?
+        var saved: Int?
+        var used: [String: Int]?
+        var loot: [String: Int]?
     }
 
     enum APIError: Error {
@@ -82,6 +85,21 @@ struct APIClient {
 
     func raid(_ id: String) async throws -> FarmResponse {
         try await send("POST", "/v1/raid", body: ["raid": id])
+    }
+
+    func speedup(_ use: [String: Int], on target: SpeedTarget) async throws -> FarmResponse {
+        struct Body: Encodable { var target: SpeedTarget; var items: [String: Int] }
+        return try await send("POST", "/v1/items/speedup", body: Body(target: target, items: use))
+    }
+
+    func smartSpeedup(on target: SpeedTarget) async throws -> FarmResponse {
+        struct Body: Encodable { var target: SpeedTarget }
+        return try await send("POST", "/v1/items/smart", body: Body(target: target))
+    }
+
+    func openChest(_ id: String, count: Int) async throws -> FarmResponse {
+        struct Body: Encodable { var item: String; var count: Int }
+        return try await send("POST", "/v1/items/open", body: Body(item: id, count: count))
     }
 
     private struct TileBody: Encodable {

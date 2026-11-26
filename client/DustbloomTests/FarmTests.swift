@@ -177,4 +177,61 @@ final class FarmTests: XCTestCase {
             XCTAssertEqual($0 as? FarmError, .cropLocked)
         }
     }
+
+    // MARK: - storage (mirrors server/internal/game/items_test.go)
+
+    func testStartItemsAndIDs() {
+        let farm = Farm(config: config)
+        XCTAssertEqual(farm.items, config.items.startItems)
+        XCTAssertNotNil(config.speedup("speed_any_24h"))
+        XCTAssertNotNil(config.speedup("speed_recruit_1m"))
+        XCTAssertNil(config.speedup("speed_any_2m"))
+    }
+
+    func testSpeedUpCrop() throws {
+        var farm = Farm(config: config)
+        farm.items = ["speed_grow_15m": 1, "speed_recruit_5m": 1]
+        let t0 = Date(timeIntervalSince1970: 1_000_000)
+        try farm.plant(x: 6, y: 6, cropID: "dustwheat", now: t0, config: config)
+        let tgt = SpeedTarget(kind: SpeedTarget.grow, x: 6, y: 6)
+        XCTAssertThrowsError(try farm.useSpeedups(["speed_recruit_5m": 1], on: tgt, now: t0, config: config)) {
+            XCTAssertEqual($0 as? FarmError, .wrongTarget)
+        }
+        try farm.useSpeedups(["speed_grow_15m": 1], on: tgt, now: t0, config: config)
+        XCTAssertNil(farm.items["speed_grow_15m"])
+        _ = try farm.harvest(x: 6, y: 6, now: t0, config: config)
+    }
+
+    func testPlanSpeedupsMatchesServer() throws {
+        var farm = Farm(config: config)
+        let t0 = Date(timeIntervalSince1970: 1_000_000)
+        farm.queue = [Build(type: "straw_guard", readyAt: t0.addingTimeInterval(47 * 60))]
+        farm.items = ["speed_any_1h": 2, "speed_recruit_30m": 1, "speed_any_15m": 3, "speed_any_1m": 5, "speed_grow_1h": 4]
+        let plan = try farm.planSpeedups(for: SpeedTarget(kind: SpeedTarget.recruit), now: t0, config: config)
+        XCTAssertEqual(plan, ["speed_recruit_30m": 1, "speed_any_15m": 1, "speed_any_1m": 2])
+
+        farm.queue[0].readyAt = t0.addingTimeInterval(70 * 60)
+        farm.items = ["speed_any_1h": 3]
+        let cover = try farm.planSpeedups(for: SpeedTarget(kind: SpeedTarget.recruit), now: t0, config: config)
+        XCTAssertEqual(cover, ["speed_any_1h": 2])
+        try farm.useSpeedups(cover, on: SpeedTarget(kind: SpeedTarget.recruit), now: t0, config: config)
+        XCTAssertTrue(farm.queue.isEmpty)
+        XCTAssertEqual(farm.items["speed_any_1h"], 1)
+    }
+
+    func testChestAndLevelUpRewards() throws {
+        var farm = Farm(config: config)
+        farm.items = ["chest_wood": 2]
+        let loot = try farm.openChest("chest_wood", count: 2, config: config)
+        XCTAssertFalse(loot.isEmpty)
+        XCTAssertNil(farm.items["chest_wood"])
+        XCTAssertThrowsError(try farm.openChest("speed_any_1m", count: 1, config: config)) {
+            XCTAssertEqual($0 as? FarmError, .notAChest)
+        }
+        farm.items = [:]
+        let up = farm.gainXP(100, config: config)  // level 1 -> 5
+        XCTAssertTrue(up.levelUp)
+        XCTAssertEqual(up.items["chest_wood"], 4)
+        XCTAssertEqual(up.items["chest_iron"], 1)
+    }
 }

@@ -22,6 +22,8 @@ final class FarmStore: ObservableObject {
     @Published private(set) var isOnline = false
     /// Plot the player tapped on unowned land; the HUD shows the offer.
     @Published var plotOffer: PlotOffer?
+    /// Growing crop the player tapped; the HUD offers a speedup.
+    @Published var growOffer: TileRef?
     private var pendingTill: (x: Int, y: Int)?
 
     let config: GameConfig
@@ -108,7 +110,10 @@ final class FarmStore: ObservableObject {
                 let crop = selectedCrop
                 sync { try await $0.plant(x: x, y: y, crop: crop) }
             } else {
-                if swipe, (progress(of: tile) ?? 0) < 1 { return .nothing }
+                if (progress(of: tile) ?? 0) < 1 {
+                    if !swipe { growOffer = TileRef(x: x, y: y) }
+                    return .nothing
+                }
                 let result = try next.harvest(x: x, y: y, now: now, config: config)
                 outcome = .harvested(result)
                 sync { try await $0.harvest(x: x, y: y) }
@@ -124,6 +129,12 @@ final class FarmStore: ObservableObject {
     }
 
     // MARK: - land
+
+    struct TileRef: Identifiable, Equatable {
+        var x: Int
+        var y: Int
+        var id: Int { y * 1000 + x }
+    }
 
     struct PlotOffer: Identifiable, Equatable {
         var px: Int
@@ -217,6 +228,68 @@ final class FarmStore: ObservableObject {
         farm = next
         save()
         sync { try await $0.skipOrder(i) }
+    }
+
+    // MARK: - storage (Склад)
+
+    /// Smart speedup: picks the speedups that waste the least and spends them.
+    /// Returns the seconds saved and the items used.
+    func smartSpeedup(_ target: SpeedTarget) -> Result<(saved: Int, used: [String: Int]), FarmError> {
+        var next = farm
+        do {
+            let plan = try next.planSpeedups(for: target, now: now, config: config)
+            let saved = try next.useSpeedups(plan, on: target, now: now, config: config)
+            farm = next
+            save()
+            sync { try await $0.speedup(plan, on: target) }
+            return .success((saved, plan))
+        } catch let error as FarmError {
+            return .failure(error)
+        } catch {
+            return .failure(.unknownItem)
+        }
+    }
+
+    /// Spends chosen speedups (the storage screen's manual mode).
+    func useSpeedups(_ use: [String: Int], on target: SpeedTarget) -> Result<Int, FarmError> {
+        var next = farm
+        do {
+            let saved = try next.useSpeedups(use, on: target, now: now, config: config)
+            farm = next
+            save()
+            sync { try await $0.speedup(use, on: target) }
+            return .success(saved)
+        } catch let error as FarmError {
+            return .failure(error)
+        } catch {
+            return .failure(.unknownItem)
+        }
+    }
+
+    /// Online the server rolls the chest; offline it is rolled here.
+    func openChest(_ id: String, count: Int = 1) async -> Result<[String: Int], FarmError> {
+        if isOnline, let api {
+            do {
+                let resp = try await api.openChest(id, count: count)
+                apply(resp)
+                return .success(resp.loot ?? [:])
+            } catch APIClient.APIError.game(let code) {
+                return .failure(code)
+            } catch {
+                isOnline = false
+            }
+        }
+        var next = farm
+        do {
+            let loot = try next.openChest(id, count: count, config: config)
+            farm = next
+            save()
+            return .success(loot)
+        } catch let error as FarmError {
+            return .failure(error)
+        } catch {
+            return .failure(.unknownItem)
+        }
     }
 
     /// Moves finished scarecrows into the army and refills the order board;

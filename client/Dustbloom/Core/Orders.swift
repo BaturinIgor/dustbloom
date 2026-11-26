@@ -13,6 +13,7 @@ struct OrderResult: Codable, Equatable {
     var coins: Int
     var xp: Int
     var levelUp: Bool
+    var items: [String: Int]?
 }
 
 extension GameConfig {
@@ -64,12 +65,11 @@ extension Farm {
         guard canDeliver(i) else { throw FarmError.notEnoughCrops }
         let o = orders[i]
         for (k, n) in o.items { take(k, n) }
-        let before = level
         coins += o.coins
-        xp += o.xp
+        let up = gainXP(o.xp, config: config)
         var rng = SystemRandomNumberGenerator()
         orders[i] = newOrder(config: config, using: &rng)
-        return OrderResult(coins: o.coins, xp: o.xp, levelUp: level > before)
+        return OrderResult(coins: o.coins, xp: o.xp, levelUp: up.levelUp, items: up.items.isEmpty ? nil : up.items)
     }
 
     mutating func skipOrder(_ i: Int, now: Date, config: GameConfig) throws {

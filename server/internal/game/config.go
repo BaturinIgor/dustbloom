@@ -92,6 +92,8 @@ type Raid struct {
 	RewardXP        int               `json:"rewardXp"`
 	CooldownSeconds int               `json:"cooldownSeconds"`
 	UnlockLevel     int               `json:"unlockLevel"`
+	// Drops are storage items granted on a win.
+	Drops map[string]int `json:"drops,omitempty"`
 }
 
 // Config is the full game balance file shared with the client.
@@ -103,10 +105,13 @@ type Config struct {
 	Scarecrows []Scarecrow `json:"scarecrows"`
 	Raids      []Raid      `json:"raids"`
 	Orders     OrderConfig `json:"orders"`
+	Items      ItemsConfig `json:"items"`
 
-	cropsByID map[string]Crop
-	scByID    map[string]Scarecrow
-	raidsByID map[string]Raid
+	cropsByID  map[string]Crop
+	scByID     map[string]Scarecrow
+	raidsByID  map[string]Raid
+	speedups   map[string]Speedup
+	chestsByID map[string]Chest
 }
 
 // DefaultConfig parses the embedded balance file.
@@ -171,6 +176,9 @@ func ParseConfig(data []byte) (*Config, error) {
 			return nil, fmt.Errorf("config: duplicate raid %q", r.ID)
 		}
 		c.raidsByID[r.ID] = r
+	}
+	if err := c.indexItems(); err != nil {
+		return nil, err
 	}
 	return &c, nil
 }

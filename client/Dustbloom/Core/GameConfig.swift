@@ -77,6 +77,7 @@ struct GameConfig: Codable, Equatable {
         var rewardXp: Int
         var cooldownSeconds: Int
         var unlockLevel: Int
+        var drops: [String: Int]?
 
         var localizedName: String { GameConfig.localized(name, fallback: id) }
     }
@@ -88,6 +89,7 @@ struct GameConfig: Codable, Equatable {
     var scarecrows: [Scarecrow]
     var raids: [Raid]
     var orders: OrderConfig
+    var items: ItemsConfig
 
     func crop(_ id: String) -> Crop? {
         crops.first { $0.id == id }

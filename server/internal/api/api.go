@@ -15,6 +15,9 @@
 //	POST /v1/orders/skip            {"index"} -> farm (slot refills later)
 //	POST /v1/army/build             {"scarecrow"} -> farm with the workshop queue
 //	POST /v1/raid                   {"raid"} -> farm + raid result with every hit
+//	POST /v1/items/speedup          {"target":{"kind","x","y"},"items":{id:n}} -> farm + seconds saved
+//	POST /v1/items/smart            {"target":{"kind","x","y"}} -> farm + plan used + seconds saved
+//	POST /v1/items/open             {"item","count"} -> farm + loot
 //
 // Authenticated calls send "Authorization: Bearer <token>".
 package api
@@ -58,6 +61,9 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /v1/orders/deliver", s.auth(s.deliverOrder))
 	mux.HandleFunc("POST /v1/orders/skip", s.auth(s.skipOrder))
 	mux.HandleFunc("POST /v1/raid", s.auth(s.raid))
+	mux.HandleFunc("POST /v1/items/speedup", s.auth(s.speedup))
+	mux.HandleFunc("POST /v1/items/smart", s.auth(s.smartSpeedup))
+	mux.HandleFunc("POST /v1/items/open", s.auth(s.openChest))
 	return mux
 }
 
@@ -70,6 +76,9 @@ type farmResponse struct {
 	Sold       int                 `json:"sold,omitempty"`
 	Raid       *game.RaidResult    `json:"raid,omitempty"`
 	Order      *game.OrderResult   `json:"order,omitempty"`
+	Saved      int                 `json:"saved,omitempty"` // speedup seconds used
+	Used       map[string]int      `json:"used,omitempty"`  // speedups spent
+	Loot       map[string]int      `json:"loot,omitempty"`  // chest contents
 }
 
 type errorResponse struct {
@@ -99,6 +108,8 @@ func gameErrStatus(w http.ResponseWriter, err error) {
 		game.ErrUnknownScarecrow, game.ErrQueueFull, game.ErrUnknownRaid,
 		game.ErrRaidCooldown, game.ErrNoArmy, game.ErrNotOwned, game.ErrOwned, game.ErrNotAdjacent,
 		game.ErrNoOrder, game.ErrOrderNotReady,
+		game.ErrUnknownItem, game.ErrNoItems, game.ErrWrongTarget, game.ErrNothingToSpeed,
+		game.ErrUnknownTarget, game.ErrNotAChest, game.ErrNotASpeedup,
 	} {
 		if errors.Is(err, known) {
 			writeErr(w, http.StatusConflict, known.Error())
@@ -287,5 +298,54 @@ func (s *Server) skipOrder(w http.ResponseWriter, r *http.Request, token string)
 	}
 	s.mutate(w, token, func(f *game.Farm, now time.Time, _ *farmResponse) error {
 		return f.SkipOrder(s.Config, req.Index, now)
+	})
+}
+
+type speedReq struct {
+	Target game.SpeedTarget `json:"target"`
+	Items  map[string]int   `json:"items"`
+}
+
+func (s *Server) speedup(w http.ResponseWriter, r *http.Request, token string) {
+	var req speedReq
+	if !decode(w, r, &req) {
+		return
+	}
+	s.mutate(w, token, func(f *game.Farm, now time.Time, resp *farmResponse) error {
+		saved, err := f.UseSpeedups(s.Config, req.Target, req.Items, now)
+		resp.Saved, resp.Used = saved, req.Items
+		return err
+	})
+}
+
+// smartSpeedup picks the speedups itself (the "smart speedup" button).
+func (s *Server) smartSpeedup(w http.ResponseWriter, r *http.Request, token string) {
+	var req speedReq
+	if !decode(w, r, &req) {
+		return
+	}
+	s.mutate(w, token, func(f *game.Farm, now time.Time, resp *farmResponse) error {
+		plan, err := f.PlanSpeedups(s.Config, req.Target, now)
+		if err != nil {
+			return err
+		}
+		saved, err := f.UseSpeedups(s.Config, req.Target, plan, now)
+		resp.Saved, resp.Used = saved, plan
+		return err
+	})
+}
+
+func (s *Server) openChest(w http.ResponseWriter, r *http.Request, token string) {
+	var req struct {
+		Item  string `json:"item"`
+		Count int    `json:"count"`
+	}
+	if !decode(w, r, &req) {
+		return
+	}
+	s.mutate(w, token, func(f *game.Farm, now time.Time, resp *farmResponse) error {
+		loot, err := f.OpenChest(s.Config, req.Item, req.Count, uint64(now.UnixNano()))
+		resp.Loot = loot
+		return err
 	})
 }

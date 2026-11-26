@@ -1,5 +1,5 @@
 {
-  "version": 5,
+  "version": 6,
   "farm": {
     "width": 16,
     "height": 16,
@@ -267,7 +267,10 @@
       "rewardCoins": 25,
       "rewardXp": 3,
       "cooldownSeconds": 120,
-      "unlockLevel": 1
+      "unlockLevel": 1,
+      "drops": {
+        "speed_recruit_1m": 2
+      }
     },
     {
       "id": "rust_bandits",
@@ -296,7 +299,11 @@
       "rewardCoins": 80,
       "rewardXp": 10,
       "cooldownSeconds": 600,
-      "unlockLevel": 2
+      "unlockLevel": 2,
+      "drops": {
+        "speed_recruit_5m": 1,
+        "speed_any_5m": 1
+      }
     },
     {
       "id": "scrap_golem",
@@ -313,7 +320,10 @@
       "rewardCoins": 200,
       "rewardXp": 25,
       "cooldownSeconds": 1800,
-      "unlockLevel": 3
+      "unlockLevel": 3,
+      "drops": {
+        "chest_iron": 1
+      }
     }
   ],
   "orders": {
@@ -324,5 +334,182 @@
     "maxItemTypes": 2,
     "baseCount": 4,
     "countPerLevel": 0.15
+  },
+  "items": {
+    "speedupTargets": [
+      "any",
+      "recruit",
+      "grow"
+    ],
+    "speedupSeconds": [
+      60,
+      300,
+      900,
+      1800,
+      3600,
+      10800,
+      28800,
+      86400
+    ],
+    "chests": [
+      {
+        "id": "chest_wood",
+        "name": {
+          "en": "Wooden Chest",
+          "ru": "Деревянный сундук"
+        },
+        "rolls": 2,
+        "drops": [
+          {
+            "item": "speed_any_1m",
+            "min": 2,
+            "max": 4,
+            "weight": 30
+          },
+          {
+            "item": "speed_any_5m",
+            "min": 1,
+            "max": 2,
+            "weight": 25
+          },
+          {
+            "item": "speed_grow_15m",
+            "min": 1,
+            "max": 1,
+            "weight": 15
+          },
+          {
+            "item": "speed_recruit_15m",
+            "min": 1,
+            "max": 1,
+            "weight": 15
+          },
+          {
+            "item": "coins",
+            "min": 30,
+            "max": 80,
+            "weight": 15
+          }
+        ]
+      },
+      {
+        "id": "chest_iron",
+        "name": {
+          "en": "Iron Chest",
+          "ru": "Железный сундук"
+        },
+        "rolls": 3,
+        "drops": [
+          {
+            "item": "speed_any_15m",
+            "min": 1,
+            "max": 2,
+            "weight": 25
+          },
+          {
+            "item": "speed_any_30m",
+            "min": 1,
+            "max": 1,
+            "weight": 15
+          },
+          {
+            "item": "speed_grow_1h",
+            "min": 1,
+            "max": 1,
+            "weight": 15
+          },
+          {
+            "item": "speed_recruit_1h",
+            "min": 1,
+            "max": 1,
+            "weight": 15
+          },
+          {
+            "item": "coins",
+            "min": 150,
+            "max": 300,
+            "weight": 20
+          },
+          {
+            "item": "chest_wood",
+            "min": 1,
+            "max": 1,
+            "weight": 10
+          }
+        ]
+      },
+      {
+        "id": "chest_gold",
+        "name": {
+          "en": "Golden Chest",
+          "ru": "Золотой сундук"
+        },
+        "rolls": 4,
+        "drops": [
+          {
+            "item": "speed_any_1h",
+            "min": 1,
+            "max": 2,
+            "weight": 25
+          },
+          {
+            "item": "speed_any_3h",
+            "min": 1,
+            "max": 1,
+            "weight": 15
+          },
+          {
+            "item": "speed_recruit_3h",
+            "min": 1,
+            "max": 1,
+            "weight": 15
+          },
+          {
+            "item": "speed_grow_3h",
+            "min": 1,
+            "max": 1,
+            "weight": 15
+          },
+          {
+            "item": "coins",
+            "min": 500,
+            "max": 900,
+            "weight": 20
+          },
+          {
+            "item": "speed_any_8h",
+            "min": 1,
+            "max": 1,
+            "weight": 10
+          }
+        ]
+      }
+    ],
+    "startItems": {
+      "speed_any_5m": 3,
+      "speed_grow_15m": 2,
+      "speed_recruit_5m": 2,
+      "chest_wood": 1
+    },
+    "levelUp": [
+      {
+        "every": 1,
+        "items": {
+          "chest_wood": 1
+        }
+      },
+      {
+        "every": 5,
+        "items": {
+          "chest_iron": 1
+        }
+      },
+      {
+        "every": 10,
+        "items": {
+          "chest_gold": 1
+        }
+      }
+    ]
   }
 }

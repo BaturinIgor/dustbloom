@@ -29,6 +29,8 @@ struct RaidResult: Codable, Equatable {
     var xp: Int
     var levelUp: Bool
     var hits: [Hit]?
+    /// Raid drops plus level-up rewards.
+    var items: [String: Int]?
 }
 
 /// Mirror of server/internal/game/army.go. Offline play runs it locally;
@@ -105,12 +107,15 @@ extension Farm {
 
         var result = RaidResult(raid: raidID, won: won, lost: lost, coins: 0, xp: 0, levelUp: false, hits: hits)
         if won {
-            let before = level
             coins += raid.rewardCoins
-            xp += raid.rewardXp
+            let up = gainXP(raid.rewardXp, config: config)
+            let drops = raid.drops ?? [:]
+            grant(drops)
             result.coins = raid.rewardCoins
             result.xp = raid.rewardXp
-            result.levelUp = level > before
+            result.levelUp = up.levelUp
+            let all = drops.merging(up.items, uniquingKeysWith: +)
+            result.items = all.isEmpty ? nil : all
             raidReadyAt[raidID] = now.addingTimeInterval(TimeInterval(raid.cooldownSeconds))
         }
         settle(now: now, config: config)

@@ -101,6 +101,8 @@ type RaidResult struct {
 	XP      int    `json:"xp"`
 	LevelUp bool   `json:"levelUp"`
 	Hits    []Hit  `json:"hits"`
+	// Items are the raid drops plus any level-up rewards.
+	Items map[string]int `json:"items,omitempty"`
 }
 
 const maxRounds = 30
@@ -177,11 +179,12 @@ func (f *Farm) Raid(cfg *Config, raidID string, now time.Time, seed uint64) (Rai
 	}
 	f.Army = survivors
 	if res.Won {
-		before := f.Level()
 		res.Coins, res.XP = raid.RewardCoins, raid.RewardXP
 		f.Coins += res.Coins
-		f.XP += res.XP
-		res.LevelUp = f.Level() > before
+		var lvlItems map[string]int
+		res.LevelUp, lvlItems = f.gainXP(cfg, res.XP)
+		f.Grant(raid.Drops)
+		res.Items = mergeItems(raid.Drops, lvlItems)
 		if f.RaidReadyAt == nil {
 			f.RaidReadyAt = map[string]time.Time{}
 		}
@@ -195,4 +198,17 @@ func hashString(s string) uint64 {
 	h := fnv.New64a()
 	_, _ = h.Write([]byte(s))
 	return h.Sum64()
+}
+
+func mergeItems(a, b map[string]int) map[string]int {
+	if len(a)+len(b) == 0 {
+		return nil
+	}
+	out := map[string]int{}
+	for _, m := range []map[string]int{a, b} {
+		for id, n := range m {
+			out[id] += n
+		}
+	}
+	return out
 }

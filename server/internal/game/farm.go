@@ -50,6 +50,8 @@ type Farm struct {
 	Orders []Order `json:"orders,omitempty"`
 	// RaidReadyAt holds each raid's cooldown end.
 	RaidReadyAt map[string]time.Time `json:"raidReadyAt,omitempty"`
+	// Items is the storage (Склад): speedups and chests by item id.
+	Items map[string]int `json:"items,omitempty"`
 }
 
 // NewFarm creates a starting farm from the config.
@@ -68,6 +70,7 @@ func NewFarm(cfg *Config) *Farm {
 		}
 	}
 	f.EnsurePlots(cfg)
+	f.Grant(cfg.Items.StartItems)
 	return f
 }
 
@@ -221,6 +224,8 @@ type HarvestResult struct {
 	Count   int    `json:"count"`
 	XP      int    `json:"xp"`
 	LevelUp bool   `json:"levelUp"`
+	// Items are level-up rewards put into the storage.
+	Items map[string]int `json:"items,omitempty"`
 }
 
 // Harvest collects a ripe crop.
@@ -239,16 +244,16 @@ func (f *Farm) Harvest(cfg *Config, x, y int, now time.Time) (HarvestResult, err
 	if Progress(crop, *t.PlantedAt, now) < 1 {
 		return HarvestResult{}, ErrNotReady
 	}
-	before := f.Level()
 	f.addCrops(crop.ID, 1)
-	f.XP += crop.XP
+	up, items := f.gainXP(cfg, crop.XP)
 	t.Crop = ""
 	t.PlantedAt = nil
 	return HarvestResult{
 		Crop:    crop.ID,
 		Count:   1,
 		XP:      crop.XP,
-		LevelUp: f.Level() > before,
+		LevelUp: up,
+		Items:   items,
 	}, nil
 }
 

@@ -22,6 +22,13 @@ enum FarmError: String, Error, Codable {
     case notAdjacent = "not_adjacent"
     case noOrder = "no_order"
     case orderNotReady = "order_not_ready"
+    case unknownItem = "unknown_item"
+    case notEnoughItems = "not_enough_items"
+    case wrongTarget = "wrong_target"
+    case nothingToSpeedUp = "nothing_to_speed_up"
+    case unknownTarget = "unknown_target"
+    case notAChest = "not_a_chest"
+    case notASpeedup = "not_a_speedup"
 }
 
 struct Tile: Codable, Equatable {
@@ -36,6 +43,8 @@ struct HarvestResult: Codable, Equatable {
     var count: Int
     var xp: Int
     var levelUp: Bool
+    /// Level-up rewards put into the storage.
+    var items: [String: Int]?
 }
 
 /// Mirror of the server farm rules. Offline play runs these locally;
@@ -55,9 +64,11 @@ struct Farm: Codable, Equatable {
     /// `ensurePlots` fills in the start plots.
     var plots: [Bool] = []
     var orders: [Order] = []
+    /// The storage (Склад): item id -> count.
+    var items: [String: Int] = [:]
 
     private enum CodingKeys: String, CodingKey {
-        case width, height, coins, xp, tiles, barn, army, queue, raidReadyAt, plots, orders
+        case width, height, coins, xp, tiles, barn, army, queue, raidReadyAt, plots, orders, items
     }
 
     /// Older saves and the server's omitempty fields may lack the army keys.
@@ -74,6 +85,7 @@ struct Farm: Codable, Equatable {
         raidReadyAt = try c.decodeIfPresent([String: Date].self, forKey: .raidReadyAt) ?? [:]
         plots = try c.decodeIfPresent([Bool].self, forKey: .plots) ?? []
         orders = try c.decodeIfPresent([Order].self, forKey: .orders) ?? []
+        items = try c.decodeIfPresent([String: Int].self, forKey: .items) ?? [:]
     }
 
     init(config: GameConfig) {
@@ -90,6 +102,7 @@ struct Farm: Codable, Equatable {
         }
         self.tiles = tiles
         ensurePlots(config: config)
+        grant(config.items.startItems)
     }
 
     /// Each level needs 10 more XP than the previous one.
@@ -189,12 +202,11 @@ struct Farm: Codable, Equatable {
         guard let cropID = tiles[i].crop, let plantedAt = tiles[i].plantedAt else { throw FarmError.empty }
         guard let crop = config.crop(cropID) else { throw FarmError.unknownCrop }
         guard Farm.progress(crop: crop, plantedAt: plantedAt, now: now) >= 1 else { throw FarmError.notReady }
-        let before = level
         barn[cropID, default: 0] += 1
-        xp += crop.xp
+        let up = gainXP(crop.xp, config: config)
         tiles[i].crop = nil
         tiles[i].plantedAt = nil
-        return HarvestResult(crop: cropID, count: 1, xp: crop.xp, levelUp: level > before)
+        return HarvestResult(crop: cropID, count: 1, xp: crop.xp, levelUp: up.levelUp, items: up.items.isEmpty ? nil : up.items)
     }
 
     /// Sells crops from the barn. Returns the coins earned.

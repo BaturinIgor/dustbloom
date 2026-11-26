@@ -35,9 +35,10 @@ type Order struct {
 
 // OrderResult is what delivering an order paid.
 type OrderResult struct {
-	Coins   int  `json:"coins"`
-	XP      int  `json:"xp"`
-	LevelUp bool `json:"levelUp"`
+	Coins   int            `json:"coins"`
+	XP      int            `json:"xp"`
+	LevelUp bool           `json:"levelUp"`
+	Items   map[string]int `json:"items,omitempty"`
 }
 
 // FillOrders tops the board up to its slot count and refreshes skipped slots
@@ -100,16 +101,15 @@ func (f *Farm) DeliverOrder(cfg *Config, i int, now time.Time, seed uint64) (Ord
 	for _, k := range keys {
 		f.addCrops(k, -o.Items[k])
 	}
-	before := f.Level()
 	f.Coins += o.Coins
-	f.XP += o.XP
+	up, items := f.gainXP(cfg, o.XP)
 	f.Orders = append(f.Orders[:i], f.Orders[i+1:]...)
 	f.FillOrders(cfg, now, seed)
 	// keep the new order in the slot the old one left
 	last := f.Orders[len(f.Orders)-1]
 	copy(f.Orders[i+1:], f.Orders[i:len(f.Orders)-1])
 	f.Orders[i] = last
-	return OrderResult{Coins: o.Coins, XP: o.XP, LevelUp: f.Level() > before}, nil
+	return OrderResult{Coins: o.Coins, XP: o.XP, LevelUp: up, Items: items}, nil
 }
 
 // SkipOrder throws order i away; the slot refills after SkipSeconds.

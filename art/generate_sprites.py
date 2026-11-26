@@ -997,6 +997,8 @@ def build_sprites():
     s.update(land_sprites())
     from crops_art import crop_sprites
     s.update(crop_sprites())
+    from items_art import item_sprites
+    s.update(item_sprites())
     return s
 
 

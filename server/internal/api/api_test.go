@@ -183,3 +183,33 @@ func TestBadRequests(t *testing.T) {
 		t.Fatalf("bad token = %d", code)
 	}
 }
+
+func TestStorageEndpoints(t *testing.T) {
+	e := newEnv(t)
+	e.login("device-items-1")
+	var fr farmResponse
+	if code := e.do("POST", "/v1/farm/plant", tileReq{X: 6, Y: 6, Crop: "dustwheat"}, &fr); code != 200 {
+		t.Fatalf("plant = %d", code)
+	}
+	fr = farmResponse{}
+	grow := map[string]any{"target": game.SpeedTarget{Kind: game.TargetGrow, X: 6, Y: 6}}
+	if code := e.do("POST", "/v1/items/smart", grow, &fr); code != 200 || fr.Saved == 0 || len(fr.Used) == 0 {
+		t.Fatalf("smart = %d saved %d used %v", code, fr.Saved, fr.Used)
+	}
+	if code := e.do("POST", "/v1/farm/harvest", tileReq{X: 6, Y: 6}, &fr); code != 200 {
+		t.Fatalf("harvest after speedup = %d", code)
+	}
+	var er errorResponse
+	if code := e.do("POST", "/v1/items/speedup", map[string]any{
+		"target": game.SpeedTarget{Kind: game.TargetRecruit}, "items": map[string]int{"speed_any_5m": 1},
+	}, &er); code != 409 || er.Error != "nothing_to_speed_up" {
+		t.Fatalf("speedup empty queue = %d %q", code, er.Error)
+	}
+	fr = farmResponse{}
+	if code := e.do("POST", "/v1/items/open", map[string]any{"item": "chest_wood", "count": 1}, &fr); code != 200 || len(fr.Loot) == 0 {
+		t.Fatalf("open = %d loot %v", code, fr.Loot)
+	}
+	if fr.Farm.Items["chest_wood"] != 0 {
+		t.Fatalf("chest left: %v", fr.Farm.Items)
+	}
+}

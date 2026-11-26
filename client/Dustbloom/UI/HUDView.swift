@@ -33,8 +33,8 @@ struct HUDView: View {
 
             Spacer()
 
-            // action row: four equal 56 pt buttons, centred over the crop bar
-            HStack(spacing: 16) {
+            // action row: five equal 56 pt buttons, centred over the crop bar
+            HStack(spacing: 12) {
                 ForEach(ArmyTab.allCases) { t in
                     Button {
                         sheet = t
@@ -88,9 +88,13 @@ struct HUDView: View {
             if let offer = store.plotOffer {
                 PlotOfferCard(offer: offer)
                     .transition(.scale(scale: 0.8).combined(with: .opacity))
+            } else if let offer = store.growOffer {
+                GrowOfferCard(offer: offer)
+                    .transition(.scale(scale: 0.8).combined(with: .opacity))
             }
         }
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: store.plotOffer)
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: store.growOffer)
         .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { _ in store.settle() }
     }
 
@@ -103,6 +107,7 @@ struct HUDView: View {
             case .orders: return store.farm.orders.indices.contains { store.farm.canDeliver($0) }
             case .workshop: return false
             case .raids: return !store.farm.army.isEmpty
+            case .storage: return store.config.items.chests.contains { store.farm.items[$0.id, default: 0] > 0 }
             }
         }()
         if show {
