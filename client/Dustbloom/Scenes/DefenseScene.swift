@@ -434,10 +434,11 @@ final class DefenseScene: SKScene {
             // speckles: pebbles and footprints along the paths
             for l in lanes {
                 for _ in 0..<70 {
-                    let t = rng.next()
+                    let t: Double = rng.next()
                     let p = toImg(lanePoint(l, t))
-                    let dx = CGFloat(rng.next() * 16 - 8), dy = CGFloat(rng.next() * 6 - 3)
-                    let light = rng.next() < 0.5
+                    let r1: Double = rng.next(), r2: Double = rng.next()
+                    let dx = CGFloat(r1 * 16 - 8), dy = CGFloat(r2 * 6 - 3)
+                    let r3: Double = rng.next(); let light = r3 < 0.5
                     UIColor(hex: light ? 0xC89A64 : 0x5E4028).withAlphaComponent(0.7).setFill()
                     g.fill(CGRect(x: floor(p.x + dx), y: floor(p.y + dy), width: 1, height: 1))
                 }
