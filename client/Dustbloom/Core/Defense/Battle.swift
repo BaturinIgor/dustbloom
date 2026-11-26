@@ -301,13 +301,13 @@ final class Battle {
         if boss { kinds.append(DefenseContent.boss) }
         let total = kinds.reduce(0) { $0 + $1.hpWeight * (b.isLandBoss(wave) && $1.id == "queen" ? 2 : 1) }
         let hp = b.waveHP(wave)
-        let spread = 11.0
+        let spread = 7.5
         for (k, kind) in kinds.enumerated() {
             let isBoss = kind.id == DefenseContent.boss.id
             let w = kind.hpWeight * (b.isLandBoss(wave) && isBoss ? 2 : 1)
             let ehp = hp * w / total
-            // enemies come in packs of three, a beat apart, so the field fills with groups
-            let pack = Double(k / 3 * 3) / Double(max(1, count))
+            // enemies come in packs of four, a beat apart, so the field fills with groups
+            let pack = Double(k / 4 * 4) / Double(max(1, count))
             let at = isBoss ? time + spread * 0.6 : time + spread * pack + rng.next() * 0.9
             enemies.append(Enemy(id: nextId, kind: kind, lane: isBoss ? 1 : Int(rng.next() * 3) % 3,
                                  jitter: isBoss ? 0 : rng.next() * 2 - 1, progress: -1, hp: ehp, maxHP: ehp,

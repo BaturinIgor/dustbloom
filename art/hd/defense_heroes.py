@@ -144,7 +144,8 @@ def _pose(f):
 # ---------------------------------------------------------------- straw guard
 def straw_guard(f):
     """Tank: pitchfork and a round plank shield, blue patched coat, straw hat."""
-    p = _pose(f)
+    p = dict(_pose(f))
+    p["r"] = {"idle_0": 55, "idle_1": 50, "atk_0": 165, "atk_1": 100, "atk_2": 80}[f]
     im = new(W, H)
     _shadow(im)
     _stake(im, 46)
@@ -157,7 +158,7 @@ def straw_guard(f):
     rx, ry = _limb(im, sx + 7, top + 2, p["r"], 9, 2.2, "cloth_blue", 0.3, 0.75)
     _torso(im, sx, top, 56 + b // 2, 6, "cloth_blue", p["sq"])
     # pitchfork: angle follows the arm, tines up
-    fang = {"idle_0": 8, "idle_1": 6, "atk_0": -20, "atk_1": 28, "atk_2": 14}[f]
+    fang = {"idle_0": 8, "idle_1": 6, "atk_0": -40, "atk_1": 34, "atk_2": 16}[f]
     w = R("wood")
     ex, ey, dx, dy = _shaft(im, rx, ry, fang, 8, 24, w[3], w[2])
     # tines

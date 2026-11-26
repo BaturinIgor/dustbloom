@@ -293,7 +293,8 @@ final class DefenseScene: SKScene {
 
     private func enemyPoint(_ e: Battle.Enemy) -> CGPoint {
         let l = lanes[e.lane]
-        let t = max(0, min(1, e.progress))
+        // the boss is tall: start it a little lower so its crown clears the top HUD
+        let t = max(e.isBoss ? 0.1 : 0, min(1, e.progress))
         let p = lanePoint(l, t)
         let q = lanePoint(l, min(1, t + 0.01))
         let dx = q.x - p.x, dy = q.y - p.y
@@ -462,13 +463,13 @@ final class DefenseScene: SKScene {
         grain.filteringMode = .nearest
         let e = SKEmitterNode()
         e.particleTexture = grain
-        e.particleBirthRate = 14
+        e.particleBirthRate = 34
         e.particleLifetime = 7
-        e.particleSize = CGSize(width: 4, height: 4)
+        e.particleSize = CGSize(width: 6, height: 6)
         e.particleScaleRange = 0.5
         e.particleColor = UIColor(hex: 0xF0D8A8)
         e.particleColorBlendFactor = 1
-        e.particleAlpha = 0.55
+        e.particleAlpha = 0.8
         e.particleAlphaRange = 0.3
         e.particleAlphaSpeed = -0.06
         e.particleSpeed = 90
