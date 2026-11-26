@@ -74,7 +74,7 @@ enum DefenseContent {
                   name: ["ru": "Кротокрыс", "en": "Mole Rat"]),
     ]
 
-    static let boss = EnemyKind(id: "queen", sprite: "def_queen", frames: 4, frameTime: 0.12, speed: 0.55,
+    static let boss = EnemyKind(id: "queen", sprite: "def_queen", frames: 4, frameTime: 0.12, speed: 0.7,
                                 hpWeight: 14, fenceDps: 18, flying: true, burrows: false, size: 1.0, firstWave: 1,
                                 name: ["ru": "Королева саранчи", "en": "Locust Queen"])
 

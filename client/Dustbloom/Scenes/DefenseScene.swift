@@ -23,6 +23,11 @@ final class DefenseScene: SKScene {
     private var lastTime: TimeInterval = 0
     private var hudClock: TimeInterval = 0
     private var coinSoundClock: TimeInterval = 0
+    private let logFPS = ProcessInfo.processInfo.arguments.contains("-showFPS")
+    private var fpsFrames = 0
+    private var fpsTime: TimeInterval = 0
+
+    private func countNodes(_ n: SKNode) -> Int { n.children.reduce(1) { $0 + countNodes($1) } }
 
     // lanes: start, control, end (at the fence), all in world points
     private var lanes: [(CGPoint, CGPoint, CGPoint)] = []
@@ -207,7 +212,7 @@ final class DefenseScene: SKScene {
         let top = fenceTop
         let leftEnd = world(grid.center(fx: 0, fy: 2.6))
         let rightEnd = world(grid.center(fx: 2.6, fy: 0))
-        let yStart = cam.position.y + size.height * camScale * 0.30
+        let yStart = cam.position.y + size.height * camScale * 0.26
         let mid = (yStart + top.y) / 2
         lanes = [
             (CGPoint(x: -175, y: yStart - 20), CGPoint(x: -190, y: mid), leftEnd),
@@ -372,8 +377,18 @@ final class DefenseScene: SKScene {
             let under = e.kind.burrows && e.progress < 0.5
             n.alpha = under ? 0.35 : 1
             if e.isBoss, let fill = bossFill, let bar = bossBar {
-                bar.position = CGPoint(x: p.x, y: p.y + n.size.height + 10)
+                bar.position = CGPoint(x: p.x, y: p.y - 14)  // under its feet: clear of the HUD and the numbers
                 fill.xScale = CGFloat(max(0, e.hp / e.maxHP))
+            }
+        }
+        if logFPS {
+            fpsFrames += 1
+            fpsTime += dt
+            if fpsTime >= 5 {
+                print(String(format: "[defense] fps %.1f nodes %d enemies %d", Double(fpsFrames) / fpsTime,
+                             countNodes(self), game.battle.aliveCount))
+                fpsFrames = 0
+                fpsTime = 0
             }
         }
         hudClock += dt
@@ -422,9 +437,11 @@ final class DefenseScene: SKScene {
                 var p = self.pendingDamage[enemy] ?? (0, 0)
                 p.sum += amount
                 if crit || self.lastTime - p.last > 0.22 {
-                    let wide = n.size.width * 0.35
-                    self.number(p.sum, crit: crit, at: CGPoint(x: n.position.x + .random(in: -wide...wide),
-                                                               y: n.position.y + n.size.height * 0.85))
+                    let boss = enemy == self.bossId
+                    let wide = n.size.width * (boss ? 0.6 : 0.35)
+                    let dx: CGFloat = boss ? (Bool.random() ? 1 : -1) * CGFloat.random(in: wide * 0.6...wide) : .random(in: -wide...wide)
+                    self.number(p.sum, crit: crit, at: CGPoint(x: n.position.x + dx,
+                                                               y: n.position.y + n.size.height * (boss ? 0.55 : 0.85)))
                     p = (0, self.lastTime)
                 }
                 self.pendingDamage[enemy] = p
@@ -477,7 +494,7 @@ final class DefenseScene: SKScene {
         let tex = Textures.named(texture(for: projectile))
         s.texture = tex
         let glowing = projectile != .arrow
-        let k: CGFloat = glowing ? px1 * 2.4 : px1 * 1.6
+        let k: CGFloat = glowing ? px1 * 1.6 : px1 * 1.6
         s.size = CGSize(width: tex.size().width * k, height: tex.size().height * k)
         s.blendMode = glowing ? .add : .alpha
         if glowing {
@@ -521,9 +538,13 @@ final class DefenseScene: SKScene {
 
     private func number(_ v: Double, crit: Bool, at p: CGPoint) {
         guard let l = numberPool.popLast() else { return }
-        l.text = BigNumber.format(v) + (crit ? "!" : "")
-        l.fontColor = crit ? UIColor(hex: 0xFFD24A) : .white
-        l.fontSize = crit ? 34 : 24
+        // filled text with a dark stroke reads over any ground
+        l.attributedText = NSAttributedString(string: BigNumber.format(v) + (crit ? "!" : ""), attributes: [
+            .font: UIFont(name: "Tiny5-Regular", size: crit ? 40 : 30) ?? UIFont.systemFont(ofSize: 30),
+            .foregroundColor: crit ? UIColor(hex: 0xFFD24A) : UIColor.white,
+            .strokeColor: UIColor(hex: 0x2A1A10),
+            .strokeWidth: -5,
+        ])
         l.position = p
         l.alpha = 1
         l.setScale(crit ? 0.6 : 1)

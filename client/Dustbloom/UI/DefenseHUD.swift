@@ -45,16 +45,23 @@ struct OutlinedText: View {
     let text: String
     var size: CGFloat = 16
     var color: Color = DText.cream
+    /// false: one line that shrinks to fit its frame instead of widening the layout.
+    var fixed = true
 
     var body: some View {
-        ZStack {
+        let base = ZStack {
             ForEach(0..<4, id: \.self) { k in
                 Text(text).font(DText.font(size)).foregroundStyle(Color.black.opacity(0.75))
                     .offset(x: k < 2 ? (k == 0 ? -1.5 : 1.5) : 0, y: k >= 2 ? (k == 2 ? -1.5 : 1.5) : 0)
             }
             Text(text).font(DText.font(size)).foregroundStyle(color)
         }
-        .fixedSize()
+        .lineLimit(1)
+        if fixed {
+            base.fixedSize()
+        } else {
+            base.minimumScaleFactor(0.5)
+        }
     }
 }
 
@@ -105,31 +112,28 @@ struct DefenseHUD: View {
     @State private var tab = 0
 
     var body: some View {
-        VStack(spacing: 8) {
-            topBar
-            if let lost = game.lostWave {
-                Button {
-                    game.retryNext()
-                    Sfx.play(.select, volume: 0.7)
-                } label: {
-                    OutlinedText(text: ru ? "Штурм волны \(lost)" : "Storm wave \(lost)", size: 16, color: DText.gold)
+        GeometryReader { g in
+            VStack(spacing: 8) {
+                topBar
+                if let lost = game.lostWave {
+                    Button {
+                        game.retryNext()
+                        Sfx.play(.select, volume: 0.7)
+                    } label: {
+                        OutlinedText(text: ru ? "Штурм волны \(lost)" : "Storm wave \(lost)", size: 16, color: DText.gold)
+                    }
+                    .buttonStyle(WoodButtonStyle())
+                    .transition(.scale.combined(with: .opacity))
                 }
-                .buttonStyle(WoodButtonStyle())
-                .transition(.scale.combined(with: .opacity))
+                Spacer(minLength: 0)
+                skillRow
+                    .padding(.horizontal, 12)
+                // the wood panel runs to the screen's bottom edge; its content stays above the home bar
+                bottomPanel(bottomInset: g.safeAreaInsets.bottom)
             }
-            Spacer()
-            skillRow
-            bottomPanel
-                .background(alignment: .bottom) {
-                    // dark wood under the panel down to the screen edge: no stray strip of ground
-                    Color(red: 0.17, green: 0.11, blue: 0.07)
-                        .frame(height: 60)
-                        .padding(.horizontal, -12)
-                        .ignoresSafeArea(edges: .bottom)
-                }
+            .frame(width: g.size.width)
+            .ignoresSafeArea(edges: .bottom)
         }
-        .padding(.horizontal, 12)
-        .frame(maxWidth: .infinity)
         .animation(.spring(response: 0.3, dampingFraction: 0.75), value: game.lostWave)
     }
 
@@ -162,6 +166,7 @@ struct DefenseHUD: View {
             }
         }
         .padding(.top, 4)
+        .padding(.horizontal, 12)
     }
 
     private var fenceColor: Color {
@@ -222,7 +227,7 @@ struct DefenseHUD: View {
 
     // MARK: bottom
 
-    private var bottomPanel: some View {
+    private func bottomPanel(bottomInset: CGFloat) -> some View {
         PixelPanel(padding: 8) {
             VStack(spacing: 8) {
                 HStack(spacing: 8) {
@@ -237,6 +242,7 @@ struct DefenseHUD: View {
                     }
                 }
             }
+            .padding(.bottom, max(0, bottomInset - 6))
         }
     }
 
@@ -245,7 +251,7 @@ struct DefenseHUD: View {
             tab = t
             Sfx.play(.select, volume: 0.5)
         } label: {
-            OutlinedText(text: title, size: 14, color: tab == t ? DText.gold : DText.cream)
+            OutlinedText(text: title, size: 14, color: tab == t ? DText.gold : DText.cream, fixed: false)
                 .frame(maxWidth: .infinity)
         }
         .buttonStyle(WoodButtonStyle(enabled: tab == t))
@@ -303,9 +309,8 @@ struct UpgradeCard: View {
                     .frame(maxWidth: .infinity)
                 if !locked { LevelBadge(level: level, size: 24) }
             }
-            OutlinedText(text: title, size: 10)
-                .lineLimit(1)
-                .minimumScaleFactor(0.6)
+            OutlinedText(text: title, size: 10, fixed: false)
+                .frame(maxWidth: .infinity)
                 .frame(height: 12)
             if locked {
                 OutlinedText(text: (Locale.preferredLanguages.first?.hasPrefix("ru") ?? false ? "волна " : "wave ") + "\(unlockWave)",
