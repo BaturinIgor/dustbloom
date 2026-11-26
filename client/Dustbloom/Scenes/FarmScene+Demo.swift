@@ -23,6 +23,19 @@ extension FarmScene {
                 ]))
                 return
             }
+            // 0b. in between: build or upgrade a working building the same way
+            if steps % 10 == 0, !farm.busy,
+               let b = store.config.buildings.list.first(where: { Buildings.canUpgrade($0.id, farm: farm, config: store.config) }),
+               store.upgradeBuilding(b.id) == nil {
+                store.showBuilding = b.id
+                self.run(.sequence([
+                    .wait(forDuration: 1.4),
+                    .run { _ = store.smartSpeedup(SpeedTarget(kind: SpeedTarget.build)); Sfx.play(.speedup) },
+                    .wait(forDuration: 1.2),
+                    .run { store.showBuilding = nil },
+                ]))
+                return
+            }
             // 1. harvest the first ripe crop
             if let i = beds.first(where: { i in
                 store.progress(of: farm.tiles[i]).map { $0 >= 1 } ?? false

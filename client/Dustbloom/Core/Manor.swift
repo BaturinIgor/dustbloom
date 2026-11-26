@@ -6,6 +6,7 @@ extension GameConfig {
         var maxLevel: Int
         var armySlotEvery: Int
         var levels: [ManorLevel]
+        var startPower: Int
     }
 
     /// Cost of one manor level; levels[i] goes from level i+1 to i+2.
@@ -14,6 +15,7 @@ extension GameConfig {
         var crops: [String: Int]
         var seconds: Int
         var playerLevel: Int
+        var power: Int
     }
 }
 
@@ -43,7 +45,7 @@ extension Farm {
 
     mutating func upgradeManor(now: Date, config: GameConfig) throws {
         settle(now: now, config: config)
-        guard manorReadyAt == nil else { throw FarmError.busy }
+        guard !busy else { throw FarmError.busy }
         guard let next = nextManor(config: config) else { throw FarmError.maxLevel }
         guard level >= next.playerLevel else { throw FarmError.cropLocked }
         for (crop, n) in next.crops where barn[crop, default: 0] < n { throw FarmError.notEnoughCrops }

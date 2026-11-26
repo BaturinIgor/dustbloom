@@ -258,4 +258,46 @@ final class FarmTests: XCTestCase {
         farm.manor = 6
         XCTAssertEqual(farm.manorTier, 1)
     }
+
+    // MARK: - working buildings (mirrors server/internal/game/buildings_test.go)
+
+    func testBuildingsCappedByManorWithOneBuilder() throws {
+        var farm = Farm(config: config)
+        farm.coins = 1_000_000
+        farm.barn = ["dustwheat": 500, "emberpumpkin": 500]
+        var now = Date(timeIntervalSince1970: 1_000_000)
+        XCTAssertEqual(config.buildings.list.count, 6)
+        XCTAssertEqual(farm.buildingLevel("mill", config: config), 1)
+        XCTAssertThrowsError(try farm.upgradeBuilding("well", now: now, config: config)) {
+            XCTAssertEqual($0 as? FarmError, .manorTooLow)
+        }
+        try farm.upgradeManor(now: now, config: config)
+        XCTAssertThrowsError(try farm.upgradeBuilding("mill", now: now, config: config)) {
+            XCTAssertEqual($0 as? FarmError, .busy)
+        }
+        now = now.addingTimeInterval(3600)
+        try farm.upgradeBuilding("well", now: now, config: config)
+        XCTAssertThrowsError(try farm.upgradeManor(now: now, config: config)) {
+            XCTAssertEqual($0 as? FarmError, .busy)
+        }
+        farm.items = ["speed_build_5m": 1]
+        try farm.useSpeedups(["speed_build_5m": 1], on: SpeedTarget(kind: SpeedTarget.build), now: now, config: config)
+        XCTAssertEqual(farm.buildingLevel("well", config: config), 1)
+        XCTAssertNil(farm.work)
+        XCTAssertGreaterThan(farm.power(config: config), config.manor.startPower)
+    }
+
+    func testWellMakesNewPlantingsFaster() throws {
+        var farm = Farm(config: config)
+        farm.manor = 30
+        farm.buildings = ["well": 10, "mill": 10]
+        let t0 = Date(timeIntervalSince1970: 1_000_000)
+        let pumpkin = try XCTUnwrap(config.crop("emberpumpkin"))
+        try farm.plant(x: 6, y: 6, cropID: "emberpumpkin", now: t0, config: config)
+        let grow = try XCTUnwrap(farm.tile(x: 6, y: 6)?.grow)
+        XCTAssertEqual(grow, Int(Double(pumpkin.growSeconds) * 0.85 + 0.5))
+        _ = try farm.harvest(x: 6, y: 6, now: t0.addingTimeInterval(Double(grow)), config: config)
+        farm.barn = ["emberpumpkin": 10]
+        XCTAssertEqual(try farm.sell(cropID: "emberpumpkin", count: 10, config: config), pumpkin.sellPrice * 10 * 120 / 100)
+    }
 }

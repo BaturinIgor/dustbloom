@@ -116,13 +116,13 @@ extension Farm {
             guard let last = queue.last else { throw FarmError.nothingToSpeedUp }
             return max(0, Int(last.readyAt.timeIntervalSince(now).rounded(.up)))
         case SpeedTarget.build:
-            guard let ready = manorReadyAt else { throw FarmError.nothingToSpeedUp }
+            guard let ready = manorReadyAt ?? work?.readyAt else { throw FarmError.nothingToSpeedUp }
             return max(0, Int(ready.timeIntervalSince(now).rounded(.up)))
         case SpeedTarget.grow:
             guard let tl = tile(x: t.x, y: t.y) else { throw FarmError.outOfBounds }
             guard let id = tl.crop, let planted = tl.plantedAt else { throw FarmError.nothingToSpeedUp }
             guard let crop = config.crop(id) else { throw FarmError.unknownCrop }
-            let left = TimeInterval(crop.growSeconds) - now.timeIntervalSince(planted)
+            let left = TimeInterval(tl.growSeconds(crop)) - now.timeIntervalSince(planted)
             return max(0, Int(left.rounded(.up)))
         default:
             throw FarmError.unknownTarget
@@ -153,7 +153,11 @@ extension Farm {
             }
             settle(now: now, config: config)
         case SpeedTarget.build:
-            if let ready = manorReadyAt { manorReadyAt = max(now, ready.addingTimeInterval(-d)) }
+            if let ready = manorReadyAt {
+                manorReadyAt = max(now, ready.addingTimeInterval(-d))
+            } else if let w = work {
+                work?.readyAt = max(now, w.readyAt.addingTimeInterval(-d))
+            }
             settle(now: now, config: config)
         default:
             if let i = index(x: t.x, y: t.y), let p = tiles[i].plantedAt {

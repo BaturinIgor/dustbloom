@@ -35,6 +35,7 @@ struct ManorCard: View {
                 text(ru ? "Главное здание. Даёт место в армии каждые \(cfg.manor.armySlotEvery) уровня, а уровни других зданий не выше её уровня."
                         : "The main building. Adds an army slot every \(cfg.manor.armySlotEvery) levels; other buildings can't outgrow it.", 13, ink.opacity(0.75))
                     .multilineTextAlignment(.center)
+                buildingsRow
 
                 if let ready = farm.manorReadyAt {
                     TimelineView(.periodic(from: .now, by: 1)) { _ in
@@ -64,12 +65,14 @@ struct ManorCard: View {
                         text((ru ? "Уровень " : "Level ") + "\(next.playerLevel)", 13, farm.level >= next.playerLevel ? ink : bad)
                         text("⏱ " + (next.seconds < 60 ? "\(next.seconds) " + (ru ? "сек" : "s") : Items.duration(next.seconds)), 13)
                     }
-                    if let error {
+                    if let w = farm.work, let b = cfg.building(w.building) {
+                        text((ru ? "Строитель занят: " : "Builder busy: ") + b.localizedName, 13, bad)
+                    } else if let error {
                         text(message(error), 13, bad)
                     }
                     HStack(spacing: 12) {
                         closeButton
-                        let can = farm.level >= next.playerLevel && farm.coins >= next.coins
+                        let can = !farm.busy && farm.level >= next.playerLevel && farm.coins >= next.coins
                             && next.crops.allSatisfy { farm.barn[$0.key, default: 0] >= $0.value }
                         Button {
                             if let e = store.upgradeManor() {
@@ -98,6 +101,43 @@ struct ManorCard: View {
                 Image("ui_panel").interpolation(.none)
                     .resizable(capInsets: EdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12), resizingMode: .stretch)
             )
+        }
+    }
+
+    /// The working buildings: level badge, red dot when one can be upgraded
+    /// right now. Tapping opens its card.
+    private var buildingsRow: some View {
+        let farm = store.farm
+        let cfg = store.config
+        return HStack(spacing: 3) {
+            ForEach(cfg.buildings.list) { b in
+                let level = farm.buildingLevel(b.id, config: cfg)
+                Button {
+                    store.showManor = false
+                    store.showBuilding = b.id
+                } label: {
+                    Image(level == 0 ? "bld_site" : Buildings.image(b.id, level: level))
+                        .interpolation(.none).resizable().scaledToFit()
+                        .frame(width: 30, height: 30)
+                        .frame(width: 44, height: 44)
+                        .background(slot(false))
+                        .overlay(alignment: .bottomTrailing) {
+                            text("\(level)", 11, .white)
+                                .padding(.horizontal, 3)
+                                .background(Capsule().fill(Color(uiColor: Palette.outline)))
+                                .offset(x: 3, y: 3)
+                        }
+                        .overlay(alignment: .topTrailing) {
+                            if Buildings.canUpgrade(b.id, farm: farm, config: cfg) {
+                                Circle().fill(Color.red).frame(width: 10, height: 10)
+                                    .overlay(Circle().stroke(Color.white, lineWidth: 1.5))
+                                    .offset(x: 3, y: -3)
+                            }
+                        }
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("\(b.localizedName) \(level)")
+            }
         }
     }
 

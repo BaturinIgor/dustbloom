@@ -26,6 +26,8 @@ final class FarmStore: ObservableObject {
     @Published var growOffer: TileRef?
     /// The manor card is open (tap on the house).
     @Published var showManor = false
+    /// The working building whose card is open.
+    @Published var showBuilding: String?
     private var pendingTill: (x: Int, y: Int)?
 
     let config: GameConfig
@@ -252,6 +254,21 @@ final class FarmStore: ObservableObject {
         return nil
     }
 
+    func upgradeBuilding(_ id: String) -> FarmError? {
+        var next = farm
+        do {
+            try next.upgradeBuilding(id, now: now, config: config)
+        } catch let error as FarmError {
+            return error
+        } catch {
+            return nil
+        }
+        farm = next
+        save()
+        sync { try await $0.upgradeBuilding(id) }
+        return nil
+    }
+
     // MARK: - storage (Склад)
 
     /// Smart speedup: picks the speedups that waste the least and spends them.
@@ -328,7 +345,7 @@ final class FarmStore: ObservableObject {
 
     func progress(of tile: Tile) -> Double? {
         guard let id = tile.crop, let planted = tile.plantedAt, let crop = config.crop(id) else { return nil }
-        return Farm.progress(crop: crop, plantedAt: planted, now: now)
+        return Farm.progress(seconds: tile.growSeconds(crop), plantedAt: planted, now: now)
     }
 
     func save() {

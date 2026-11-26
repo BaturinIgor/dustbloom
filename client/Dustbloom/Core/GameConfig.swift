@@ -91,6 +91,7 @@ struct GameConfig: Codable, Equatable {
     var orders: OrderConfig
     var items: ItemsConfig
     var manor: ManorConfig
+    var buildings: BuildingsConfig
 
     func crop(_ id: String) -> Crop? {
         crops.first { $0.id == id }

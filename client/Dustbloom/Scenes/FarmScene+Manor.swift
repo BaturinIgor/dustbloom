@@ -31,18 +31,25 @@ extension FarmScene {
                 }
             }
         }
-        let badgeName = "manorBuild"
-        if let ready = farm.manorReadyAt, let store {
+        constructionBadge(on: house, ready: farm.manorReadyAt)
+    }
+}
+
+extension FarmScene {
+    /// Bobbing hammer and time left over a building under construction;
+    /// removed with a dust puff when the work is done.
+    func constructionBadge(on node: SKSpriteNode, ready: Date?) {
+        let badgeName = "buildBadge"
+        if let ready, let store {
             let badge: SKNode
-            if let b = house.childNode(withName: badgeName) {
+            if let b = node.childNode(withName: badgeName) {
                 badge = b
             } else {
                 badge = SKNode()
                 badge.name = badgeName
-                badge.position = CGPoint(x: 0, y: house.size.height + 18)
+                badge.position = CGPoint(x: 0, y: node.size.height + 18)
                 badge.zPosition = 0.02
                 let hammer = SKSpriteNode(texture: Textures.named("icon_workshop"), size: CGSize(width: 36, height: 36))
-                hammer.name = "hammer"
                 let swing = SKAction.sequence([.rotate(toAngle: 0.5, duration: 0.18), .rotate(toAngle: -0.2, duration: 0.3)])
                 hammer.run(.repeatForever(swing))
                 badge.addChild(hammer)
@@ -59,14 +66,14 @@ extension FarmScene {
                 back.zPosition = -0.001
                 badge.addChild(back)
                 badge.addChild(label)
-                house.addChild(badge)
+                node.addChild(badge)
             }
             let s = max(0, Int(ready.timeIntervalSince(store.now).rounded(.up)))
             let text = s >= 3600 ? "\(s / 3600)h \(s % 3600 / 60)m" : "\(s / 60):\(String(format: "%02d", s % 60))"
             (badge.childNode(withName: "time") as? SKLabelNode)?.text = text
-        } else if let b = house.childNode(withName: badgeName) {
+        } else if let b = node.childNode(withName: badgeName) {
             b.removeFromParent()
-            dustPuff(at: CGPoint(x: house.position.x, y: house.position.y + 10))
+            dustPuff(at: CGPoint(x: node.position.x, y: node.position.y + 10))
         }
     }
 }

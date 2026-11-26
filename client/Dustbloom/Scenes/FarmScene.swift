@@ -40,6 +40,10 @@ final class FarmScene: SKScene {
     var manorNode: SKSpriteNode?
     var manorShownTier = -1
     var manorPiece: FarmLayout.Piece?
+    /// Working buildings on the farm: node, shown texture and footprint by id.
+    var buildingNodes: [String: SKSpriteNode] = [:]
+    var buildingShown: [String: String] = [:]
+    var buildingPieces: [String: FarmLayout.Piece] = [:]
     private var pinch: UIPinchGestureRecognizer?
 
     private let lightTap = UIImpactFeedbackGenerator(style: .light)
@@ -208,6 +212,8 @@ final class FarmScene: SKScene {
                 sails.zPosition = 0.001
                 mill.addChild(sails)
                 sails.run(.repeatForever(.rotate(byAngle: -.pi * 2, duration: 9)))
+                buildingNodes["mill"] = mill
+                buildingPieces["mill"] = piece
             case "prop_pond":
                 let pond = stand("prop_pond_0", x: piece.x, y: piece.y, w: piece.width, h: piece.height, farm: farm)
                 pond.zPosition = 0.4
@@ -218,6 +224,8 @@ final class FarmScene: SKScene {
                 let lean = SKAction.sequence([.rotate(toAngle: 0.03, duration: 1.6), .rotate(toAngle: -0.03, duration: 1.6)])
                 lean.timingMode = .easeInEaseOut
                 s.run(.repeatForever(lean))
+            case let s where s.hasPrefix("bld:"):
+                placeBuilding(String(s.dropFirst(4)), piece: piece, farm: farm)
             case "prop_stones":
                 stand("prop_stones", x: piece.x, y: piece.y, w: 1, h: 1, farm: farm).zPosition = 0.3
             default:
@@ -330,7 +338,10 @@ final class FarmScene: SKScene {
             rebuildLand()
             if !first { celebratePlot() }
         }
-        if let store { refreshManor(store.farm) }
+        if let store {
+            refreshManor(store.farm)
+            refreshBuildings(store.farm)
+        }
         refreshAll(animated: true)
     }
 
@@ -390,6 +401,14 @@ final class FarmScene: SKScene {
             lightTap.impactOccurred(intensity: 0.6)
             manorNode?.run(.sequence([.scaleY(to: 0.94, duration: 0.06), .scaleY(to: 1, duration: 0.12)]))
             store.showManor = true
+            return
+        }
+        if let hit = buildingPieces.first(where: { x >= $0.value.x && x < $0.value.x + $0.value.width && y >= $0.value.y && y < $0.value.y + $0.value.height }) {
+            let id = hit.key
+            Sfx.play(.select, volume: 0.6)
+            lightTap.impactOccurred(intensity: 0.6)
+            buildingNodes[id]?.run(.sequence([.scaleY(to: 0.94, duration: 0.06), .scaleY(to: 1, duration: 0.12)]))
+            store.showBuilding = id
             return
         }
         if layout?.isBlocked(x: x, y: y) == true {

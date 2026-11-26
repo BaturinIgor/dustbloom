@@ -31,12 +31,18 @@ enum FarmError: String, Error, Codable {
     case notASpeedup = "not_a_speedup"
     case busy
     case maxLevel = "max_level"
+    case unknownBuilding = "unknown_building"
+    case manorTooLow = "manor_too_low"
 }
 
 struct Tile: Codable, Equatable {
     var tilled: Bool
     var crop: String?
     var plantedAt: Date?
+    /// Growth time fixed at planting (with the well bonus); nil = the crop's own.
+    var grow: Int?
+
+    func growSeconds(_ crop: GameConfig.Crop) -> Int { grow ?? crop.growSeconds }
 }
 
 /// A harvested crop goes to the barn; it is sold or built into scarecrows.
@@ -71,9 +77,12 @@ struct Farm: Codable, Equatable {
     /// Manor (Усадьба) level, 0 in old saves = 1, and its running upgrade.
     var manor: Int = 1
     var manorReadyAt: Date?
+    /// Working building levels and the one under construction.
+    var buildings: [String: Int] = [:]
+    var work: Work?
 
     private enum CodingKeys: String, CodingKey {
-        case width, height, coins, xp, tiles, barn, army, queue, raidReadyAt, plots, orders, items, manor, manorReadyAt
+        case width, height, coins, xp, tiles, barn, army, queue, raidReadyAt, plots, orders, items, manor, manorReadyAt, buildings, work
     }
 
     /// Older saves and the server's omitempty fields may lack the army keys.
@@ -93,6 +102,8 @@ struct Farm: Codable, Equatable {
         items = try c.decodeIfPresent([String: Int].self, forKey: .items) ?? [:]
         manor = try c.decodeIfPresent(Int.self, forKey: .manor) ?? 1
         manorReadyAt = try c.decodeIfPresent(Date.self, forKey: .manorReadyAt)
+        buildings = try c.decodeIfPresent([String: Int].self, forKey: .buildings) ?? [:]
+        work = try c.decodeIfPresent(Work.self, forKey: .work)
     }
 
     init(config: GameConfig) {
@@ -202,17 +213,20 @@ struct Farm: Codable, Equatable {
         coins -= crop.seedCost
         tiles[i].crop = cropID
         tiles[i].plantedAt = now
+        let g = faster(Effect.grow, crop.growSeconds, config: config)
+        tiles[i].grow = g != crop.growSeconds ? g : nil
     }
 
     mutating func harvest(x: Int, y: Int, now: Date, config: GameConfig) throws -> HarvestResult {
         guard let i = index(x: x, y: y) else { throw FarmError.outOfBounds }
         guard let cropID = tiles[i].crop, let plantedAt = tiles[i].plantedAt else { throw FarmError.empty }
         guard let crop = config.crop(cropID) else { throw FarmError.unknownCrop }
-        guard Farm.progress(crop: crop, plantedAt: plantedAt, now: now) >= 1 else { throw FarmError.notReady }
+        guard Farm.progress(seconds: tiles[i].growSeconds(crop), plantedAt: plantedAt, now: now) >= 1 else { throw FarmError.notReady }
         barn[cropID, default: 0] += 1
         let up = gainXP(crop.xp, config: config)
         tiles[i].crop = nil
         tiles[i].plantedAt = nil
+        tiles[i].grow = nil
         return HarvestResult(crop: cropID, count: 1, xp: crop.xp, levelUp: up.levelUp, items: up.items.isEmpty ? nil : up.items)
     }
 
@@ -221,7 +235,7 @@ struct Farm: Codable, Equatable {
         guard let crop = config.crop(cropID) else { throw FarmError.unknownCrop }
         guard count > 0, barn[cropID, default: 0] >= count else { throw FarmError.notEnoughCrops }
         take(cropID, count)
-        let earned = crop.sellPrice * count
+        let earned = more(Effect.sell, crop.sellPrice * count, config: config)
         coins += earned
         return earned
     }
@@ -232,10 +246,10 @@ struct Farm: Codable, Equatable {
     }
 
     /// Growth from 0 to 1.
-    static func progress(crop: GameConfig.Crop, plantedAt: Date, now: Date) -> Double {
+    static func progress(seconds: Int, plantedAt: Date, now: Date) -> Double {
         let elapsed = now.timeIntervalSince(plantedAt)
         guard elapsed > 0 else { return 0 }
-        return min(1, elapsed / Double(crop.growSeconds))
+        return min(1, elapsed / Double(max(1, seconds)))
     }
 
     /// Sprite stage 0...3: seed, sprout, growing, ripe.

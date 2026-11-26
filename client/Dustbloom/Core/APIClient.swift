@@ -106,6 +106,10 @@ struct APIClient {
         try await send("POST", "/v1/manor/upgrade", body: [String: Int]())
     }
 
+    func upgradeBuilding(_ id: String) async throws -> FarmResponse {
+        try await send("POST", "/v1/buildings/upgrade", body: ["building": id])
+    }
+
     private struct TileBody: Encodable {
         var x: Int
         var y: Int

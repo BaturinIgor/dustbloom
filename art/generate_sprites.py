@@ -1001,6 +1001,8 @@ def build_sprites():
     s.update(item_sprites())
     from manor_art import manor_sprites
     s.update(manor_sprites())
+    from buildings_art import building_sprites
+    s.update(building_sprites())
     return s
 
 

@@ -45,6 +45,7 @@ extension Farm {
     /// Moves finished scarecrows into the army while there is room.
     mutating func settle(now: Date, config: GameConfig) {
         settleManor(now: now)
+        settleBuildings(config: config, now: now)
         while let first = queue.first, first.readyAt <= now, army.count < armySlots(config: config) {
             army.append(ArmyUnit(type: first.type))
             queue.removeFirst()
@@ -62,7 +63,7 @@ extension Farm {
         for (crop, n) in sc.cost { take(crop, n) }
         coins -= sc.coins
         let start = max(now, queue.last?.readyAt ?? now)
-        queue.append(Build(type: id, readyAt: start.addingTimeInterval(TimeInterval(sc.buildSeconds))))
+        queue.append(Build(type: id, readyAt: start.addingTimeInterval(TimeInterval(faster(Effect.buildTime, sc.buildSeconds, config: config)))))
     }
 
     /// Same battle rules as the server: every living fighter strikes the
@@ -81,7 +82,7 @@ extension Farm {
 
         var ours = army.map { u -> (hp: Int, atk: Int) in
             let sc = config.scarecrow(u.type)
-            return (sc?.hp ?? 1, sc?.attack ?? 1)
+            return (more(Effect.armyPower, sc?.hp ?? 1, config: config), more(Effect.armyPower, sc?.attack ?? 1, config: config))
         }
         var theirs = raid.enemies.map { (hp: $0.hp, atk: $0.attack) }
         func front(_ side: [(hp: Int, atk: Int)]) -> Int? { side.firstIndex { $0.hp > 0 } }
@@ -118,7 +119,7 @@ extension Farm {
             result.levelUp = up.levelUp
             let all = drops.merging(up.items, uniquingKeysWith: +)
             result.items = all.isEmpty ? nil : all
-            raidReadyAt[raidID] = now.addingTimeInterval(TimeInterval(raid.cooldownSeconds))
+            raidReadyAt[raidID] = now.addingTimeInterval(TimeInterval(faster(Effect.raidCooldown, raid.cooldownSeconds, config: config)))
         }
         settle(now: now, config: config)
         return result

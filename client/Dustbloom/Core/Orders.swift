@@ -49,7 +49,7 @@ extension Farm {
             order.items[c.id] = n
             value += n * c.sellPrice
         }
-        order.coins = Int((Double(value) * config.orders.rewardFactor).rounded())
+        order.coins = more(Effect.orderReward, Int(Double(value) * config.orders.rewardFactor + 0.5), config: config)
         order.xp = max(1, Int((Double(order.coins) * config.orders.xpPerCoin).rounded()))
         return order
     }

@@ -251,12 +251,13 @@ struct GrowOfferCard: View {
                     Image("\(crop.id)_3").interpolation(.none).resizable().frame(width: 48, height: 72)
                     text(crop.localizedName, 20)
                     TimelineView(.periodic(from: .now, by: 1)) { _ in
-                        let left = max(0, Int((TimeInterval(crop.growSeconds) - store.now.timeIntervalSince(planted)).rounded(.up)))
+                        let total = tile?.growSeconds(crop) ?? crop.growSeconds
+                        let left = max(0, Int((TimeInterval(total) - store.now.timeIntervalSince(planted)).rounded(.up)))
                         VStack(spacing: 8) {
                             text(left > 0 ? ((L.ru ? "Созреет через " : "Ripe in ") + clock(left))
                                           : (L.ru ? "Готово! Нажми на грядку." : "Ready! Tap the bed."), 15)
                             if left > 0 {
-                                ProgressView(value: Double(crop.growSeconds - left), total: Double(crop.growSeconds))
+                                ProgressView(value: Double(total - left), total: Double(total))
                                     .tint(Color(red: 0.3, green: 0.62, blue: 0.25))
                                     .frame(width: 200)
                             }

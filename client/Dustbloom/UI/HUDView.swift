@@ -94,11 +94,16 @@ struct HUDView: View {
             } else if store.showManor {
                 ManorCard()
                     .transition(.scale(scale: 0.8).combined(with: .opacity))
+            } else if let id = store.showBuilding {
+                BuildingCard(id: id)
+                    .id(id)
+                    .transition(.scale(scale: 0.8).combined(with: .opacity))
             }
         }
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: store.plotOffer)
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: store.growOffer)
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: store.showManor)
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: store.showBuilding)
         .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { _ in store.settle() }
     }
 
