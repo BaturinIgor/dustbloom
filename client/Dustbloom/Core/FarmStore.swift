@@ -47,7 +47,10 @@ final class FarmStore: ObservableObject {
         self.isDemo = demo
         if demo {
             var fresh = Farm(config: config)
-            fresh.coins = 500
+            fresh.coins = 60_000
+            fresh.xp = 660  // level 12: the manor can climb to its third look
+            for c in config.crops { fresh.barn[c.id] = 60 }
+            fresh.grant(["speed_build_3h": 30, "chest_wood": 3, "chest_iron": 1])
             farm = fresh
         } else if let data = UserDefaults.standard.data(forKey: FarmStore.saveKey),
            let saved = try? JSONDecoder().decode(Farm.self, from: data),

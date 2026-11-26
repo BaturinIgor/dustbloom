@@ -12,6 +12,17 @@ extension FarmScene {
             steps += 1
             let farm = store.farm
             let beds = (0..<farm.tiles.count).filter { farm.tiles[$0].tilled }
+            // 0. every 10th step: upgrade the manor, show its card, speed it up
+            if steps % 10 == 5, farm.manorReadyAt == nil, store.upgradeManor() == nil {
+                store.showManor = true
+                self.run(.sequence([
+                    .wait(forDuration: 1.4),
+                    .run { _ = store.smartSpeedup(SpeedTarget(kind: SpeedTarget.build)); Sfx.play(.speedup) },
+                    .wait(forDuration: 1.2),
+                    .run { store.showManor = false },
+                ]))
+                return
+            }
             // 1. harvest the first ripe crop
             if let i = beds.first(where: { i in
                 store.progress(of: farm.tiles[i]).map { $0 >= 1 } ?? false
