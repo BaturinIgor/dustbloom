@@ -71,16 +71,21 @@ def ball(im, cx, cy, rx, ry, rname, light=(-0.65, -0.75), lo=0.0, hi=1.0, spread
             put(im, x, y, ramp_d(rname, t, x, y, spread))
 
 
-def outline(im, color=INK, only_outside=True):
-    """1 px dark outline around the opaque silhouette."""
+def outline(im, color=INK, only_outside=True, k=0.62):
+    """Selective outline ("sel-out"): each edge pixel is a darkened,
+    purple-shifted copy of the colour it borders, so sprites sit in the
+    scene instead of looking cut out with a black line."""
     src = im.copy()
+    ink = rgb(color)
     for y in range(im.height):
         for x in range(im.width):
             if src.getpixel((x, y))[3] > 0:
                 continue
             for dx, dy in ((0, 1), (0, -1), (1, 0), (-1, 0)):
-                if get(src, x + dx, y + dy)[3] > 200:
-                    put(im, x, y, color)
+                n = get(src, x + dx, y + dy)
+                if n[3] > 200:
+                    r, g, b = (round(n[i] * (1 - k) + ink[i] * k) for i in range(3))
+                    im.putpixel((x, y), (r, g, min(255, b + 10), 255))
                     break
     return im
 

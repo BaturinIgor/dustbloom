@@ -1246,6 +1246,11 @@ def render_preview(s, frames):
     return screen
 
 
+INTRO_NAMES = {"intro_sky", "intro_sun", "intro_mesa", "intro_hills", "intro_field", "intro_stalk_0",
+               "intro_stalk_1", "intro_stalk_2", "intro_hero", "intro_hero_eyes", "intro_crow_0",
+               "intro_crow_1", "intro_rays"}
+
+
 def main():
     os.makedirs(ASSETS, exist_ok=True)
     with open(os.path.join(ASSETS, "Contents.json"), "w") as f:
@@ -1256,7 +1261,7 @@ def main():
     light, vig = light_textures()
     frames["fx_light"], frames["fx_vignette"] = light, vig
 
-    keep = set(s) | set(frames) | {"logo_wordmark"}
+    keep = set(s) | set(frames) | {"logo_wordmark"} | INTRO_NAMES
     for d in os.listdir(ASSETS):
         if d.endswith(".imageset") and d[:-9] not in keep:
             for f in os.listdir(os.path.join(ASSETS, d)):
@@ -1276,6 +1281,14 @@ def main():
         save_imageset("logo_wordmark", Image.open(os.path.join(src, "wordmark.png")).convert("RGBA"))
     if os.path.exists(os.path.join(src, "app_icon_1024.png")):
         write_app_icon(os.path.join(src, "app_icon_1024.png"))
+
+    # splash layers in the icon's style (art/hd/intro.py)
+    from hd.intro import layers as intro_layers
+    pix, smooth = intro_layers()
+    for name, im in list(pix.items()) + list(smooth.items()):
+        save_imageset(name, im)
+    keep_intro = set(pix) | set(smooth)
+    assert keep_intro
 
     render_preview(s, frames).convert("RGB").save(os.path.join(ROOT, "art", "preview.png"))
 
