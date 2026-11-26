@@ -273,6 +273,24 @@ def icon_quests():
     return dark_outline(im)
 
 
+def icon_till():
+    """Hoe over a freshly dug furrow."""
+    im = new(16, 16)
+    for y in range(10, 15):  # soil mound with furrow lines
+        half = 7 - abs(12 - y)
+        for x in range(8 - half, 8 + half):
+            put(im, x, y, "w2" if (y == 10 or x < 8 - half + 1) else "w1")
+    for x in range(3, 13, 3):
+        put(im, x, 12, "w0")
+        put(im, x + 1, 12, "w0")
+    for i in range(10):  # handle from top right down to the blade
+        put(im, 13 - i, 1 + i, "w3")
+        put(im, 14 - i, 1 + i, "w2")
+    rect(im, 2, 9, 5, 10, "d5")  # iron blade
+    put(im, 2, 9, "white")
+    return dark_outline(im)
+
+
 def stage1_sprites():
     return {
         "unit_straw_guard": straw_guard(),
@@ -286,6 +304,7 @@ def stage1_sprites():
         "icon_raid": icon_swords(),
         "icon_orders": icon_orders(),
         "icon_quests": icon_quests(),
+        "icon_till": icon_till(),
     }
 
 

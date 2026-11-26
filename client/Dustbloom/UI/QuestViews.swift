@@ -43,7 +43,7 @@ enum Quests {
         switch kind {
         case "harvest": return "\(id ?? "dustwheat")_3"
         case "plant": return "dustwheat_2"
-        case "till": return "dustwheat_1"
+        case "till": return "icon_till"
         case "sell": return "ui_coin"
         case "order": return "icon_orders"
         case "clear": return "prop_dead_tree"
