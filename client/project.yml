@@ -37,7 +37,7 @@ targets:
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         UIStatusBarStyle: UIStatusBarStyleLightContent
         ITSAppUsesNonExemptEncryption: false
-        UIAppFonts: [Tiny5.ttf]
+        UIAppFonts: [Tiny5.ttf, Rubik-Bold.ttf]
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
     settings:

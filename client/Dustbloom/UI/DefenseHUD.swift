@@ -37,7 +37,9 @@ enum DText {
     static let cream = Color(red: 1, green: 0.96, blue: 0.86)
     static let gold = Color(uiColor: Palette.gold)
 
-    static func font(_ size: CGFloat) -> Font { .custom("Tiny5-Regular", size: size) }
+    /// Bold smooth text with a dark outline reads best over pixel art on a phone.
+    static let fontName = "Rubik-Bold"
+    static func font(_ size: CGFloat) -> Font { .custom(fontName, size: size * 1.1) }
 }
 
 /// Pixel text with a 1-point dark outline so it reads over the battlefield.
@@ -79,7 +81,7 @@ struct LevelBadge: View {
                 .foregroundStyle(DText.cream)
                 .frame(width: size, height: size, alignment: .center)
                 .multilineTextAlignment(.center)
-                .offset(y: -0.5)  // Tiny5 sits half a point low
+                .monospacedDigit()
         }
         .frame(width: size, height: size)
     }

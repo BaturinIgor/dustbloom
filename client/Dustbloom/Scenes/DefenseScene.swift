@@ -322,7 +322,7 @@ final class DefenseScene: SKScene {
         for _ in 0..<40 { enemyPool.append(makeEnemyNode()) }
         for _ in 0..<40 { shotPool.append(makeSprite(z: 400)) }
         for _ in 0..<40 {
-            let l = SKLabelNode(fontNamed: "Tiny5-Regular")
+            let l = SKLabelNode(fontNamed: DText.fontName)
             l.fontSize = 26
             l.verticalAlignmentMode = .center
             l.horizontalAlignmentMode = .center
@@ -540,10 +540,10 @@ final class DefenseScene: SKScene {
         guard let l = numberPool.popLast() else { return }
         // filled text with a dark stroke reads over any ground
         l.attributedText = NSAttributedString(string: BigNumber.format(v) + (crit ? "!" : ""), attributes: [
-            .font: UIFont(name: "Tiny5-Regular", size: crit ? 40 : 30) ?? UIFont.systemFont(ofSize: 30),
+            .font: UIFont(name: DText.fontName, size: crit ? 40 : 30) ?? UIFont.systemFont(ofSize: 30),
             .foregroundColor: crit ? UIColor(hex: 0xFFD24A) : UIColor.white,
             .strokeColor: UIColor(hex: 0x2A1A10),
-            .strokeWidth: -5,
+            .strokeWidth: -6,
         ])
         l.position = p
         l.alpha = 1
