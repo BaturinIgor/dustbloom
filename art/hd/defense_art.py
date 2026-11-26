@@ -4,6 +4,7 @@ and hit effects. Original designs. Drawn at 1 px = 1.5 pt (same as the farm).
 
 sprites() returns {name: image}; names start with "def_"."""
 import math
+import random
 
 from PIL import Image
 
@@ -255,6 +256,111 @@ def shadow():
     return im
 
 
+# ---------------------------------------------------------------- wasteland props
+def bones():
+    """A bleached rib cage half buried in dust."""
+    im = new(26, 14)
+    _shadow(im, 13, 11, 11, 2.5, 60)
+    line(im, 3, 9, 22, 9, "#e8dcc0")
+    line(im, 3, 10, 22, 10, "#b8a88a")
+    for k, x in enumerate(range(6, 21, 4)):
+        h = (5, 7, 7, 5)[k]
+        for t in range(h):
+            put(im, x + (t // 3), 9 - t, "#f4ead0" if t < h - 1 else "#d8c8a8")
+            put(im, x + 1 + (t // 3), 9 - t, "#c8b898")
+    return outline(im)
+
+
+def skull():
+    """A horned cow skull on the sand."""
+    im = new(20, 14)
+    _shadow(im, 10, 12, 7, 2, 60)
+    ball(im, 10, 7, 5, 4.5, "white", lo=0.35, hi=1.0) if "white" in P.RAMPS else None
+    for (x, y) in ((8, 6), (12, 6)):
+        rect(im, x - 1, y, x, y + 1, "#3a2418")
+    put(im, 10, 9, "#3a2418")
+    line(im, 5, 5, 1, 2, "#e8dcc0")
+    line(im, 15, 5, 19, 2, "#e8dcc0")
+    put(im, 1, 1, "#b8a88a")
+    put(im, 19, 1, "#b8a88a")
+    return outline(im)
+
+
+def shrub(f):
+    """Dry thorny shrub; two variants."""
+    im = new(22, 18)
+    _shadow(im, 11, 16, 8, 2, 70)
+    rnd = random.Random(f * 31 + 5)
+    cols = ("#8a6a3a", "#a8844a", "#6a4a2a", "#c09a5a")
+    for _ in range(9 + f * 3):
+        a = rnd.uniform(math.pi * 0.15, math.pi * 0.85)
+        length = rnd.uniform(6, 11)
+        x0, y0 = 11, 16
+        for t in range(int(length)):
+            x = x0 + math.cos(a) * t * (1 if rnd.random() < 0.5 else -1) * 0.9
+            y = y0 - math.sin(a) * t
+            put(im, int(x), int(y), cols[(t + f) % len(cols)])
+    for _ in range(4):
+        put(im, rnd.randint(4, 17), rnd.randint(4, 12), "#7a9a4a")
+    return outline(im)
+
+
+def crack(f):
+    """Flat ground crack decal (no outline)."""
+    im = new(30, 14)
+    rnd = random.Random(f * 13 + 2)
+    for _ in range(3):
+        x, y = rnd.uniform(4, 26), rnd.uniform(3, 11)
+        for t in range(12):
+            nx = x + rnd.choice((-1, 0, 1))
+            ny = y + rnd.choice((-1, 0, 0, 1)) * 0.6
+            if 0 <= int(nx) < 30 and 0 <= int(ny) < 14:
+                put(im, int(nx), int(ny), "#6a4a34", 170)
+                put(im, int(nx), int(ny) + 1, "#dcc084", 90)
+            x, y = nx, ny
+    return im
+
+
+def wheel():
+    """A broken cart wheel leaning in the dust."""
+    im = new(22, 22)
+    _shadow(im, 11, 20, 9, 2, 70)
+    cx, cy, r = 11, 11, 8
+    for k in range(64):
+        a = k * math.pi / 32
+        if 1.2 < a < 1.9:
+            continue  # broken rim
+        put(im, int(cx + math.cos(a) * r), int(cy + math.sin(a) * r), "#7d5232")
+        put(im, int(cx + math.cos(a) * (r - 1)), int(cy + math.sin(a) * (r - 1)), "#a2703f")
+    for k in range(6):
+        a = k * math.pi / 3 + 0.3
+        line(im, cx, cy, int(cx + math.cos(a) * (r - 1)), int(cy + math.sin(a) * (r - 1)), "#8c5c3a")
+    rect(im, cx - 1, cy - 1, cx + 1, cy + 1, "#5a3824")
+    return outline(im)
+
+
+def hay():
+    """Round hay bale for the farm."""
+    im = new(22, 18)
+    _shadow(im, 11, 16, 9, 2.2, 90)
+    ball(im, 11, 10, 9, 7, "straw", lo=0.2, hi=0.95)
+    for k in range(-6, 7, 3):
+        line(im, 11 + k, 4, 11 + k, 16, P.RAMPS["straw"][2])
+    line(im, 2, 10, 20, 10, "#a2703f")
+    return outline(im)
+
+
+def pumpkins():
+    """A little pile of ripe pumpkins."""
+    im = new(24, 16)
+    _shadow(im, 12, 14, 10, 2, 90)
+    for (cx, cy, r) in ((7, 10, 4.5), (17, 10, 4), (12, 7, 4.5)):
+        ball(im, cx, cy, r, r * 0.8, "pumpkin", lo=0.2, hi=0.9)
+        put(im, int(cx), int(cy - r * 0.8), "#4a7a2a")
+        put(im, int(cx), int(cy - r * 0.8) - 1, "#4a7a2a")
+    return outline(im)
+
+
 def sprites():
     out = {}
     for f in range(4):
@@ -272,4 +378,12 @@ def sprites():
     out["def_frost"] = frost()
     out["def_cloud"] = dust_cloud()
     out["def_shadow"] = shadow()
+    out["def_bones"] = bones()
+    out["def_skull"] = skull()
+    out["def_wheel"] = wheel()
+    out["def_hay"] = hay()
+    out["def_pumpkins"] = pumpkins()
+    for f in range(2):
+        out["def_shrub_%d" % f] = shrub(f)
+        out["def_crack_%d" % f] = crack(f)
     return out

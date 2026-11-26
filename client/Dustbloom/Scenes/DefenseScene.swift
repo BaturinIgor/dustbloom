@@ -80,6 +80,7 @@ final class DefenseScene: SKScene {
         fx.zPosition = 500
         buildGround()
         buildLanes()
+        buildDecor()
         buildSquad()
         buildStorm()
         warmPools()
@@ -219,6 +220,85 @@ final class DefenseScene: SKScene {
             (CGPoint(x: 0, y: yStart), CGPoint(x: 24, y: mid + 20), CGPoint(x: top.x, y: top.y + 6)),
             (CGPoint(x: 175, y: yStart - 20), CGPoint(x: 190, y: mid), rightEnd),
         ]
+    }
+
+    /// Wasteland clutter (bones, rocks, shrubs, cracks) placed off the lanes,
+    /// plus a little farm life; positions are fixed so the scene never jumps.
+    private func buildDecor() {
+        var rng = SplitMix(seed: 42)
+        func rnd() -> Double { rng.next() }
+        let top = fenceTop
+        let farmCenter = world(grid.center(fx: 3, fy: 3))
+        let yMax = (lanes.map { $0.0.y }.max() ?? top.y + 400) + 30
+        let props: [(String, Bool)] = [
+            ("def_bones", false), ("def_skull", false), ("def_wheel", false), ("def_shrub_0", false),
+            ("def_shrub_1", false), ("prop_rock", true), ("prop_stones", true), ("prop_dead_tree", true),
+            ("def_shrub_0", false), ("def_bones", false), ("prop_rock", true), ("def_shrub_1", false),
+        ]
+        func nearLane(_ p: CGPoint, _ r: CGFloat) -> Bool {
+            for l in lanes {
+                for k in 0...20 where hypot(lanePoint(l, Double(k) / 20).x - p.x, lanePoint(l, Double(k) / 20).y - p.y) < r {
+                    return true
+                }
+            }
+            return false
+        }
+        var placed: [CGPoint] = []
+        var i = 0
+        var tries = 0
+        while i < props.count * 2 && tries < 600 {
+            tries += 1
+            let p = CGPoint(x: CGFloat(rnd() * 460 - 230), y: top.y + 30 + CGFloat(rnd()) * (yMax - top.y))
+            // keep off the lanes, off the farm and away from other props
+            let farmDistance = abs(p.x - farmCenter.x) / 216 + abs(p.y - farmCenter.y) / 108
+            if nearLane(p, 50) || farmDistance < 1.15 || placed.contains(where: { hypot($0.x - p.x, $0.y - p.y) < 70 }) { continue }
+            let (name, hd) = props[i % props.count]
+            let n = sprite(name, hd: hd)
+            n.anchorPoint = CGPoint(x: 0.5, y: 0.1)
+            n.position = p
+            n.zPosition = 100 - p.y * 0.01 - 0.5
+            n.xScale = rnd() < 0.5 ? -1 : 1
+            world.addChild(n)
+            placed.append(p)
+            i += 1
+        }
+        // flat cracks anywhere on the dust, under everything
+        for k in 0..<10 {
+            let c = sprite("def_crack_\(k % 2)")
+            c.position = CGPoint(x: CGFloat(rnd() * 440 - 220), y: top.y + 40 + CGFloat(rnd()) * (yMax - top.y))
+            c.zPosition = -4
+            c.alpha = 0.8
+            world.addChild(c)
+        }
+        // farm life: hay and pumpkins in the back corners of the farm
+        for (name, tile) in [("def_hay", (4.6, 1.2)), ("def_pumpkins", (1.2, 4.6)), ("def_hay", (2.6, 4.9))] {
+            let n = sprite(name)
+            n.anchorPoint = CGPoint(x: 0.5, y: 0.15)
+            n.position = world(grid.center(fx: tile.0, fy: tile.1))
+            n.zPosition = 100 - n.position.y * 0.01
+            world.addChild(n)
+        }
+        // two dust devils drifting across the wasteland
+        for k in 0..<2 {
+            let d = SKSpriteNode(texture: Textures.smooth("def_cloud"))
+            d.size = CGSize(width: 70, height: 110)
+            d.color = UIColor(hex: 0xD8B880)
+            d.colorBlendFactor = 1
+            d.alpha = 0
+            d.zPosition = 280
+            world.addChild(d)
+            let y = top.y + 160 + CGFloat(k) * 180
+            let fromLeft = k == 0
+            d.run(.repeatForever(.sequence([
+                .wait(forDuration: 6 + Double(k) * 7),
+                .move(to: CGPoint(x: fromLeft ? -260 : 260, y: y), duration: 0),
+                .group([
+                    .move(to: CGPoint(x: fromLeft ? 260 : -260, y: y + 40), duration: 9),
+                    .sequence([.fadeAlpha(to: 0.35, duration: 1.5), .wait(forDuration: 6), .fadeOut(withDuration: 1.5)]),
+                    .repeat(.sequence([.scaleX(to: 0.8, y: 1.05, duration: 0.25), .scaleX(to: 1.1, y: 0.95, duration: 0.25)]), count: 18),
+                ]),
+            ])))
+        }
     }
 
     private func lanePoint(_ l: (CGPoint, CGPoint, CGPoint), _ t: Double) -> CGPoint {
@@ -407,7 +487,10 @@ final class DefenseScene: SKScene {
             bossBar?.removeFromParent()
             bossBar = nil
             bossId = nil
-            if boss { heavy.impactOccurred(intensity: 0.6) }
+            if boss {
+                heavy.impactOccurred(intensity: 0.6)
+                Sfx.play(.boss, volume: 0.9)
+            }
         case let .spawn(id):
             guard let en = game.battle.enemy(id: id) else { return }
             let n = enemyPool.popLast() ?? makeEnemyNode()
@@ -429,6 +512,7 @@ final class DefenseScene: SKScene {
                      lead: en, projectile: projectile, delay: delay)
         case let .melee(from):
             if case let .hero(i) = from { lunge(heroNodes[i]) }
+            Sfx.playThrottled(.hit, gap: 0.12, volume: 0.8)
         case let .damage(enemy, amount, crit, delay):
             guard let n = enemyNodes[enemy] else { return }
             run(.wait(forDuration: delay)) { [weak self] in
@@ -454,6 +538,7 @@ final class DefenseScene: SKScene {
             run(.wait(forDuration: delay)) { [weak self] in self?.kill(n, boss: enemy == self?.bossId) }
         case .fenceHit:
             haptic.impactOccurred(intensity: 0.4)
+            Sfx.playThrottled(.fence, gap: 0.3, volume: 0.8)
         case let .skill(hero):
             skillFX(hero)
         case .waveCleared:
@@ -491,6 +576,7 @@ final class DefenseScene: SKScene {
     private func fireShot(from a: CGPoint, to target: CGPoint, lead en: Battle.Enemy,
                           projectile: DefenseContent.Projectile, delay: Double) {
         let s = shotPool.popLast() ?? makeSprite(z: 400)
+        Sfx.playThrottled(.shoot, gap: 0.09, volume: 0.6)
         let tex = Textures.named(texture(for: projectile))
         s.texture = tex
         let glowing = projectile != .arrow
@@ -577,6 +663,7 @@ final class DefenseScene: SKScene {
 
     private func kill(_ n: SKSpriteNode, boss: Bool) {
         let p = n.position
+        Sfx.playThrottled(.poof, gap: 0.08, volume: 0.7)
         recycle(n)
         if let s = poofPool.popLast() {
             s.texture = Textures.named("def_poof_0")
@@ -650,7 +737,7 @@ final class DefenseScene: SKScene {
     }
 
     private func skillFX(_ hero: Int) {
-        Sfx.play(.sparkle, volume: 0.8)
+        Sfx.play(.skill, volume: 0.9)
         heavy.impactOccurred(intensity: 0.7)
         let n = heroNodes[hero]
         n.run(.sequence([.scale(to: 1.35, duration: 0.1), .scale(to: 1, duration: 0.2)]))

@@ -28,6 +28,13 @@ SOUNDS = {
     "sfx_error": (["interface-sounds/error_004.ogg"], -22),
     "sfx_select": (["interface-sounds/select_002.ogg"], -24),
     "sfx_sparkle": (["interface-sounds/glass_002.ogg"], -22),
+    # Farm Defense battle (frequent sounds sit low)
+    "sfx_hit": (["rpg-audio/chop.ogg"], -25),
+    "sfx_shoot": (["rpg-audio/knifeSlice2.ogg"], -29),
+    "sfx_poof": (["rpg-audio/dropLeather.ogg"], -24),
+    "sfx_skill": (["interface-sounds/maximize_006.ogg", "interface-sounds/glass_004.ogg"], -20),
+    "sfx_boss": (["rpg-audio/metalPot1.ogg"], -21),
+    "sfx_fence": (["rpg-audio/footstep06.ogg"], -24),
     "sfx_chest": (["rpg-audio/metalLatch.ogg", "interface-sounds/confirmation_001.ogg"], -19),
     "sfx_speedup": (["interface-sounds/maximize_003.ogg"], -21),
     "sfx_victory": (["music-jingles/jingles_PIZZA15.ogg"], -18),
