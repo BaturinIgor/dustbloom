@@ -105,6 +105,8 @@ def world():
                   "t": O.moon_turnip(2), "s": O.sprout()}[k]
             add(sp, 40 + c * 32, 214 + (r + 1) * 32 - 2, shadow=k in ("w", "p"), ao=0)
 
+    for fn in EXTRA:
+        fn(add)
     for base, sp, x, y, sh, ao in objs:
         if sh:
             im.alpha_composite(cast_shadow(sp, alpha=70), (x, y))
@@ -156,12 +158,21 @@ def text(dst, x, y, s, pt, fill="#fff4e8", stroke="#140818", anchor="la", sw=2):
                              stroke_width=int(sw * K), stroke_fill=stroke)
 
 
-def panel(dst, x0, y0, x1, y1, fill="#26163a", rim="#f0a02e", hi="#4a2f66", r=8, shadow=True, alpha=235):
+COLORS = {}
+EXTRA = []  # callbacks that add more objects to the world: fn(add)
+
+
+def col(c):
+    """Theme hook: the day frame swaps the purple UI for dark wood."""
+    return COLORS.get(c, c)
+
+
+def panel(dst, x0, y0, x1, y1, fill=col("#26163a"), rim=col("#f0a02e"), hi=col("#4a2f66"), r=8, shadow=True, alpha=235):
     lay = Image.new("RGBA", dst.size)
     d = ImageDraw.Draw(lay)
     if shadow:
         d.rounded_rectangle([x0 * K, (y0 + 3) * K, x1 * K, (y1 + 3) * K], r * K, fill=(10, 4, 16, 140))
-    d.rounded_rectangle([x0 * K, y0 * K, x1 * K, y1 * K], r * K, fill="#140818")
+    d.rounded_rectangle([x0 * K, y0 * K, x1 * K, y1 * K], r * K, fill=col("#140818"))
     d.rounded_rectangle([(x0 + 1.5) * K, (y0 + 1.5) * K, (x1 - 1.5) * K, (y1 - 1.5) * K], (r - 1) * K, fill=rim)
     d.rounded_rectangle([(x0 + 3) * K, (y0 + 3) * K, (x1 - 3) * K, (y1 - 3) * K], (r - 2) * K, fill=fill)
     d.rounded_rectangle([(x0 + 3) * K, (y0 + 3) * K, (x1 - 3) * K, (y0 + 3 + (y1 - y0) * 0.35) * K], (r - 2) * K,
@@ -179,7 +190,7 @@ def icon(dst, im, cx, cy, size):
 
 def badge(dst, cx, cy, s):
     w = max(16, 8 + 7 * len(s))
-    panel(dst, cx - w / 2, cy - 8, cx + w / 2, cy + 8, fill="#d23a44", rim="#ffe6c0", hi="#ff6a5e", r=8,
+    panel(dst, cx - w / 2, cy - 8, cx + w / 2, cy + 8, fill=col("#d23a44"), rim=col("#ffe6c0"), hi=col("#ff6a5e"), r=8,
           shadow=False, alpha=255)
     text(dst, cx, cy, s, 11, anchor="mm", sw=1.5)
 
@@ -195,25 +206,25 @@ def hud_parts(dst, tray=True, gain=(176, 330)):
     top = 56
     # level: round badge with XP ring and name
     # XP bar first, the round badge sits on its left end
-    panel(dst, 44, top + 12, 122, top + 32, fill="#1a0f28", rim="#7a3a18", hi="#1a0f28", r=10, shadow=True)
+    panel(dst, 44, top + 12, 122, top + 32, fill=col("#1a0f28"), rim=col("#7a3a18"), hi=col("#1a0f28"), r=10, shadow=True)
     dd = ImageDraw.Draw(dst)
-    dd.rounded_rectangle([60 * K, (top + 16) * K, 98 * K, (top + 28) * K], 6 * K, fill="#5ac86a")
-    dd.rounded_rectangle([60 * K, (top + 16) * K, 98 * K, (top + 20) * K], 3 * K, fill="#a2ec8a")
+    dd.rounded_rectangle([60 * K, (top + 16) * K, 98 * K, (top + 28) * K], 6 * K, fill=col("#5ac86a"))
+    dd.rounded_rectangle([60 * K, (top + 16) * K, 98 * K, (top + 20) * K], 3 * K, fill=col("#a2ec8a"))
     text(dst, 90, top + 22, "62%", 10, anchor="mm", sw=1.5)
     cxl, cyl, rl = 34, top + 22, 22
     sh = Image.new("RGBA", dst.size)
     ImageDraw.Draw(sh).ellipse([(cxl - rl) * K, (cyl - rl + 3) * K, (cxl + rl) * K, (cyl + rl + 3) * K], fill=(10, 4, 16, 140))
     dst.alpha_composite(sh)
-    for rr, col in ((rl, "#140818"), (rl - 1.5, "#ffce50"), (rl - 3.5, "#b8661e"), (rl - 5, "#34204c")):
-        dd.ellipse([(cxl - rr) * K, (cyl - rr) * K, (cxl + rr) * K, (cyl + rr) * K], fill=col)
-    dd.chord([(cxl - rl + 5) * K, (cyl - rl + 5) * K, (cxl + rl - 5) * K, (cyl + rl - 5) * K], 180, 360, fill="#4a2f66")
+    for rr, ring in ((rl, col("#140818")), (rl - 1.5, col("#ffce50")), (rl - 3.5, col("#b8661e")), (rl - 5, col("#34204c"))):
+        dd.ellipse([(cxl - rr) * K, (cyl - rr) * K, (cxl + rr) * K, (cyl + rr) * K], fill=ring)
+    dd.chord([(cxl - rl + 5) * K, (cyl - rl + 5) * K, (cxl + rl - 5) * K, (cyl + rl - 5) * K], 180, 360, fill=col("#4a2f66"))
     text(dst, cxl, cyl + 1, "12", 20, anchor="mm")
 
     def pill(x0, im, value):
-        panel(dst, x0, top + 8, x0 + 116, top + 36, fill="#1a0f28", rim="#7a3a18", hi="#26163a", r=14)
+        panel(dst, x0, top + 8, x0 + 116, top + 36, fill=col("#1a0f28"), rim=col("#7a3a18"), hi=col("#26163a"), r=14)
         icon(dst, im, x0 + 15, top + 22, 20)
         text(dst, x0 + 56, top + 22, value, 14, anchor="mm")
-        panel(dst, x0 + 92, top + 11, x0 + 113, top + 33, fill="#2f9a5a", rim="#a2ec8a", hi="#5ac86a", r=10,
+        panel(dst, x0 + 92, top + 11, x0 + 113, top + 33, fill=col("#2f9a5a"), rim=col("#a2ec8a"), hi=col("#5ac86a"), r=10,
               shadow=False, alpha=255)
         text(dst, x0 + 102.5, top + 21.5, "+", 16, anchor="mm", sw=1.5)
 
@@ -225,7 +236,7 @@ def hud_parts(dst, tray=True, gain=(176, 330)):
     for i, (ic, label, b) in enumerate((("hud_sickle", "03:12:44", None), ("hud_mail", "Почта", "2"),
                                         ("hud_tasks", "Задания", "!"))):
         y = 112 + i * 68
-        panel(dst, 326, y, 374, y + 48, fill="#34204c", rim="#f0a02e", hi="#4a2f66", r=12)
+        panel(dst, 326, y, 374, y + 48, fill=col("#34204c"), rim=col("#f0a02e"), hi=col("#4a2f66"), r=12)
         icon(dst, side_icons[ic], 350, y + 24, 30)
         text(dst, 350, y + 58, label, 10, anchor="mm", sw=1.5)
         if b:
@@ -234,19 +245,19 @@ def hud_parts(dst, tray=True, gain=(176, 330)):
     # seed tray: slides up over the dock while an empty bed is selected
     if tray:
         ty0 = 634
-        panel(dst, 12, ty0, 378, ty0 + 66, fill="#26163a", rim="#ffce50", hi="#34204c", r=14)
+        panel(dst, 12, ty0, 378, ty0 + 66, fill=col("#26163a"), rim=col("#ffce50"), hi=col("#34204c"), r=14)
         seeds = [(O.wheat(3), "2", "Пыльная пшеница"), (O.ember_pumpkin(3), "8", ""), (O.moon_turnip(2), "20", ""),
                  (O.frost_cabbage(), "35", ""), (O.sprout(), "60", "")]
         for i, (sp, cost, _) in enumerate(seeds):
             cx = 49 + i * 73
             if i == 1:
-                panel(dst, cx - 30, ty0 + 7, cx + 30, ty0 + 59, fill="#7a3a18", rim="#ffce50", hi="#b8661e", r=10,
+                panel(dst, cx - 30, ty0 + 7, cx + 30, ty0 + 59, fill=col("#7a3a18"), rim=col("#ffce50"), hi=col("#b8661e"), r=10,
                       shadow=False, alpha=255)
             icon(dst, sp.crop((0, 12, 32, 44)), cx, ty0 + 27, 34)
             icon(dst, O.coin_icon(), cx - 9, ty0 + 50, 11)
             text(dst, cx - 2, ty0 + 50, cost, 11, anchor="lm", sw=1.5)
     # floating gain over the wheat
-    text(dst, gain[0], gain[1], "+22", 18, fill="#ffe590", anchor="mm")
+    text(dst, gain[0], gain[1], "+22", 18, fill=col("#ffe590"), anchor="mm")
     icon(dst, O.coin_icon(), gain[0] + 24, gain[1], 15)
 
     # dock
@@ -256,30 +267,30 @@ def hud_parts(dst, tray=True, gain=(176, 330)):
     ld = ImageDraw.Draw(lay)
     ld.rectangle([0, (dock - 10) * K, 390 * K, dock * K], fill=(20, 8, 24, 90))
     dst.alpha_composite(lay)
-    d.rectangle([0, dock * K, 390 * K, 844 * K], fill="#1a0f28")
-    d.rectangle([0, dock * K, 390 * K, (dock + 2) * K], fill="#ffce50")
-    d.rectangle([0, (dock + 2) * K, 390 * K, (dock + 4) * K], fill="#7a3a18")
+    d.rectangle([0, dock * K, 390 * K, 844 * K], fill=col("#1a0f28"))
+    d.rectangle([0, dock * K, 390 * K, (dock + 2) * K], fill=col("#ffce50"))
+    d.rectangle([0, (dock + 2) * K, 390 * K, (dock + 4) * K], fill=col("#7a3a18"))
     for y in range(dock + 4, 844, 6):
-        d.rectangle([0, y * K, 390 * K, (y + 1) * K], fill="#200f30")
+        d.rectangle([0, y * K, 390 * K, (y + 1) * K], fill=col("#200f30"))
     slots = [("dock_barn", "Амбар", "3"), ("dock_orders", "Заказы", "2"), ("dock_raids", "Набеги", None),
              ("dock_workshop", "Мастерская", None), ("dock_storage", "Склад", "!")]
     for i, (ic, label, b) in enumerate(slots):
         cx = 39 + i * 78
         if ic == "dock_raids":
             y0 = dock - 28
-            panel(dst, cx - 36, y0, cx + 36, y0 + 68, fill="#b8382a", rim="#ffce50", hi="#e2603a", r=16)
+            panel(dst, cx - 36, y0, cx + 36, y0 + 68, fill=col("#b8382a"), rim=col("#ffce50"), hi=col("#e2603a"), r=16)
             g = Image.new("RGBA", dst.size)
             icon(g, lf[ic], cx, y0 + 33, 50)
             dst.alpha_composite(g)
-            text(dst, cx, y0 + 82, label, 12, anchor="mm", fill="#ffe590")
+            text(dst, cx, y0 + 82, label, 12, anchor="mm", fill=col("#ffe590"))
             continue
         y0 = dock + 12
-        panel(dst, cx - 29, y0, cx + 29, y0 + 52, fill="#34204c", rim="#b8661e", hi="#4a2f66", r=12)
+        panel(dst, cx - 29, y0, cx + 29, y0 + 52, fill=col("#34204c"), rim=col("#b8661e"), hi=col("#4a2f66"), r=12)
         icon(dst, lf[ic], cx, y0 + 26, 40)
         text(dst, cx, y0 + 64, label, 11, anchor="mm", sw=1.5)
         if b:
             badge(dst, cx + 26, y0 + 2, b)
-    d.rounded_rectangle([(195 - 67) * K, 835 * K, (195 + 67) * K, 840 * K], 3 * K, fill="#e8d8f0")
+    d.rounded_rectangle([(195 - 67) * K, 835 * K, (195 + 67) * K, 840 * K], 3 * K, fill=col("#e8d8f0"))
 
 
 def grade(img):
