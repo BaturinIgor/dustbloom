@@ -164,7 +164,7 @@ struct StorageTab: View {
         defer { busy = false }
         switch await store.openChest(id, count: n) {
         case .success(let got):
-            Sfx.play(.levelUp, volume: 0.7)
+            Sfx.play(.chest)
             UINotificationFeedbackGenerator().notificationOccurred(.success)
             withAnimation(.spring(response: 0.35, dampingFraction: 0.55)) { loot = got }
         case .failure:
@@ -208,7 +208,7 @@ struct SpeedUpButton: View {
         Button {
             switch store.smartSpeedup(target) {
             case .success(let r):
-                Sfx.play(.coin, volume: 0.7)
+                Sfx.play(.speedup)
                 UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                 onDone(r.saved)
             case .failure:

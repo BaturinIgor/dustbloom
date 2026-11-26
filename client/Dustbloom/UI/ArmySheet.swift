@@ -360,7 +360,7 @@ private struct RaidsTab: View {
         defer { busy = false }
         switch await store.raid(id) {
         case .success(let r):
-            Sfx.play(r.won ? .levelUp : .error)
+            Sfx.play(r.won ? .victory : .defeat)
             UINotificationFeedbackGenerator().notificationOccurred(r.won ? .success : .error)
             withAnimation(.spring(response: 0.35, dampingFraction: 0.6)) { result = r }
         case .failure:
