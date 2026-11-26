@@ -203,23 +203,31 @@ def scarecrow():
     # crossbar + cape sleeves
     rect(im, 3, 36, 45, 38, wd[3])
     rect(im, 3, 36, 45, 36, wd[4])
-    for y in range(34, 66):
-        for x in range(8, 41):
-            half = 9 + (y - 34) * 0.45
+    for y in range(34, 64):
+        for x in range(6, 43):
+            half = 10 + (y - 34) * 0.5
             if abs(x + 0.5 - 24) > half:
                 continue
-            if y > 58 and hash01(x // 2, 0, 5) < (y - 58) / 9:
-                continue  # tattered hem
-            t = 0.55 - (x - 8) / 33 * 0.45
-            if (x - 24) % 7 == 0:
-                t -= 0.15
+            hem = 58 + int(3 * math.sin(x * 0.9))  # scalloped hem
+            if y > hem:
+                continue
+            fold = math.sin((x - 24) * 0.55 + (y - 34) * 0.08)  # soft vertical folds
+            t = 0.62 - (x - 6) / 37 * 0.4 + fold * 0.12
             put(im, x, y, ramp_d("cape", t, x, y))
-    for (x0, x1) in ((3, 12), (36, 45)):
-        for y in range(36, 46):
+            if y == hem or y == hem - 1:
+                put(im, x, y, R["gold"][3] if x < 24 else R["gold"][2])  # gold trim
+        put(im, 24 - int(10 + (y - 34) * 0.5), y, R["cape"][5])  # rim light on the sunny edge
+    for (x0, x1, lit) in ((4, 13, 0.6), (35, 44, 0.32)):  # sleeves
+        for y in range(35, 45):
             for x in range(x0, x1 + 1):
-                if y > 40 and hash01(x, 1, 3) < (y - 40) / 6:
+                if y > 41 and (x + y) % 3 == 0:
                     continue
-                put(im, x, y, ramp_d("cape", 0.55 if x0 < 10 else 0.3, x, y))
+                put(im, x, y, ramp_d("cape", lit + (0.1 if y < 37 else 0), x, y))
+        for x in range(x0, x1 + 1):
+            put(im, x, 44, R["gold"][2])
+    rect(im, 28, 48, 32, 52, R["straw"][2])  # patch
+    rect(im, 28, 48, 32, 48, R["straw"][4])
+    put(im, 30, 50, R["wood"][1])
     for hx in (2, 45):  # straw hands
         for k in range(5):
             put(im, hx + (k % 2), 37 + k, R["straw"][4 if k % 2 else 3])
@@ -397,7 +405,8 @@ def fence(length):
             put(im, x, rail_y, wd[4])
             put(im, x, rail_y + 1, wd[3])
             put(im, x, rail_y + 2, wd[2])
-    for px in range(1, W, 16):
+    posts = list(range(1, W - 8, 16)) + [W - 3]
+    for px in posts:
         for y in range(2, 20):
             put(im, px, y, wd[4])
             put(im, px + 1, y, wd[3])
@@ -537,5 +546,65 @@ def frost_cabbage():
         x = 16 + math.cos(math.radians(a)) * 9
         y = 34 + math.sin(math.radians(a)) * 6
         put(im, x, y, R["mint"][4])
+    outline(im)
+    return im
+
+
+# ------------------------------------------------------------------ HUD icons
+def coin_icon():
+    im = new(20, 20)
+    ball(im, 10, 10, 8.6, 8.6, "gold", lo=0.15, hi=1.0)
+    for a in range(0, 360, 6):  # rim
+        x = 10 + math.cos(math.radians(a)) * 6.4
+        y = 10 + math.sin(math.radians(a)) * 6.4
+        put(im, x, y, R["gold"][2] if a < 200 else R["gold"][3])
+    rect(im, 9, 7, 10, 13, R["gold"][2])  # embossed sprout
+    put(im, 8, 7, R["gold"][2])
+    put(im, 7, 6, R["gold"][2])
+    put(im, 11, 7, R["gold"][2])
+    put(im, 12, 6, R["gold"][2])
+    put(im, 6, 5, "#ffffff")
+    put(im, 5, 6, "#fff0a8")
+    outline(im)
+    return im
+
+
+def dew_icon():
+    im = new(18, 22)
+    for y in range(1, 21):
+        w = (y - 1) * 0.55 if y < 12 else math.sqrt(max(0, 7.5 ** 2 - (y - 13) ** 2))
+        for x in range(18):
+            if abs(x + 0.5 - 9) <= w:
+                put(im, x, y, "#5a74b0")
+    ball(im, 9, 13, 7.5, 7.5, "water", lo=0.4, hi=1.0, mask=lambda x, y: True)
+    for y in range(1, 21):
+        for x in range(18):
+            if im.getpixel((x, y))[3]:
+                v = 1 - (y / 22)
+                if x < 9 and dither(x, y, 0.3 + v * 0.4):
+                    put(im, x, y, "#7ad8e8")
+    put(im, 6, 10, "#ffffff")
+    put(im, 6, 11, "#ffffff")
+    put(im, 7, 9, "#d8f8ff")
+    outline(im)
+    return im
+
+
+def sickle_icon():
+    """Bound wheat sheaf: the season event."""
+    im = new(22, 22)
+    for i in range(7):
+        spread = (i - 3) * 0.55
+        for y in range(8, 21):
+            k = (y - 13) / 7
+            x = 11 + spread * (abs(k) * 2 if y > 13 else (13 - y) / 3)
+            put(im, x, y, R["straw"][3 if i < 4 else 2])
+        tx = 11 + spread * 5 / 3 * 1.6
+        for k in range(6):
+            put(im, tx, 7 - k, R["straw"][5 if k < 3 else 4])
+            if k % 2 == 0:
+                put(im, tx + 1, 7 - k, R["straw"][3])
+    rect(im, 8, 13, 14, 14, R["red"][2])
+    put(im, 8, 13, R["red"][3])
     outline(im)
     return im

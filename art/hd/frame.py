@@ -43,6 +43,11 @@ def tufts_over(im, x0, x1, base, seed):
                 put(im, x, base - k, g[4] if k == hgt - 1 else g[2])
 
 
+def outline_post(im):
+    from .draw import outline as _o
+    return _o(im)
+
+
 def world():
     from .draw import ball, mix
     from .palette import RAMPS
@@ -55,13 +60,13 @@ def world():
     # worn path: door -> gap in the fence -> field
     for i in range(80):
         t = i / 79
-        cx = 60 + math.sin(t * 3) * 3 + t * 14
+        cx = 62 + math.sin(t * 3) * 2 + t * 13
         cy = 180 + t * 36
         for y in range(int(cy - 3), int(cy + 4)):
             for x in range(int(cx - 6), int(cx + 7)):
                 if ((x - cx) / 6.5) ** 2 + ((y - cy) / 3.5) ** 2 < 1:
                     put(im, x, y, RAMPS["soil"][3] if (x + y) % 5 else RAMPS["soil"][4])
-    for (x, y) in ((61, 186), (66, 197), (70, 208)):
+    for (x, y) in ((64, 187), (70, 199), (74, 210)):
         ball(im, x, y, 4, 2.4, "stone", lo=0.3, hi=0.95)
     draw_pond(im, 72, 404, 44, 20)
     draw_field(im, 40, 214, 5, 4)
@@ -73,9 +78,16 @@ def world():
 
     add(O.house(), 8, 182, ao=96)
     add(O.blossom_tree(), 120, 172, ao=30)
-    add(O.fence(64), 2, 198, ao=0)
-    add(O.fence(128), 84, 198, ao=0)
-    add(O.scarecrow(), 208, 318, ao=14)
+    add(O.fence(56), 2, 198, ao=0)
+    add(O.fence(118), 90, 198, ao=0)  # ends with a post before the side buttons
+    for gx in (55, 89):  # gate posts with lantern caps either side of the path
+        post = new(5, 26)
+        from .draw import rect as _r
+        _r(post, 0, 4, 4, 25, RAMPS["wood"][3])
+        _r(post, 0, 4, 1, 25, RAMPS["wood"][4])
+        _r(post, 0, 0, 4, 3, RAMPS["gold"][4])
+        add(outline_post(post), gx, 200, shadow=True, ao=6)
+    add(O.scarecrow(), 206, 322, ao=14)
     add(O.farmer(1), 8, 300, ao=14)
     for (x, y, f, fl) in ((132, 398, 0, False), (156, 410, 1, True), (118, 424, 1, False), (178, 394, 0, True)):
         add(O.hen(f, fl), x, y, ao=10)
@@ -104,6 +116,7 @@ def world():
         if ao and m[min(H - 1, base)][min(W - 1, max(0, int(x + sp.width / 2)))]:
             tufts_over(im, x + sp.width * 0.15, x + sp.width * 0.85, base, i)
 
+    from .frame3 import light_pool
     # chimney smoke
     rnd = random.Random(3)
     for i in range(14):
@@ -175,39 +188,48 @@ def hud(dst):
     hud_parts(dst)
 
 
-def hud_parts(dst, tray=True, gain=(100, 312)):
+def hud_parts(dst, tray=True, gain=(176, 330)):
     lf = life_sprites()
     from generate_sprites import coin
     coin_im = coin()
     top = 56
     # level: round badge with XP ring and name
-    panel(dst, 12, top, 56, top + 44, fill="#34204c", rim="#ffce50", hi="#4a2f66", r=22)
-    text(dst, 34, top + 22, "12", 20, anchor="mm")
-    panel(dst, 52, top + 12, 124, top + 32, fill="#1a0f28", rim="#7a3a18", hi="#1a0f28", r=6, shadow=False)
-    ImageDraw.Draw(dst).rounded_rectangle([56 * K, (top + 16) * K, 98 * K, (top + 28) * K], 4 * K, fill="#5ac86a")
-    ImageDraw.Draw(dst).rounded_rectangle([56 * K, (top + 16) * K, 98 * K, (top + 20) * K], 3 * K, fill="#a2ec8a")
+    # XP bar first, the round badge sits on its left end
+    panel(dst, 44, top + 12, 122, top + 32, fill="#1a0f28", rim="#7a3a18", hi="#1a0f28", r=10, shadow=True)
+    dd = ImageDraw.Draw(dst)
+    dd.rounded_rectangle([60 * K, (top + 16) * K, 98 * K, (top + 28) * K], 6 * K, fill="#5ac86a")
+    dd.rounded_rectangle([60 * K, (top + 16) * K, 98 * K, (top + 20) * K], 3 * K, fill="#a2ec8a")
     text(dst, 90, top + 22, "62%", 10, anchor="mm", sw=1.5)
+    cxl, cyl, rl = 34, top + 22, 22
+    sh = Image.new("RGBA", dst.size)
+    ImageDraw.Draw(sh).ellipse([(cxl - rl) * K, (cyl - rl + 3) * K, (cxl + rl) * K, (cyl + rl + 3) * K], fill=(10, 4, 16, 140))
+    dst.alpha_composite(sh)
+    for rr, col in ((rl, "#140818"), (rl - 1.5, "#ffce50"), (rl - 3.5, "#b8661e"), (rl - 5, "#34204c")):
+        dd.ellipse([(cxl - rr) * K, (cyl - rr) * K, (cxl + rr) * K, (cyl + rr) * K], fill=col)
+    dd.chord([(cxl - rl + 5) * K, (cyl - rl + 5) * K, (cxl + rl - 5) * K, (cyl + rl - 5) * K], 180, 360, fill="#4a2f66")
+    text(dst, cxl, cyl + 1, "12", 20, anchor="mm")
 
     def pill(x0, im, value):
-        panel(dst, x0, top + 8, x0 + 104, top + 36, fill="#1a0f28", rim="#7a3a18", hi="#26163a", r=14)
-        icon(dst, im, x0 + 4, top + 22, 30)
-        text(dst, x0 + 52, top + 22, value, 15, anchor="mm")
-        panel(dst, x0 + 80, top + 11, x0 + 101, top + 33, fill="#2f9a5a", rim="#a2ec8a", hi="#5ac86a", r=10,
+        panel(dst, x0, top + 8, x0 + 116, top + 36, fill="#1a0f28", rim="#7a3a18", hi="#26163a", r=14)
+        icon(dst, im, x0 + 15, top + 22, 20)
+        text(dst, x0 + 56, top + 22, value, 14, anchor="mm")
+        panel(dst, x0 + 92, top + 11, x0 + 113, top + 33, fill="#2f9a5a", rim="#a2ec8a", hi="#5ac86a", r=10,
               shadow=False, alpha=255)
-        text(dst, x0 + 90.5, top + 21.5, "+", 16, anchor="mm", sw=1.5)
+        text(dst, x0 + 102.5, top + 21.5, "+", 16, anchor="mm", sw=1.5)
 
-    pill(150, coin_im, "12 480")
-    pill(270, lf["hud_dew"], "350")
+    pill(132, O.coin_icon(), "12 480")
+    pill(258, O.dew_icon(), "350")
 
     # side buttons
+    side_icons = {"hud_sickle": O.sickle_icon(), "hud_mail": lf["hud_mail"], "hud_tasks": lf["hud_tasks"]}
     for i, (ic, label, b) in enumerate((("hud_sickle", "03:12:44", None), ("hud_mail", "Почта", "2"),
                                         ("hud_tasks", "Задания", "!"))):
         y = 112 + i * 68
         panel(dst, 326, y, 374, y + 48, fill="#34204c", rim="#f0a02e", hi="#4a2f66", r=12)
-        icon(dst, lf[ic], 350, y + 23, 30)
+        icon(dst, side_icons[ic], 350, y + 24, 30)
         text(dst, 350, y + 58, label, 10, anchor="mm", sw=1.5)
         if b:
-            badge(dst, 372, y + 2, b)
+            badge(dst, 366, y + 8, b)  # inside the button's top-right corner
 
     # seed tray: slides up over the dock while an empty bed is selected
     if tray:
@@ -221,11 +243,11 @@ def hud_parts(dst, tray=True, gain=(100, 312)):
                 panel(dst, cx - 30, ty0 + 7, cx + 30, ty0 + 59, fill="#7a3a18", rim="#ffce50", hi="#b8661e", r=10,
                       shadow=False, alpha=255)
             icon(dst, sp.crop((0, 12, 32, 44)), cx, ty0 + 27, 34)
-            icon(dst, coin_im, cx - 9, ty0 + 50, 10)
+            icon(dst, O.coin_icon(), cx - 9, ty0 + 50, 11)
             text(dst, cx - 2, ty0 + 50, cost, 11, anchor="lm", sw=1.5)
     # floating gain over the wheat
     text(dst, gain[0], gain[1], "+22", 18, fill="#ffe590", anchor="mm")
-    icon(dst, coin_im, gain[0] + 22, gain[1], 14)
+    icon(dst, O.coin_icon(), gain[0] + 24, gain[1], 15)
 
     # dock
     dock = 740
@@ -263,7 +285,7 @@ def hud_parts(dst, tray=True, gain=(100, 312)):
 def grade(img):
     w, h = img.size
     base = img.convert("RGB")
-    bright = base.point(lambda v: max(0, v - 215) * 2)
+    bright = base.point(lambda v: max(0, v - 205) * 2.5)
     base = ImageChops.add(base, bright.filter(ImageFilter.GaussianBlur(6 * K)).point(lambda v: int(v * 0.6)))
     small = Image.new("RGB", (w // 8, h // 8))
     sp = small.load()
@@ -297,9 +319,9 @@ def main():
     canvas = grade(canvas)
     hud(canvas)
     out = canvas.convert("RGB")
-    out.save(os.path.join(ART, "target-hd.png"))
+    out.save(os.path.join(ART, "target-v4.png"))
     os.makedirs("/mnt/project-files/stage1/", exist_ok=True)
-    out.save("/mnt/project-files/stage1/target-frame-hd.png")
+    out.save("/mnt/project-files/stage1/target-frame-v4.png")
     print("ok", out.size)
 
 

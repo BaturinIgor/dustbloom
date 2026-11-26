@@ -58,11 +58,11 @@ def draw_grass(im, mask, seed=2):
                 continue
             n = fbm(x, y, seed, 20, 3)
             light = (1 - x / w) * 0.08 + (1 - y / h) * 0.06  # sun top-left
-            t = 0.32 + n * 0.26 + light
+            t = 0.34 + n * 0.26 + light
             put(im, x, y, ramp_d("grass", t, x, y, 0.9))
     rnd = random.Random(seed)
     g = RAMPS["grass"]
-    for _ in range(w * h // 22):  # tufts: light blades with a dark root
+    for _ in range(w * h // 30):  # tufts: light blades with a dark root
         x, y = rnd.randrange(w), rnd.randrange(2, h)
         if not mask[y][x]:
             continue

@@ -71,7 +71,7 @@ def ball(im, cx, cy, rx, ry, rname, light=(-0.65, -0.75), lo=0.0, hi=1.0, spread
             put(im, x, y, ramp_d(rname, t, x, y, spread))
 
 
-def outline(im, color=INK, only_outside=True, k=0.62):
+def outline(im, color=INK, only_outside=True, k=0.8):
     """Selective outline ("sel-out"): each edge pixel is a darkened,
     purple-shifted copy of the colour it borders, so sprites sit in the
     scene instead of looking cut out with a black line."""
