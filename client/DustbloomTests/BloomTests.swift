@@ -1,6 +1,7 @@
 import XCTest
 @testable import Dustbloom
 
+@MainActor
 final class BloomTests: XCTestCase {
     func testWorldLoadsAndStartIslandIsFree() {
         let w = BloomWorld.load()

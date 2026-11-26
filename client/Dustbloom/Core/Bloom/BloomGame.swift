@@ -76,6 +76,7 @@ struct BloomToast: Identifiable, Equatable {
 }
 
 /// Game state and rules. The scene drives it; the HUD observes it.
+@MainActor
 final class BloomGame: ObservableObject {
     let world = BloomWorld.load()
 
