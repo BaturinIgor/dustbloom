@@ -102,6 +102,7 @@ func (f *Farm) DeliverOrder(cfg *Config, i int, now time.Time, seed uint64) (Ord
 		f.addCrops(k, -o.Items[k])
 	}
 	f.Coins += o.Coins
+	f.count("order", 1)
 	up, items := f.gainXP(cfg, o.XP)
 	f.Orders = append(f.Orders[:i], f.Orders[i+1:]...)
 	f.FillOrders(cfg, now, seed)

@@ -84,6 +84,8 @@ func (f *Farm) BuildScarecrow(cfg *Config, id string, now time.Time) error {
 		start = f.Queue[len(f.Queue)-1].ReadyAt
 	}
 	f.Queue = append(f.Queue, Build{Type: id, ReadyAt: start.Add(time.Duration(f.faster(cfg, EffectBuildTime, sc.BuildSeconds)) * time.Second)})
+	f.count("build", 1)
+	f.count("build:"+id, 1)
 	return nil
 }
 
@@ -185,6 +187,8 @@ func (f *Farm) Raid(cfg *Config, raidID string, now time.Time, seed uint64) (Rai
 	f.Army = survivors
 	if res.Won {
 		res.Coins, res.XP = raid.RewardCoins, raid.RewardXP
+		f.count("raid_win", 1)
+		f.count("raid_win:"+raidID, 1)
 		f.Coins += res.Coins
 		var lvlItems map[string]int
 		res.LevelUp, lvlItems = f.gainXP(cfg, res.XP)

@@ -73,6 +73,10 @@ type Farm struct {
 	Work      *Work          `json:"work,omitempty"`
 	// Cleared lists tile indices whose rock or dead tree was removed.
 	Cleared []int `json:"cleared,omitempty"`
+	// Stats counts lifetime actions ("harvest", "harvest:<crop>", ...) for
+	// quests; QuestsDone lists claimed quest ids.
+	Stats      map[string]int `json:"stats,omitempty"`
+	QuestsDone []string       `json:"questsDone,omitempty"`
 }
 
 // NewFarm creates a starting farm from the config.
@@ -169,6 +173,7 @@ func (f *Farm) BuyPlot(cfg *Config, px, py int) error {
 	}
 	f.Coins -= coins
 	f.Plots[py*cfg.Farm.PlotsX()+px] = true
+	f.count("plot", 1)
 	return nil
 }
 
@@ -211,6 +216,7 @@ func (f *Farm) Till(cfg *Config, x, y int) error {
 	}
 	f.Coins -= cfg.Farm.TillCost
 	t.Tilled = true
+	f.count("till", 1)
 	return nil
 }
 
@@ -244,6 +250,7 @@ func (f *Farm) Plant(cfg *Config, x, y int, cropID string, now time.Time) error 
 	if g := f.faster(cfg, EffectGrow, crop.GrowSeconds); g != crop.GrowSeconds {
 		t.Grow = g
 	}
+	f.count("plant", 1)
 	return nil
 }
 
@@ -274,6 +281,8 @@ func (f *Farm) Harvest(cfg *Config, x, y int, now time.Time) (HarvestResult, err
 		return HarvestResult{}, ErrNotReady
 	}
 	f.addCrops(crop.ID, 1)
+	f.count("harvest", 1)
+	f.count("harvest:"+crop.ID, 1)
 	up, items := f.gainXP(cfg, crop.XP)
 	t.Crop = ""
 	t.PlantedAt = nil
@@ -309,6 +318,7 @@ func (f *Farm) Sell(cfg *Config, cropID string, count int) (int, error) {
 	f.addCrops(cropID, -count)
 	coins := f.more(cfg, EffectSell, crop.SellPrice*count)
 	f.Coins += coins
+	f.count("sell", count)
 	return coins, nil
 }
 

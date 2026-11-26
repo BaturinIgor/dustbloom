@@ -312,3 +312,26 @@ func TestEventsAndFeedback(t *testing.T) {
 		t.Fatalf("feedback %+v", e.sink.feedback)
 	}
 }
+
+func TestQuestEndpoint(t *testing.T) {
+	e := newEnv(t)
+	e.login("device-quest-1")
+	var er errorResponse
+	if code := e.do("POST", "/v1/quests/claim", questReq{ID: "till_soil"}, &er); code != 409 || er.Error != "quest_not_done" {
+		t.Fatalf("early claim = %d %q", code, er.Error)
+	}
+	var fr farmResponse
+	for _, x := range []int{4, 5} {
+		if code := e.do("POST", "/v1/farm/till", tileReq{X: x, Y: 0}, &fr); code != 200 {
+			t.Fatalf("till = %d", code)
+		}
+	}
+	coins := fr.Farm.Coins
+	fr = farmResponse{}
+	if code := e.do("POST", "/v1/quests/claim", questReq{ID: "till_soil"}, &fr); code != 200 || fr.Quest == nil || fr.Farm.Coins != coins+fr.Quest.Coins {
+		t.Fatalf("claim = %d %+v", code, fr.Quest)
+	}
+	if code := e.do("POST", "/v1/quests/claim", questReq{ID: "till_soil"}, &er); code != 409 || er.Error != "unknown_quest" {
+		t.Fatalf("second claim = %d %q", code, er.Error)
+	}
+}

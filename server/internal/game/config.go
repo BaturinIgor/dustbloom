@@ -109,6 +109,7 @@ type Config struct {
 	Manor      ManorConfig         `json:"manor"`
 	Buildings  BuildingsConfig     `json:"buildings"`
 	Obstacles  map[string]Obstacle `json:"obstacles"`
+	Quests     QuestConfig         `json:"quests"`
 
 	cropsByID     map[string]Crop
 	scByID        map[string]Scarecrow
@@ -188,6 +189,9 @@ func ParseConfig(data []byte) (*Config, error) {
 		return nil, err
 	}
 	if err := c.indexBuildings(); err != nil {
+		return nil, err
+	}
+	if err := c.validateQuests(); err != nil {
 		return nil, err
 	}
 	return &c, nil

@@ -21,6 +21,7 @@
 //	POST /v1/items/open             {"item","count"} -> farm + loot
 //	POST /v1/manor/upgrade          {} -> farm with manorReadyAt
 //	POST /v1/buildings/upgrade      {"building"} -> farm with work (one builder for all)
+//	POST /v1/quests/claim           {"id"} -> farm + quest reward
 //	POST /v1/events                 {"session","app","lang","events":[{"name","at","props"}]} -> 204
 //	POST /v1/feedback               {"text","mood","app","lang"} -> 204
 //
@@ -75,6 +76,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /v1/items/open", s.auth(s.openChest))
 	mux.HandleFunc("POST /v1/manor/upgrade", s.auth(s.upgradeManor))
 	mux.HandleFunc("POST /v1/buildings/upgrade", s.auth(s.upgradeBuilding))
+	mux.HandleFunc("POST /v1/quests/claim", s.auth(s.claimQuest))
 	mux.HandleFunc("POST /v1/events", s.auth(s.events))
 	mux.HandleFunc("POST /v1/feedback", s.auth(s.feedback))
 	return mux
@@ -93,6 +95,7 @@ type farmResponse struct {
 	Used       map[string]int      `json:"used,omitempty"`  // speedups spent
 	Loot       map[string]int      `json:"loot,omitempty"`  // chest contents
 	Clear      *game.ClearResult   `json:"clear,omitempty"`
+	Quest      *game.QuestResult   `json:"quest,omitempty"`
 }
 
 type errorResponse struct {
@@ -125,7 +128,7 @@ func gameErrStatus(w http.ResponseWriter, err error) {
 		game.ErrUnknownItem, game.ErrNoItems, game.ErrWrongTarget, game.ErrNothingToSpeed,
 		game.ErrUnknownTarget, game.ErrNotAChest, game.ErrNotASpeedup,
 		game.ErrBusy, game.ErrMaxLevel, game.ErrUnknownBuilding, game.ErrManorTooLow,
-		game.ErrObstacle, game.ErrNoObstacle,
+		game.ErrObstacle, game.ErrNoObstacle, game.ErrUnknownQuest, game.ErrQuestNotDone,
 	} {
 		if errors.Is(err, known) {
 			writeErr(w, http.StatusConflict, known.Error())
@@ -268,6 +271,22 @@ func (s *Server) clear(w http.ResponseWriter, r *http.Request, token string) {
 	s.mutate(w, token, func(f *game.Farm, now time.Time, resp *farmResponse) error {
 		res, err := f.Clear(s.Config, req.X, req.Y)
 		resp.Clear = &res
+		return err
+	})
+}
+
+type questReq struct {
+	ID string `json:"id"`
+}
+
+func (s *Server) claimQuest(w http.ResponseWriter, r *http.Request, token string) {
+	var req questReq
+	if !decode(w, r, &req) {
+		return
+	}
+	s.mutate(w, token, func(f *game.Farm, now time.Time, resp *farmResponse) error {
+		res, err := f.ClaimQuest(s.Config, req.ID)
+		resp.Quest = &res
 		return err
 	})
 }

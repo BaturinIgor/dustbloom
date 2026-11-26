@@ -70,6 +70,7 @@ func (f *Farm) Clear(cfg *Config, x, y int) (ClearResult, error) {
 	}
 	f.Coins -= o.Coins
 	f.Cleared = append(f.Cleared, y*f.Width+x)
+	f.count("clear", 1)
 	res := ClearResult{Kind: kind, XP: o.XP}
 	res.LevelUp, res.Items = f.gainXP(cfg, o.XP)
 	return res, nil

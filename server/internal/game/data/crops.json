@@ -1,5 +1,5 @@
 {
-  "version": 10,
+  "version": 11,
   "farm": {
     "width": 16,
     "height": 16,
@@ -2754,5 +2754,414 @@
       "coins": 30,
       "xp": 4
     }
+  },
+  "quests": {
+    "active": 3,
+    "list": [
+      {
+        "id": "first_harvest",
+        "goal": "harvest:dustwheat",
+        "count": 3,
+        "coins": 20,
+        "xp": 5
+      },
+      {
+        "id": "till_soil",
+        "goal": "till",
+        "count": 2,
+        "coins": 20,
+        "xp": 5
+      },
+      {
+        "id": "plant_more",
+        "goal": "plant",
+        "count": 6,
+        "coins": 25,
+        "xp": 5
+      },
+      {
+        "id": "first_sale",
+        "goal": "sell",
+        "count": 5,
+        "coins": 25,
+        "xp": 5
+      },
+      {
+        "id": "pumpkins",
+        "goal": "harvest:emberpumpkin",
+        "count": 3,
+        "coins": 30,
+        "xp": 6
+      },
+      {
+        "id": "first_scarecrow",
+        "goal": "build",
+        "count": 1,
+        "coins": 30,
+        "xp": 6,
+        "items": {
+          "speed_recruit_15m": 1
+        }
+      },
+      {
+        "id": "first_raid",
+        "goal": "raid_win:dust_rats",
+        "count": 1,
+        "coins": 40,
+        "xp": 8,
+        "items": {
+          "chest_wood": 1
+        }
+      },
+      {
+        "id": "clear_rock",
+        "goal": "clear",
+        "count": 1,
+        "coins": 30,
+        "xp": 6
+      },
+      {
+        "id": "first_order",
+        "goal": "order",
+        "count": 1,
+        "coins": 40,
+        "xp": 8
+      },
+      {
+        "id": "reach_lv3",
+        "goal": "level",
+        "count": 3,
+        "coins": 50,
+        "xp": 0,
+        "items": {
+          "chest_wood": 1
+        }
+      },
+      {
+        "id": "turnips",
+        "goal": "harvest:moonturnip",
+        "count": 4,
+        "unlockLevel": 2,
+        "coins": 40,
+        "xp": 8
+      },
+      {
+        "id": "carrots",
+        "goal": "harvest:ashcarrot",
+        "count": 5,
+        "unlockLevel": 2,
+        "coins": 50,
+        "xp": 10
+      },
+      {
+        "id": "buy_plot",
+        "goal": "plots",
+        "count": 1,
+        "unlockLevel": 2,
+        "coins": 60,
+        "xp": 10
+      },
+      {
+        "id": "bandits",
+        "goal": "raid_win:rust_bandits",
+        "count": 1,
+        "unlockLevel": 2,
+        "coins": 60,
+        "xp": 12,
+        "items": {
+          "chest_wood": 1
+        }
+      },
+      {
+        "id": "manor2",
+        "goal": "manor",
+        "count": 2,
+        "unlockLevel": 2,
+        "coins": 80,
+        "xp": 12,
+        "items": {
+          "speed_build_15m": 1
+        }
+      },
+      {
+        "id": "workshop",
+        "goal": "building:workshop",
+        "count": 1,
+        "unlockLevel": 2,
+        "coins": 60,
+        "xp": 10
+      },
+      {
+        "id": "army3",
+        "goal": "army",
+        "count": 3,
+        "unlockLevel": 3,
+        "coins": 60,
+        "xp": 10
+      },
+      {
+        "id": "suncrowns",
+        "goal": "harvest:suncrown",
+        "count": 4,
+        "unlockLevel": 3,
+        "coins": 70,
+        "xp": 12
+      },
+      {
+        "id": "golem",
+        "goal": "raid_win:scrap_golem",
+        "count": 1,
+        "unlockLevel": 3,
+        "coins": 90,
+        "xp": 15,
+        "items": {
+          "chest_wood": 1
+        }
+      },
+      {
+        "id": "orders5",
+        "goal": "order",
+        "count": 5,
+        "unlockLevel": 3,
+        "coins": 100,
+        "xp": 15
+      },
+      {
+        "id": "well",
+        "goal": "building:well",
+        "count": 1,
+        "unlockLevel": 3,
+        "coins": 80,
+        "xp": 12
+      },
+      {
+        "id": "harvest50",
+        "goal": "harvest",
+        "count": 50,
+        "unlockLevel": 4,
+        "coins": 120,
+        "xp": 20,
+        "items": {
+          "chest_wood": 1
+        }
+      },
+      {
+        "id": "berries",
+        "goal": "harvest:bloodberry",
+        "count": 6,
+        "unlockLevel": 4,
+        "coins": 90,
+        "xp": 15
+      },
+      {
+        "id": "wolves",
+        "goal": "raid_win:thorn_wolves",
+        "count": 1,
+        "unlockLevel": 4,
+        "coins": 120,
+        "xp": 20,
+        "items": {
+          "chest_iron": 1
+        }
+      },
+      {
+        "id": "clear5",
+        "goal": "clear",
+        "count": 5,
+        "unlockLevel": 4,
+        "coins": 100,
+        "xp": 15
+      },
+      {
+        "id": "reach_lv5",
+        "goal": "level",
+        "count": 5,
+        "unlockLevel": 4,
+        "coins": 150,
+        "xp": 0,
+        "items": {
+          "chest_iron": 1
+        }
+      },
+      {
+        "id": "beans",
+        "goal": "harvest:ironbean",
+        "count": 6,
+        "unlockLevel": 5,
+        "coins": 110,
+        "xp": 18
+      },
+      {
+        "id": "wraiths",
+        "goal": "raid_win:sand_wraiths",
+        "count": 1,
+        "unlockLevel": 5,
+        "coins": 150,
+        "xp": 22,
+        "items": {
+          "chest_wood": 1
+        }
+      },
+      {
+        "id": "manor3",
+        "goal": "manor",
+        "count": 3,
+        "unlockLevel": 5,
+        "coins": 200,
+        "xp": 25,
+        "items": {
+          "speed_build_1h": 1
+        }
+      },
+      {
+        "id": "plots3",
+        "goal": "plots",
+        "count": 3,
+        "unlockLevel": 5,
+        "coins": 200,
+        "xp": 25
+      },
+      {
+        "id": "build10",
+        "goal": "build",
+        "count": 10,
+        "unlockLevel": 6,
+        "coins": 150,
+        "xp": 22
+      },
+      {
+        "id": "cabbage",
+        "goal": "harvest:frostcabbage",
+        "count": 6,
+        "unlockLevel": 6,
+        "coins": 140,
+        "xp": 20
+      },
+      {
+        "id": "locusts",
+        "goal": "raid_win:locust_swarm",
+        "count": 1,
+        "unlockLevel": 6,
+        "coins": 180,
+        "xp": 28,
+        "items": {
+          "chest_iron": 1
+        }
+      },
+      {
+        "id": "forge",
+        "goal": "building:forge",
+        "count": 1,
+        "unlockLevel": 6,
+        "coins": 150,
+        "xp": 22
+      },
+      {
+        "id": "peppers",
+        "goal": "harvest:emberpepper",
+        "count": 8,
+        "unlockLevel": 7,
+        "coins": 160,
+        "xp": 25
+      },
+      {
+        "id": "raiders",
+        "goal": "raid_win:iron_raiders",
+        "count": 1,
+        "unlockLevel": 7,
+        "coins": 220,
+        "xp": 32,
+        "items": {
+          "chest_iron": 1
+        }
+      },
+      {
+        "id": "orders20",
+        "goal": "order",
+        "count": 20,
+        "unlockLevel": 7,
+        "coins": 250,
+        "xp": 35,
+        "items": {
+          "chest_wood": 1
+        }
+      },
+      {
+        "id": "cotton",
+        "goal": "harvest:cottonpuff",
+        "count": 8,
+        "unlockLevel": 8,
+        "coins": 180,
+        "xp": 28
+      },
+      {
+        "id": "hag",
+        "goal": "raid_win:mire_hag",
+        "count": 1,
+        "unlockLevel": 8,
+        "coins": 260,
+        "xp": 38,
+        "items": {
+          "chest_iron": 1
+        }
+      },
+      {
+        "id": "sell500",
+        "goal": "sell",
+        "count": 500,
+        "unlockLevel": 8,
+        "coins": 300,
+        "xp": 40
+      },
+      {
+        "id": "melons",
+        "goal": "harvest:glowmelon",
+        "count": 6,
+        "unlockLevel": 9,
+        "coins": 220,
+        "xp": 32
+      },
+      {
+        "id": "raids25",
+        "goal": "raid_win",
+        "count": 25,
+        "unlockLevel": 9,
+        "coins": 300,
+        "xp": 45,
+        "items": {
+          "chest_iron": 1
+        }
+      },
+      {
+        "id": "corn",
+        "goal": "harvest:stormcorn",
+        "count": 6,
+        "unlockLevel": 10,
+        "coins": 250,
+        "xp": 38
+      },
+      {
+        "id": "dust_king",
+        "goal": "raid_win:dust_king",
+        "count": 1,
+        "unlockLevel": 10,
+        "coins": 500,
+        "xp": 80,
+        "items": {
+          "chest_gold": 1
+        }
+      },
+      {
+        "id": "reach_lv12",
+        "goal": "level",
+        "count": 12,
+        "unlockLevel": 10,
+        "coins": 600,
+        "xp": 0,
+        "items": {
+          "chest_gold": 1
+        }
+      }
+    ]
   }
 }
