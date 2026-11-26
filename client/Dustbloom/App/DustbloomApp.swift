@@ -13,7 +13,10 @@ struct DustbloomApp: App {
                 .statusBarHidden()
         }
         .onChange(of: phase) { _, newPhase in
-            if newPhase == .background { store.save() }
+            if newPhase == .background {
+                store.save()
+                store.sessionEnd()
+            }
         }
     }
 }

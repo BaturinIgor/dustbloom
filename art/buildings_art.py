@@ -194,12 +194,31 @@ def building_site():
     return dark_outline(im)
 
 
+def icon_settings():
+    """16x16 gear for the settings button."""
+    import math
+    im = new(16, 16)
+    for y in range(16):
+        for x in range(16):
+            dx, dy = x + 0.5 - 8, y + 0.5 - 8
+            r = math.hypot(dx, dy)
+            a = math.atan2(dy, dx)
+            tooth = 6.8 if (math.cos(a * 8) > 0.2) else 5.2
+            if r <= tooth and r > 2.2:
+                put(im, x, y, "d5" if dx + dy < 0 else "d3")
+            elif r <= 2.2:
+                pass
+    for x, y in ((7, 7), (8, 7), (7, 8), (8, 8)):
+        put(im, x, y, "ink", 0)
+    return dark_outline(im)
+
+
 DRAW = {"well": well, "workshop": workshop, "forge": forge, "order_board": order_board, "watchtower": watchtower}
 
 
 def building_sprites():
     from generate_sprites import cast_shadow
-    s = {"bld_site": building_site()}
+    s = {"bld_site": building_site(), "icon_settings": icon_settings()}
     for bid, fn in DRAW.items():
         for t in range(3):
             im = fn(t)

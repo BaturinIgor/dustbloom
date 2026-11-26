@@ -1,3 +1,4 @@
+import StoreKit
 import SwiftUI
 import UIKit
 
@@ -6,6 +7,8 @@ import UIKit
 struct HUDView: View {
     @EnvironmentObject private var store: FarmStore
     @State private var sheet: ArmyTab?
+    @State private var showSettings = false
+    @Environment(\.requestReview) private var requestReview
 
     var body: some View {
         VStack {
@@ -23,6 +26,17 @@ struct HUDView: View {
                     PixelText(text: "LV\(store.farm.level)", scale: 3)
                 }
                 Spacer()
+                Button {
+                    showSettings = true
+                    Sfx.play(.select, volume: 0.6)
+                } label: {
+                    Image("icon_settings").interpolation(.none).resizable()
+                        .frame(width: 28, height: 28)
+                        .frame(width: 44, height: 44)
+                        .background(slot(false))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(L.ru ? "Настройки" : "Settings")
                 if store.isOnline {
                     Rectangle().fill(Color.green).frame(width: 9, height: 9)
                         .overlay(Rectangle().stroke(Color(uiColor: Palette.outline), lineWidth: 3))
@@ -38,6 +52,7 @@ struct HUDView: View {
                 ForEach(ArmyTab.allCases) { t in
                     Button {
                         sheet = t
+                        Analytics.shared.track("open_sheet", ["tab": t.rawValue])
                         Sfx.play(.select, volume: 0.6)
                         UIImpactFeedbackGenerator(style: .light).impactOccurred()
                     } label: {
@@ -84,6 +99,18 @@ struct HUDView: View {
             .padding(.bottom, 12)
         }
         .sheet(item: $sheet) { t in ArmySheet(tab: t).environmentObject(store) }
+        .sheet(isPresented: $showSettings) {
+            SettingsSheet().environmentObject(store).presentationDetents([.medium, .large])
+        }
+        .onChange(of: store.askReview) { _, ask in
+            guard ask else { return }
+            store.askReview = false
+            // a beat after the celebration, not on top of it
+            Task {
+                try? await Task.sleep(for: .seconds(1.5))
+                requestReview()
+            }
+        }
         .overlay {
             if let offer = store.plotOffer {
                 PlotOfferCard(offer: offer)

@@ -28,6 +28,9 @@ enum Sfx {
     static func prepare() {
         guard !ready else { return }
         ready = true
+        if UserDefaults.standard.object(forKey: "dustbloom.volume") != nil {
+            master = Float(UserDefaults.standard.double(forKey: "dustbloom.volume"))
+        }
         try? AVAudioSession.sharedInstance().setCategory(.ambient, options: [.mixWithOthers])
         for s in Sound.allCases {
             guard let url = Bundle.main.url(forResource: s.rawValue, withExtension: "wav") else { continue }

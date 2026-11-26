@@ -10,9 +10,11 @@ import (
 
 	"github.com/BaturinIgor/dustbloom/server/internal/game"
 	"github.com/BaturinIgor/dustbloom/server/internal/store"
+	"github.com/BaturinIgor/dustbloom/server/internal/telemetry"
 )
 
 type testEnv struct {
+	sink  *memSink
 	t     *testing.T
 	srv   *httptest.Server
 	now   time.Time
@@ -30,7 +32,8 @@ func newEnv(t *testing.T) *testEnv {
 		t.Fatal(err)
 	}
 	e := &testEnv{t: t, now: time.Date(2026, 11, 26, 9, 0, 0, 0, time.UTC)}
-	s := &Server{Config: cfg, Store: st, Now: func() time.Time { return e.now }}
+	e.sink = &memSink{}
+	s := &Server{Config: cfg, Store: st, Now: func() time.Time { return e.now }, Telemetry: e.sink}
 	e.srv = httptest.NewServer(s.Handler())
 	t.Cleanup(e.srv.Close)
 	return e
@@ -252,5 +255,60 @@ func TestBuildingEndpoint(t *testing.T) {
 	fr = farmResponse{}
 	if code := e.do("GET", "/v1/farm", nil, &fr); code != 200 || fr.Farm.Buildings["well"] != 1 {
 		t.Fatalf("well after an hour = %v", fr.Farm.Buildings)
+	}
+}
+
+type memSink struct {
+	events   []telemetry.Event
+	feedback []telemetry.Feedback
+}
+
+func (m *memSink) Events(evs []telemetry.Event) error {
+	m.events = append(m.events, evs...)
+	return nil
+}
+func (m *memSink) Feedback(fb telemetry.Feedback) error {
+	m.feedback = append(m.feedback, fb)
+	return nil
+}
+
+func TestEventsAndFeedback(t *testing.T) {
+	e := newEnv(t)
+	e.login("device-events-1")
+	batch := map[string]any{
+		"session": "s1", "app": "1.0", "lang": "ru",
+		"events": []map[string]any{
+			{"name": "session_start", "at": e.now.Add(-time.Second), "props": map[string]any{"level": 1}},
+			{"name": "Bad Name", "at": e.now},
+			{"name": "open_sheet", "at": e.now.Add(48 * time.Hour), "props": map[string]any{"tab": "barn"}},
+		},
+	}
+	if code := e.do("POST", "/v1/events", batch, nil); code != 204 {
+		t.Fatalf("events = %d", code)
+	}
+	var client []telemetry.Event
+	for _, ev := range e.sink.events {
+		if ev.Source == "client" {
+			client = append(client, ev)
+		}
+	}
+	if len(client) != 2 || client[0].Player == "" || client[1].At != e.now {
+		t.Fatalf("client events %+v", client)
+	}
+	// every game action is logged by the server too, with its error code
+	var er errorResponse
+	e.do("POST", "/v1/farm/harvest", map[string]int{"x": 0, "y": 0}, &er)
+	last := e.sink.events[len(e.sink.events)-1]
+	if last.Source != "server" || last.Props["path"] != "/v1/farm/harvest" || last.Props["error"] == nil {
+		t.Fatalf("server event %+v", last)
+	}
+	if code := e.do("POST", "/v1/feedback", map[string]any{"text": "  ", "mood": 3}, &er); code != 400 {
+		t.Fatalf("empty feedback = %d", code)
+	}
+	if code := e.do("POST", "/v1/feedback", map[string]any{"text": "Классная игра", "mood": 5}, nil); code != 204 {
+		t.Fatalf("feedback = %d", code)
+	}
+	if len(e.sink.feedback) != 1 || e.sink.feedback[0].Level != 1 {
+		t.Fatalf("feedback %+v", e.sink.feedback)
 	}
 }

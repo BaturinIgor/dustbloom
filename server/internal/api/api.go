@@ -20,6 +20,8 @@
 //	POST /v1/items/open             {"item","count"} -> farm + loot
 //	POST /v1/manor/upgrade          {} -> farm with manorReadyAt
 //	POST /v1/buildings/upgrade      {"building"} -> farm with work (one builder for all)
+//	POST /v1/events                 {"session","app","lang","events":[{"name","at","props"}]} -> 204
+//	POST /v1/feedback               {"text","mood","app","lang"} -> 204
 //
 // Authenticated calls send "Authorization: Bearer <token>".
 package api
@@ -33,6 +35,7 @@ import (
 
 	"github.com/BaturinIgor/dustbloom/server/internal/game"
 	"github.com/BaturinIgor/dustbloom/server/internal/store"
+	"github.com/BaturinIgor/dustbloom/server/internal/telemetry"
 )
 
 // Server wires the game rules to HTTP.
@@ -40,6 +43,8 @@ type Server struct {
 	Config *game.Config
 	Store  store.Store
 	Now    func() time.Time
+	// Telemetry receives analytics and feedback; nil drops them.
+	Telemetry telemetry.Sink
 }
 
 // Handler returns the API router.
@@ -68,6 +73,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /v1/items/open", s.auth(s.openChest))
 	mux.HandleFunc("POST /v1/manor/upgrade", s.auth(s.upgradeManor))
 	mux.HandleFunc("POST /v1/buildings/upgrade", s.auth(s.upgradeBuilding))
+	mux.HandleFunc("POST /v1/events", s.auth(s.events))
+	mux.HandleFunc("POST /v1/feedback", s.auth(s.feedback))
 	return mux
 }
 
@@ -133,8 +140,50 @@ func (s *Server) auth(h ctxHandler) http.HandlerFunc {
 			writeErr(w, http.StatusUnauthorized, "unauthorized")
 			return
 		}
-		h(w, r, token)
+		if s.Telemetry == nil || r.URL.Path == "/v1/events" || r.URL.Path == "/v1/feedback" {
+			h(w, r, token)
+			return
+		}
+		sw := &statusWriter{ResponseWriter: w, status: http.StatusOK}
+		h(sw, r, token)
+		s.logAction(token, r.URL.Path, sw)
 	}
+}
+
+// statusWriter remembers the status and, for errors, the error code.
+type statusWriter struct {
+	http.ResponseWriter
+	status int
+	body   []byte
+}
+
+func (w *statusWriter) WriteHeader(code int) {
+	w.status = code
+	w.ResponseWriter.WriteHeader(code)
+}
+
+func (w *statusWriter) Write(b []byte) (int, error) {
+	if w.status >= 400 && len(w.body) < 256 {
+		w.body = append(w.body, b...)
+	}
+	return w.ResponseWriter.Write(b)
+}
+
+// logAction records every game action as the server saw it: the most
+// reliable analytics, since a modified client can't fake it.
+func (s *Server) logAction(token, path string, w *statusWriter) {
+	id, err := s.Store.PlayerID(token)
+	if err != nil {
+		return
+	}
+	props := map[string]any{"path": path, "status": float64(w.status)}
+	if w.status >= 400 {
+		var er errorResponse
+		if json.Unmarshal(w.body, &er) == nil && er.Error != "" {
+			props["error"] = er.Error
+		}
+	}
+	_ = s.Telemetry.Events([]telemetry.Event{{At: s.Now().UTC(), Player: id, Source: "server", Name: "api", Props: props}})
 }
 
 func decode(w http.ResponseWriter, r *http.Request, v any) bool {
@@ -371,4 +420,96 @@ func (s *Server) upgradeBuilding(w http.ResponseWriter, r *http.Request, token s
 	s.mutate(w, token, func(f *game.Farm, now time.Time, _ *farmResponse) error {
 		return f.UpgradeBuilding(s.Config, req.Building, now)
 	})
+}
+
+func (s *Server) events(w http.ResponseWriter, r *http.Request, token string) {
+	var req struct {
+		Session string `json:"session"`
+		App     string `json:"app"`
+		Lang    string `json:"lang"`
+		Events  []struct {
+			Name  string         `json:"name"`
+			At    time.Time      `json:"at"`
+			Props map[string]any `json:"props"`
+		} `json:"events"`
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || len(req.Events) > telemetry.MaxBatch {
+		writeErr(w, http.StatusBadRequest, "bad_request")
+		return
+	}
+	id, err := s.Store.PlayerID(token)
+	if err != nil {
+		writeErr(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	now := s.Now().UTC()
+	evs := make([]telemetry.Event, 0, len(req.Events))
+	for _, e := range req.Events {
+		if !telemetry.ValidName(e.Name) {
+			continue
+		}
+		at := e.At.UTC()
+		// a wrong device clock must not move events into another day
+		if at.IsZero() || at.After(now.Add(time.Minute)) || at.Before(now.Add(-7*24*time.Hour)) {
+			at = now
+		}
+		evs = append(evs, telemetry.Event{
+			At: at, Player: id, Source: "client", Name: e.Name,
+			Session: clip(req.Session, 64), App: clip(req.App, 32), Lang: clip(req.Lang, 16),
+			Props: telemetry.CleanProps(e.Props),
+		})
+	}
+	if s.Telemetry != nil {
+		if err := s.Telemetry.Events(evs); err != nil {
+			writeErr(w, http.StatusInternalServerError, "internal")
+			return
+		}
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) feedback(w http.ResponseWriter, r *http.Request, token string) {
+	var req struct {
+		Text string `json:"text"`
+		Mood int    `json:"mood"`
+		App  string `json:"app"`
+		Lang string `json:"lang"`
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 16<<10)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeErr(w, http.StatusBadRequest, "bad_request")
+		return
+	}
+	text := strings.TrimSpace(req.Text)
+	if text == "" || len([]rune(text)) > telemetry.MaxFeedbackLen || req.Mood < 0 || req.Mood > 5 {
+		writeErr(w, http.StatusBadRequest, "bad_feedback")
+		return
+	}
+	id, err := s.Store.PlayerID(token)
+	if err != nil {
+		writeErr(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	level := 0
+	_ = s.Store.WithFarm(token, func(f *game.Farm) error {
+		level = f.Level()
+		return errors.New("read only") // nothing to save
+	})
+	if s.Telemetry != nil {
+		fb := telemetry.Feedback{At: s.Now().UTC(), Player: id, Mood: req.Mood, Text: text,
+			App: clip(req.App, 32), Lang: clip(req.Lang, 16), Level: level}
+		if err := s.Telemetry.Feedback(fb); err != nil {
+			writeErr(w, http.StatusInternalServerError, "internal")
+			return
+		}
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func clip(s string, n int) string {
+	if len(s) > n {
+		return s[:n]
+	}
+	return s
 }

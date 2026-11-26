@@ -110,6 +110,31 @@ struct APIClient {
         try await send("POST", "/v1/buildings/upgrade", body: ["building": id])
     }
 
+    /// Analytics batch, already encoded by Analytics.
+    func events(_ body: Data) async throws {
+        try await sendRaw("/v1/events", body: body)
+    }
+
+    func feedback(text: String, mood: Int) async throws {
+        struct Body: Encodable { var text: String; var mood: Int; var app: String; var lang: String }
+        let app = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
+        let lang = Locale.current.language.languageCode?.identifier ?? "en"
+        try await sendRaw("/v1/feedback", body: try JSONEncoder().encode(Body(text: text, mood: mood, app: app, lang: lang)))
+    }
+
+    /// POST that answers 204 No Content.
+    private func sendRaw(_ path: String, body: Data) async throws {
+        var req = URLRequest(url: baseURL.appendingPathComponent(path))
+        req.httpMethod = "POST"
+        req.timeoutInterval = 10
+        if let token { req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = body
+        let (_, response) = try await URLSession.shared.data(for: req)
+        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        guard status == 204 || status == 200 else { throw status == 401 ? APIError.unauthorized : APIError.http(status) }
+    }
+
     private struct TileBody: Encodable {
         var x: Int
         var y: Int

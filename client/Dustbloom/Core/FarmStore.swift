@@ -17,7 +17,17 @@ enum TapOutcome: Equatable {
 /// the server, which has the final word.
 @MainActor
 final class FarmStore: ObservableObject {
-    @Published private(set) var farm: Farm
+    @Published private(set) var farm: Farm {
+        didSet {
+            if farm.level > oldValue.level {
+                Analytics.shared.track("level_up", ["level": farm.level])
+                happyMoment("level_up")
+            }
+        }
+    }
+    /// The HUD asks the system for an App Store rating when this turns true.
+    @Published var askReview = false
+    private let review = ReviewPolicy()
     @Published var selectedCrop: String
     @Published private(set) var isOnline = false
     /// Plot the player tapped on unowned land; the HUD shows the offer.
@@ -25,9 +35,13 @@ final class FarmStore: ObservableObject {
     /// Growing crop the player tapped; the HUD offers a speedup.
     @Published var growOffer: TileRef?
     /// The manor card is open (tap on the house).
-    @Published var showManor = false
+    @Published var showManor = false {
+        didSet { if showManor && !oldValue { Analytics.shared.track("open_card", ["kind": "manor"]) } }
+    }
     /// The working building whose card is open.
-    @Published var showBuilding: String?
+    @Published var showBuilding: String? {
+        didSet { if let id = showBuilding, id != oldValue { Analytics.shared.track("open_card", ["kind": "building", "id": id]) } }
+    }
     private var pendingTill: (x: Int, y: Int)?
 
     let config: GameConfig
@@ -67,6 +81,58 @@ final class FarmStore: ObservableObject {
            !raw.isEmpty, let url = URL(string: raw) {
             api = APIClient(baseURL: url)
         }
+        if !isDemo {
+            review.noteLaunch()
+            Analytics.shared.track("session_start", ["level": farm.level, "coins": farm.coins, "manor": farm.manorLevel])
+        }
+    }
+
+    // MARK: - analytics, rating, feedback
+
+    var appVersion: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
+    }
+
+    /// A good moment for the player: maybe ask for a rating.
+    func happyMoment(_ trigger: String) {
+        guard !isDemo, review.shouldAsk(level: farm.level, version: appVersion) else { return }
+        review.noteAsked(version: appVersion)
+        Analytics.shared.track("review_prompt", ["trigger": trigger])
+        askReview = true
+    }
+
+    /// Something failed for the player: log it and hold off any rating ask.
+    func trackFail(_ action: String, _ error: FarmError) {
+        review.noteBadMoment()
+        Analytics.shared.track("action_fail", ["action": action, "error": error.rawValue])
+    }
+
+    /// Sends feedback to the developers. False when offline.
+    func sendFeedback(_ text: String, mood: Int) async -> Bool {
+        Analytics.shared.track("feedback_sent", ["mood": mood])
+        guard isOnline, let api else { return false }
+        do {
+            try await api.feedback(text: text, mood: mood)
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    /// Flush analytics now and then (called by the app's 1 s timer).
+    private var lastFlush = Date()
+    func tickAnalytics() {
+        guard Date().timeIntervalSince(lastFlush) >= 60 else { return }
+        lastFlush = Date()
+        Task { await Analytics.shared.flush() }
+    }
+
+    /// The app went to the background.
+    func sessionEnd() {
+        guard !isDemo else { return }
+        Analytics.shared.track("session_end", ["level": farm.level])
+        Analytics.shared.persist()
+        Task { await Analytics.shared.flush() }
     }
 
     var now: Date {
@@ -83,6 +149,9 @@ final class FarmStore: ObservableObject {
             self.api = api
             apply(try await api.farm())
             isOnline = true
+            let client = api
+            Analytics.shared.sender = { data in try await client.events(data) }
+            await Analytics.shared.flush()
         } catch {
             isOnline = false
         }
@@ -198,7 +267,10 @@ final class FarmStore: ObservableObject {
             do {
                 let resp = try await api.raid(raidID)
                 apply(resp)
-                if let r = resp.raid { return .success(r) }
+                if let r = resp.raid {
+                    if r.won { happyMoment("raid_win") } else { review.noteBadMoment() }
+                    return .success(r)
+                }
                 return .failure(.unknownRaid)
             } catch APIClient.APIError.game(let code) {
                 return .failure(code)
@@ -211,6 +283,7 @@ final class FarmStore: ObservableObject {
             let r = try next.raid(raidID, now: now, config: config)
             farm = next
             save()
+            if r.won { happyMoment("raid_win") } else { review.noteBadMoment() }
             return .success(r)
         } catch let error as FarmError {
             return .failure(error)
@@ -244,6 +317,7 @@ final class FarmStore: ObservableObject {
         do {
             try next.upgradeManor(now: now, config: config)
         } catch let error as FarmError {
+            trackFail("manor_upgrade", error)
             return error
         } catch {
             return nil
@@ -259,6 +333,7 @@ final class FarmStore: ObservableObject {
         do {
             try next.upgradeBuilding(id, now: now, config: config)
         } catch let error as FarmError {
+            trackFail("building_upgrade", error)
             return error
         } catch {
             return nil
@@ -334,6 +409,7 @@ final class FarmStore: ObservableObject {
     /// Moves finished scarecrows into the army and refills the order board;
     /// call on a timer from the UI.
     func settle() {
+        tickAnalytics()
         var next = farm
         next.settle(now: now, config: config)
         if !isOnline { next.fillOrders(now: now, config: config) }
