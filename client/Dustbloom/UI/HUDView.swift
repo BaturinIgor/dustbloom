@@ -5,6 +5,7 @@ import UIKit
 /// Rule from the concept: the farm is the main screen, not the buttons.
 struct HUDView: View {
     @EnvironmentObject private var store: FarmStore
+    @State private var sheet: ArmyTab?
 
     var body: some View {
         VStack {
@@ -32,6 +33,26 @@ struct HUDView: View {
 
             Spacer()
 
+            // action row: three equal 56 pt buttons, centred over the crop bar
+            HStack(spacing: 16) {
+                ForEach(ArmyTab.allCases) { t in
+                    Button {
+                        sheet = t
+                        Sfx.play(.select, volume: 0.6)
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    } label: {
+                        Image(t.icon).interpolation(.none).resizable()
+                            .frame(width: 36, height: 36)
+                            .frame(width: 56, height: 56)
+                            .background(slot(false))
+                            .overlay(alignment: .topTrailing) { badge(for: t) }
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(t.title)
+                }
+            }
+            .padding(.bottom, 4)
+
             PixelPanel(padding: 12) {
                 HStack(spacing: 10) {
                     ForEach(store.config.crops) { crop in
@@ -46,6 +67,26 @@ struct HUDView: View {
                 }
             }
             .padding(.bottom, 12)
+        }
+        .sheet(item: $sheet) { t in ArmySheet(tab: t).environmentObject(store) }
+        .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { _ in store.settle() }
+    }
+
+    /// Red dot only when the player can act: crops to sell, army ready to raid.
+    @ViewBuilder
+    private func badge(for t: ArmyTab) -> some View {
+        let show: Bool = {
+            switch t {
+            case .barn: return !store.farm.barn.isEmpty
+            case .workshop: return false
+            case .raids: return !store.farm.army.isEmpty
+            }
+        }()
+        if show {
+            Circle().fill(Color(red: 0.85, green: 0.2, blue: 0.3))
+                .frame(width: 12, height: 12)
+                .overlay(Circle().stroke(Color(uiColor: Palette.outline), lineWidth: 2))
+                .offset(x: 3, y: -3)
         }
     }
 }

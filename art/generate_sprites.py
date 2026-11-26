@@ -992,6 +992,8 @@ def build_sprites():
         key = {"+": "plus"}.get(ch, ch)
         s["font_" + key] = glyph(ch, ("w0", "ink"), None)       # HUD: ink on parchment
         s["font_gold_" + key] = glyph(ch)                        # floating gains
+    from units_art import stage1_sprites  # needs this module's helpers
+    s.update(stage1_sprites())
     return s
 
 
