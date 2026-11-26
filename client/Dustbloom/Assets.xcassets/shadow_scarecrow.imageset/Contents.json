@@ -2,7 +2,8 @@
   "images": [
     {
       "filename": "shadow_scarecrow.png",
-      "idiom": "universal"
+      "idiom": "universal",
+      "scale": "2x"
     }
   ],
   "info": {

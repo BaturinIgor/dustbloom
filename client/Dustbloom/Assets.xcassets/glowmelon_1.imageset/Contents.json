@@ -2,7 +2,8 @@
   "images": [
     {
       "filename": "glowmelon_1.png",
-      "idiom": "universal"
+      "idiom": "universal",
+      "scale": "2x"
     }
   ],
   "info": {

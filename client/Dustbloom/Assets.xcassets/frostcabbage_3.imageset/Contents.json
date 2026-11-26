@@ -2,7 +2,8 @@
   "images": [
     {
       "filename": "frostcabbage_3.png",
-      "idiom": "universal"
+      "idiom": "universal",
+      "scale": "2x"
     }
   ],
   "info": {

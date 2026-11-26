@@ -2,7 +2,8 @@
   "images": [
     {
       "filename": "edge_fence_v.png",
-      "idiom": "universal"
+      "idiom": "universal",
+      "scale": "2x"
     }
   ],
   "info": {

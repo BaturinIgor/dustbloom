@@ -2,7 +2,8 @@
   "images": [
     {
       "filename": "shadow_dead_tree.png",
-      "idiom": "universal"
+      "idiom": "universal",
+      "scale": "2x"
     }
   ],
   "info": {

@@ -22,7 +22,7 @@ extension FarmScene {
         let cols = farm.width + pad * 2
         let rows = farm.height + pad * 2
         let format = UIGraphicsImageRendererFormat()
-        format.scale = 1
+        format.scale = 2  // hd art ships as @2x: keep every pixel
         format.opaque = false
         let renderer = UIGraphicsImageRenderer(size: CGSize(width: cols * art, height: rows * art), format: format)
         var images: [String: UIImage] = [:]

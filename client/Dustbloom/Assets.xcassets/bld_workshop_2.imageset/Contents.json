@@ -2,7 +2,8 @@
   "images": [
     {
       "filename": "bld_workshop_2.png",
-      "idiom": "universal"
+      "idiom": "universal",
+      "scale": "2x"
     }
   ],
   "info": {

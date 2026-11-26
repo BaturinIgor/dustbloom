@@ -2,7 +2,8 @@
   "images": [
     {
       "filename": "tile_grass_edge_10.png",
-      "idiom": "universal"
+      "idiom": "universal",
+      "scale": "2x"
     }
   ],
   "info": {

@@ -888,13 +888,18 @@ def sparkle():
 
 
 # ------------------------------------------------------------------ output
-def save_imageset(name, im):
+def save_imageset(name, im, scale=1):
+    """scale=2 ships the image as @2x: SpriteKit and UIKit then size it in
+    points as half its pixels, so 32 px hd art replaces 16 px art 1:1."""
     d = os.path.join(ASSETS, name + ".imageset")
     os.makedirs(d, exist_ok=True)
     im.save(os.path.join(d, name + ".png"))
+    img = {"filename": name + ".png", "idiom": "universal"}
+    if scale != 1:
+        img["scale"] = "%dx" % scale
     with open(os.path.join(d, "Contents.json"), "w") as f:
         json.dump({
-            "images": [{"filename": name + ".png", "idiom": "universal"}],
+            "images": [img],
             "info": {"author": "xcode", "version": 1},
         }, f, indent=2)
 
@@ -1267,8 +1272,14 @@ def main():
             for f in os.listdir(os.path.join(ASSETS, d)):
                 os.remove(os.path.join(ASSETS, d, f))
             os.rmdir(os.path.join(ASSETS, d))
+    # world sprites in the approved daytime style, 32 px per tile (art/hd/game.py)
+    from hd.game import hd_sprites
+    hd = hd_sprites(s)
     for name, im in s.items():
-        save_imageset(name, im)
+        if name in hd:
+            save_imageset(name, hd[name], 2)
+        else:
+            save_imageset(name, im)
     for name in ("ui_panel", "ui_slot", "ui_slot_selected"):
         # pre-scaled x3 so SwiftUI nine-slice cap insets are 12 pt
         im = frames[name]

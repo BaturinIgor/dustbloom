@@ -2,7 +2,8 @@
   "images": [
     {
       "filename": "stormcorn_3.png",
-      "idiom": "universal"
+      "idiom": "universal",
+      "scale": "2x"
     }
   ],
   "info": {

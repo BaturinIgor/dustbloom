@@ -2,7 +2,8 @@
   "images": [
     {
       "filename": "shadow_house.png",
-      "idiom": "universal"
+      "idiom": "universal",
+      "scale": "2x"
     }
   ],
   "info": {

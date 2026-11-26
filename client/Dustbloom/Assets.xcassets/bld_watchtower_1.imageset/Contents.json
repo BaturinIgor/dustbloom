@@ -2,7 +2,8 @@
   "images": [
     {
       "filename": "bld_watchtower_1.png",
-      "idiom": "universal"
+      "idiom": "universal",
+      "scale": "2x"
     }
   ],
   "info": {
