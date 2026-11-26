@@ -105,17 +105,17 @@ func TestPlantRules(t *testing.T) {
 func TestTill(t *testing.T) {
 	cfg := mustConfig(t)
 	f := NewFarm(cfg)
-	if err := f.Till(cfg, 0, 0); err != nil {
+	if err := f.Till(cfg, 4, 0); err != nil {
 		t.Fatalf("Till: %v", err)
 	}
-	if err := f.Till(cfg, 0, 0); !errors.Is(err, ErrAlreadyTilled) {
+	if err := f.Till(cfg, 4, 0); !errors.Is(err, ErrAlreadyTilled) {
 		t.Fatalf("re-till err = %v", err)
 	}
 	if f.Coins != cfg.Farm.StartCoins-cfg.Farm.TillCost {
 		t.Fatalf("coins = %d", f.Coins)
 	}
 	f.Coins = 0
-	if err := f.Till(cfg, 1, 0); !errors.Is(err, ErrNotEnough) {
+	if err := f.Till(cfg, 5, 0); !errors.Is(err, ErrNotEnough) {
 		t.Fatalf("broke till err = %v", err)
 	}
 }
@@ -155,5 +155,52 @@ func TestParseConfigRejectsBadInput(t *testing.T) {
 		if _, err := ParseConfig([]byte(b)); err == nil {
 			t.Errorf("ParseConfig(%s) succeeded, want error", b)
 		}
+	}
+}
+
+func TestLandPlots(t *testing.T) {
+	cfg := mustConfig(t)
+	f := NewFarm(cfg)
+	if !f.Owns(cfg, 6, 6) || f.Owns(cfg, 0, 0) {
+		t.Fatal("start plots wrong")
+	}
+	if err := f.Till(cfg, 0, 6); !errors.Is(err, ErrNotOwned) {
+		t.Fatalf("till outside land err = %v", err)
+	}
+	coins, level := f.PlotPrice(cfg)
+	if coins != cfg.Farm.PlotBaseCost || level != 1 {
+		t.Fatalf("first plot price = %d coins, level %d", coins, level)
+	}
+	if err := f.BuyPlot(cfg, 3, 3); !errors.Is(err, ErrNotAdjacent) {
+		t.Fatalf("far plot err = %v", err)
+	}
+	if err := f.BuyPlot(cfg, 1, 1); !errors.Is(err, ErrOwned) {
+		t.Fatalf("owned plot err = %v", err)
+	}
+	if err := f.BuyPlot(cfg, 0, 1); err != nil {
+		t.Fatalf("BuyPlot: %v", err)
+	}
+	if f.Coins != cfg.Farm.StartCoins-coins || !f.Owns(cfg, 0, 6) {
+		t.Fatalf("after buy coins %d", f.Coins)
+	}
+	if err := f.Till(cfg, 0, 6); err != nil {
+		t.Fatalf("till bought land: %v", err)
+	}
+	next, nextLevel := f.PlotPrice(cfg)
+	if next <= coins || nextLevel < 2 {
+		t.Fatalf("second plot should cost more and need a level: %d, %d", next, nextLevel)
+	}
+	f.Coins = 10000
+	if err := f.BuyPlot(cfg, 0, 0); !errors.Is(err, ErrLocked) {
+		t.Fatalf("level gate err = %v", err)
+	}
+}
+
+func TestOldFarmGetsStartPlots(t *testing.T) {
+	cfg := mustConfig(t)
+	f := NewFarm(cfg)
+	f.Plots = nil
+	if err := f.Till(cfg, 4, 4); err != nil && !errors.Is(err, ErrAlreadyTilled) {
+		t.Fatalf("old farm till in start land: %v", err)
 	}
 }

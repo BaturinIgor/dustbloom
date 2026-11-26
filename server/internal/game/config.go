@@ -31,7 +31,20 @@ type FarmConfig struct {
 	StartCoins  int  `json:"startCoins"`
 	StartTilled Rect `json:"startTilled"`
 	TillCost    int  `json:"tillCost"`
+
+	// Land is sold in square plots. The player starts with StartPlots and
+	// buys neighbours; each plot costs PlotBaseCost * PlotCostGrowth^bought
+	// and needs level 1 + bought/PlotLevelStep.
+	PlotSize       int      `json:"plotSize"`
+	StartPlots     [][2]int `json:"startPlots"`
+	PlotBaseCost   int      `json:"plotBaseCost"`
+	PlotCostGrowth float64  `json:"plotCostGrowth"`
+	PlotLevelStep  int      `json:"plotLevelStep"`
 }
+
+// PlotsX and PlotsY are the plot grid size.
+func (f FarmConfig) PlotsX() int { return f.Width / f.PlotSize }
+func (f FarmConfig) PlotsY() int { return f.Height / f.PlotSize }
 
 // Crop is one plantable crop type.
 type Crop struct {
@@ -113,6 +126,12 @@ func ParseConfig(data []byte) (*Config, error) {
 	}
 	if c.Farm.Width <= 0 || c.Farm.Height <= 0 {
 		return nil, fmt.Errorf("config: farm size must be positive")
+	}
+	if c.Farm.PlotSize <= 0 || c.Farm.Width%c.Farm.PlotSize != 0 || c.Farm.Height%c.Farm.PlotSize != 0 {
+		return nil, fmt.Errorf("config: farm size must be a multiple of plotSize")
+	}
+	if c.Farm.PlotLevelStep <= 0 {
+		c.Farm.PlotLevelStep = 1
 	}
 	c.cropsByID = make(map[string]Crop, len(c.Crops))
 	for _, cr := range c.Crops {

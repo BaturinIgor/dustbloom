@@ -10,6 +10,7 @@
 //	POST /v1/farm/plant             {"x","y","crop"}
 //	POST /v1/farm/harvest           {"x","y"} -> farm + harvest result (crop goes to the barn)
 //	POST /v1/farm/sell              {"crop","count"} -> farm + sold coins
+//	POST /v1/farm/plot              {"x","y"} plot grid coords -> farm
 //	POST /v1/army/build             {"scarecrow"} -> farm with the workshop queue
 //	POST /v1/raid                   {"raid"} -> farm + raid result with every hit
 //
@@ -50,6 +51,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /v1/farm/plant", s.auth(s.plant))
 	mux.HandleFunc("POST /v1/farm/harvest", s.auth(s.harvest))
 	mux.HandleFunc("POST /v1/farm/sell", s.auth(s.sell))
+	mux.HandleFunc("POST /v1/farm/plot", s.auth(s.buyPlot))
 	mux.HandleFunc("POST /v1/army/build", s.auth(s.build))
 	mux.HandleFunc("POST /v1/raid", s.auth(s.raid))
 	return mux
@@ -90,7 +92,7 @@ func gameErrStatus(w http.ResponseWriter, err error) {
 		game.ErrOccupied, game.ErrEmpty, game.ErrNotReady,
 		game.ErrUnknownCrop, game.ErrNotEnough, game.ErrLocked, game.ErrNoCrops,
 		game.ErrUnknownScarecrow, game.ErrQueueFull, game.ErrUnknownRaid,
-		game.ErrRaidCooldown, game.ErrNoArmy,
+		game.ErrRaidCooldown, game.ErrNoArmy, game.ErrNotOwned, game.ErrOwned, game.ErrNotAdjacent,
 	} {
 		if errors.Is(err, known) {
 			writeErr(w, http.StatusConflict, known.Error())
@@ -147,6 +149,7 @@ func (s *Server) mutate(w http.ResponseWriter, token string, fn func(f *game.Far
 	now := s.Now()
 	var resp farmResponse
 	err := s.Store.WithFarm(token, func(f *game.Farm) error {
+		f.EnsurePlots(s.Config)
 		f.Settle(s.Config, now)
 		if err := fn(f, now, &resp); err != nil {
 			return err
@@ -241,5 +244,15 @@ func (s *Server) raid(w http.ResponseWriter, r *http.Request, token string) {
 		res, err := f.Raid(s.Config, req.Raid, now, uint64(now.UnixNano()))
 		resp.Raid = &res
 		return err
+	})
+}
+
+func (s *Server) buyPlot(w http.ResponseWriter, r *http.Request, token string) {
+	var req tileReq
+	if !decode(w, r, &req) {
+		return
+	}
+	s.mutate(w, token, func(f *game.Farm, now time.Time, _ *farmResponse) error {
+		return f.BuyPlot(s.Config, req.X, req.Y)
 	})
 }

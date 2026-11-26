@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "farm": {
     "width": 16,
     "height": 16,
@@ -10,7 +10,37 @@
       "width": 4,
       "height": 4
     },
-    "tillCost": 5
+    "tillCost": 5,
+    "plotSize": 4,
+    "startPlots": [
+      [
+        1,
+        0
+      ],
+      [
+        2,
+        0
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        2,
+        1
+      ],
+      [
+        1,
+        2
+      ],
+      [
+        2,
+        2
+      ]
+    ],
+    "plotBaseCost": 60,
+    "plotCostGrowth": 1.6,
+    "plotLevelStep": 2
   },
   "crops": [
     {

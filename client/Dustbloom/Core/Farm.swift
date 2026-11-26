@@ -17,6 +17,9 @@ enum FarmError: String, Error, Codable {
     case unknownRaid = "unknown_raid"
     case raidCooldown = "raid_cooldown"
     case noArmy = "no_army"
+    case notOwned = "not_owned"
+    case alreadyOwned = "already_owned"
+    case notAdjacent = "not_adjacent"
 }
 
 struct Tile: Codable, Equatable {
@@ -46,9 +49,12 @@ struct Farm: Codable, Equatable {
     var army: [ArmyUnit] = []
     var queue: [Build] = []
     var raidReadyAt: [String: Date] = [:]
+    /// Owned land plots, row-major over the plot grid. Empty in old saves:
+    /// `ensurePlots` fills in the start plots.
+    var plots: [Bool] = []
 
     private enum CodingKeys: String, CodingKey {
-        case width, height, coins, xp, tiles, barn, army, queue, raidReadyAt
+        case width, height, coins, xp, tiles, barn, army, queue, raidReadyAt, plots
     }
 
     /// Older saves and the server's omitempty fields may lack the army keys.
@@ -63,6 +69,7 @@ struct Farm: Codable, Equatable {
         army = try c.decodeIfPresent([ArmyUnit].self, forKey: .army) ?? []
         queue = try c.decodeIfPresent([Build].self, forKey: .queue) ?? []
         raidReadyAt = try c.decodeIfPresent([String: Date].self, forKey: .raidReadyAt) ?? [:]
+        plots = try c.decodeIfPresent([Bool].self, forKey: .plots) ?? []
     }
 
     init(config: GameConfig) {
@@ -78,6 +85,7 @@ struct Farm: Codable, Equatable {
             }
         }
         self.tiles = tiles
+        ensurePlots(config: config)
     }
 
     /// Each level needs 10 more XP than the previous one.
@@ -100,9 +108,61 @@ struct Farm: Codable, Equatable {
         index(x: x, y: y).map { tiles[$0] }
     }
 
+    // MARK: land plots (mirror of server/internal/game/farm.go)
+
+    mutating func ensurePlots(config: GameConfig) {
+        let n = config.farm.plotsX * config.farm.plotsY
+        guard plots.count != n else { return }
+        plots = Array(repeating: false, count: n)
+        for p in config.farm.startPlots where p.count == 2 {
+            plots[p[1] * config.farm.plotsX + p[0]] = true
+        }
+    }
+
+    func owns(x: Int, y: Int, config: GameConfig) -> Bool {
+        guard x >= 0, y >= 0, x < width, y < height else { return false }
+        let ps = config.farm.plotSize
+        let i = (y / ps) * config.farm.plotsX + x / ps
+        return i < plots.count && plots[i]
+    }
+
+    func plotsBought(config: GameConfig) -> Int {
+        plots.filter { $0 }.count - config.farm.startPlots.count
+    }
+
+    /// Coins and level needed for the next plot.
+    func plotPrice(config: GameConfig) -> (coins: Int, level: Int) {
+        let b = plotsBought(config: config)
+        let coins = Int((Double(config.farm.plotBaseCost) * pow(config.farm.plotCostGrowth, Double(b))).rounded())
+        return (coins, 1 + (b + 1) / max(1, config.farm.plotLevelStep))
+    }
+
+    func canBuyPlot(px: Int, py: Int, config: GameConfig) -> FarmError? {
+        let w = config.farm.plotsX, h = config.farm.plotsY
+        guard px >= 0, py >= 0, px < w, py < h, plots.count == w * h else { return .outOfBounds }
+        if plots[py * w + px] { return .alreadyOwned }
+        for (dx, dy) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+            let nx = px + dx, ny = py + dy
+            if nx >= 0, ny >= 0, nx < w, ny < h, plots[ny * w + nx] { return nil }
+        }
+        return .notAdjacent
+    }
+
+    mutating func buyPlot(px: Int, py: Int, config: GameConfig) throws {
+        ensurePlots(config: config)
+        if let e = canBuyPlot(px: px, py: py, config: config) { throw e }
+        let price = plotPrice(config: config)
+        guard level >= price.level else { throw FarmError.cropLocked }
+        guard coins >= price.coins else { throw FarmError.notEnoughCoins }
+        coins -= price.coins
+        plots[py * config.farm.plotsX + px] = true
+    }
+
     mutating func till(x: Int, y: Int, config: GameConfig) throws {
         guard let i = index(x: x, y: y) else { throw FarmError.outOfBounds }
         guard !tiles[i].tilled else { throw FarmError.alreadyTilled }
+        ensurePlots(config: config)
+        guard owns(x: x, y: y, config: config) else { throw FarmError.notOwned }
         guard coins >= config.farm.tillCost else { throw FarmError.notEnoughCoins }
         coins -= config.farm.tillCost
         tiles[i].tilled = true

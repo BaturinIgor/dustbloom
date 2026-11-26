@@ -106,7 +106,7 @@ func TestFarmFlow(t *testing.T) {
 	if fr.Farm.Coins != 103 {
 		t.Fatalf("coins = %d, want 103", fr.Farm.Coins)
 	}
-	if code := e.do("POST", "/v1/farm/till", tileReq{X: 0, Y: 0}, &fr); code != 200 || !fr.Farm.Tiles[0].Tilled {
+	if code := e.do("POST", "/v1/farm/till", tileReq{X: 4, Y: 0}, &fr); code != 200 || !fr.Farm.Tiles[4].Tilled {
 		t.Fatalf("till = %d", code)
 	}
 }

@@ -13,8 +13,9 @@ final class FarmScene: SKScene {
     let tileSize: CGFloat = 48
     /// One art pixel in points.
     let px: CGFloat = 3
-    /// Decorative wasteland drawn beyond the farm edge, in tiles.
-    private let pad = 6
+    /// Decorative wasteland drawn beyond the farm edge, in tiles. Wide enough
+    /// that the screen never shows the world's end, even zoomed out.
+    let pad = 16
 
     let world = SKNode()
     private let cam = SKCameraNode()
@@ -31,6 +32,11 @@ final class FarmScene: SKScene {
 
     private var touchStart: CGPoint?
     private var panned = false
+    /// Finger started on a bed: sliding plants or harvests instead of panning.
+    private var swiping = false
+    private var swipeVisited: Set<Int> = []
+    var landLayer = SKNode()
+    var lastPlots: [Bool] = []
     private var pinch: UIPinchGestureRecognizer?
 
     private let lightTap = UIImpactFeedbackGenerator(style: .light)
@@ -140,8 +146,12 @@ final class FarmScene: SKScene {
                 groundNames.append("")
             }
         }
+        placeFog(farm: farm)
         placePieces(layout: layout, farm: farm)
         placeWildProps(farm: farm, start: store.config.farm.startTilled)
+        landLayer = SKNode()
+        world.addChild(landLayer)
+        rebuildLand()
         startAmbience(layout: layout)
         if store.isDemo { startDemo(layout: layout) }
         let s = store.config.farm.startTilled
@@ -306,15 +316,36 @@ final class FarmScene: SKScene {
     override func update(_ currentTime: TimeInterval) {
         guard didBuild, currentTime - lastRefresh > 0.25 else { return }
         lastRefresh = currentTime
+        if let store, store.farm.plots != lastPlots {
+            let first = lastPlots.isEmpty
+            rebuildLand()
+            if !first { celebratePlot() }
+        }
         refreshAll(animated: true)
     }
 
     // MARK: - input
 
+    private func tileAt(_ t: UITouch) -> (x: Int, y: Int)? {
+        guard let store else { return nil }
+        let p = t.location(in: world)
+        let farm = store.farm
+        let x = Int(floor(p.x / tileSize + CGFloat(farm.width) / 2))
+        let y = Int(floor(CGFloat(farm.height) / 2 - p.y / tileSize))
+        return farm.index(x: x, y: y) == nil ? nil : (x, y)
+    }
+
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard let t = touches.first else { return }
         touchStart = t.location(in: view)
         panned = false
+        swipeVisited = []
+        // a finger that lands on a bed plants/harvests as it slides
+        if let pos = tileAt(t), let tile = store?.farm.tile(x: pos.x, y: pos.y), tile.tilled {
+            swiping = true
+        } else {
+            swiping = false
+        }
     }
 
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
@@ -323,6 +354,13 @@ final class FarmScene: SKScene {
         let prev = t.previousLocation(in: view)
         if hypot(now.x - start.x, now.y - start.y) > 8 { panned = true }
         guard panned else { return }
+        if swiping {
+            if let pos = tileAt(t), let i = store?.farm.index(x: pos.x, y: pos.y), !swipeVisited.contains(i) {
+                swipeVisited.insert(i)
+                handleTap(x: pos.x, y: pos.y, swipe: true)
+            }
+            return
+        }
         // view y grows downwards, scene y upwards
         cam.position.x -= (now.x - prev.x) * cam.xScale
         cam.position.y += (now.y - prev.y) * cam.yScale
@@ -330,7 +368,7 @@ final class FarmScene: SKScene {
     }
 
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
-        defer { touchStart = nil }
+        defer { touchStart = nil; swiping = false }
         guard !panned, let t = touches.first, let store else { return }
         let p = t.location(in: world)
         let farm = store.farm
@@ -346,6 +384,7 @@ final class FarmScene: SKScene {
 
     override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
         touchStart = nil
+        swiping = false
     }
 
     @objc private func handlePinch(_ g: UIPinchGestureRecognizer) {
@@ -354,25 +393,33 @@ final class FarmScene: SKScene {
         cam.setScale(min(max(next, 0.45), 1.6))
         g.scale = 1
         panned = true
+        swiping = false
         clampCamera()
     }
 
     private func clampCamera() {
         guard let store else { return }
-        let halfW = CGFloat(store.farm.width) * tileSize / 2
-        let halfH = CGFloat(store.farm.height) * tileSize / 2
+        let halfW = CGFloat(store.farm.width + 4) * tileSize / 2
+        let halfH = CGFloat(store.farm.height + 4) * tileSize / 2
         cam.position.x = min(max(cam.position.x, -halfW), halfW)
         cam.position.y = min(max(cam.position.y, -halfH), halfH)
     }
 
     // MARK: - actions & juice
 
-    func handleTap(x: Int, y: Int) {
+    func handleTap(x: Int, y: Int, swipe: Bool = false) {
         guard let store, let i = store.farm.index(x: x, y: y) else { return }
-        let outcome = store.tap(x: x, y: y)
+        if swipe, layout?.isBlocked(x: x, y: y) == true { return }
+        let outcome = store.tap(x: x, y: y, swipe: swipe)
         let ground = groundNodes[i]
+        if swipe, case .failed = outcome { return }
         switch outcome {
+        case .confirmTill(let cost):
+            Sfx.play(.select, volume: 0.5)
+            lightTap.impactOccurred(intensity: 0.5)
+            priceBubble(at: ground.position, cost: cost)
         case .tilled:
+            world.childNode(withName: "priceBubble")?.removeFromParent()
             Sfx.play(.till)
             lightTap.impactOccurred()
             refreshAll(animated: true)  // grass spreads around the new bed
@@ -396,7 +443,8 @@ final class FarmScene: SKScene {
                 .moveBy(x: 4, y: 0, duration: 0.04),
             ]))
         case .nothing:
-            break
+            if store.plotOffer != nil { Sfx.play(.select, volume: 0.5) }
+            if swipe { return }
         }
         cursor(at: ground.position)
     }
@@ -520,5 +568,121 @@ enum Textures {
         let t = SKTexture(imageNamed: name)
         t.filteringMode = .linear
         return t
+    }
+}
+
+// MARK: - land plots, fog, price bubbles
+
+extension FarmScene {
+    /// Darkens the far wasteland so the world fades out instead of ending.
+    fileprivate func placeFog(farm: Farm) {
+        for y in -pad..<(farm.height + pad) {
+            for x in -pad..<(farm.width + pad) {
+                let d = max(-x, x - (farm.width - 1), -y, y - (farm.height - 1))
+                guard d > 5 else { continue }
+                let fog = SKSpriteNode(color: Palette.dustDeep, size: CGSize(width: tileSize, height: tileSize))
+                fog.alpha = min(0.85, CGFloat(d - 5) / 10)
+                fog.position = position(x: x, y: y, farm: farm)
+                fog.zPosition = 45  // over wild props, under cursor and gains
+                world.addChild(fog)
+            }
+        }
+    }
+
+    /// Owned land is bright and fenced; plots for sale are dimmed and carry
+    /// a sign with the price.
+    func rebuildLand() {
+        guard let store else { return }
+        let farm = store.farm
+        let cfg = store.config
+        lastPlots = farm.plots
+        landLayer.removeAllChildren()
+        let ps = cfg.farm.plotSize
+        let plotPts = CGFloat(ps) * tileSize
+
+        for py in 0..<cfg.farm.plotsY {
+            for px in 0..<cfg.farm.plotsX {
+                let owned = farm.plots.indices.contains(py * cfg.farm.plotsX + px) && farm.plots[py * cfg.farm.plotsX + px]
+                guard !owned else { continue }
+                let topLeft = position(x: px * ps, y: py * ps, farm: farm)
+                let center = CGPoint(x: topLeft.x - tileSize / 2 + plotPts / 2, y: topLeft.y + tileSize / 2 - plotPts / 2)
+                let shade = SKSpriteNode(color: Palette.dustDeep, size: CGSize(width: plotPts, height: plotPts))
+                shade.alpha = 0.35
+                shade.position = center
+                shade.zPosition = 0.25
+                landLayer.addChild(shade)
+                if farm.canBuyPlot(px: px, py: py, config: cfg) == nil {
+                    let tex = Textures.named("prop_sale_sign")
+                    let sign = SKSpriteNode(texture: tex, size: CGSize(width: 16 * px3, height: 24 * px3))
+                    sign.anchorPoint = CGPoint(x: 0.5, y: 0.1)
+                    sign.position = center
+                    sign.zPosition = depth(row: py * ps + ps / 2)
+                    landLayer.addChild(sign)
+                    let price = PixelLabel.make("\(farm.plotPrice(config: cfg).coins)", gold: true, scale: 2)
+                    price.position = CGPoint(x: 0, y: 24 * px3 + 4)
+                    sign.addChild(price)
+                    let bob = SKAction.sequence([.moveBy(x: 0, y: 4, duration: 0.8), .moveBy(x: 0, y: -4, duration: 0.8)])
+                    bob.timingMode = .easeInEaseOut
+                    price.run(.repeatForever(bob))
+                }
+            }
+        }
+
+        // fence on every edge between owned land and anything else
+        for y in 0..<farm.height {
+            for x in 0..<farm.width where farm.owns(x: x, y: y, config: cfg) {
+                let c = position(x: x, y: y, farm: farm)
+                if !farm.owns(x: x, y: y - 1, config: cfg) { fence(h: true, at: CGPoint(x: c.x, y: c.y + tileSize / 2), row: y - 1) }
+                if !farm.owns(x: x, y: y + 1, config: cfg) { fence(h: true, at: CGPoint(x: c.x, y: c.y - tileSize / 2), row: y) }
+                if !farm.owns(x: x - 1, y: y, config: cfg) { fence(h: false, at: CGPoint(x: c.x - tileSize / 2, y: c.y), row: y) }
+                if !farm.owns(x: x + 1, y: y, config: cfg) { fence(h: false, at: CGPoint(x: c.x + tileSize / 2, y: c.y), row: y) }
+            }
+        }
+    }
+
+    private var px3: CGFloat { px }
+
+    private func fence(h: Bool, at p: CGPoint, row: Int) {
+        let tex = Textures.named(h ? "edge_fence_h" : "edge_fence_v")
+        let n = SKSpriteNode(texture: tex, size: CGSize(width: tex.size().width * px, height: tex.size().height * px))
+        n.anchorPoint = h ? CGPoint(x: 0.5, y: 0.2) : CGPoint(x: 0.5, y: 0.5)
+        n.position = p
+        n.zPosition = depth(row: row) + 0.004
+        landLayer.addChild(n)
+    }
+
+    /// Plot bought: fence pops in, sparkles over the new land.
+    func celebratePlot() {
+        Sfx.play(.levelUp, volume: 0.8)
+        landLayer.setScale(1)
+        landLayer.alpha = 0
+        landLayer.run(.fadeIn(withDuration: 0.3))
+    }
+
+    /// "5 coins?" bubble over grass: tap again to till.
+    fileprivate func priceBubble(at p: CGPoint, cost: Int) {
+        world.childNode(withName: "priceBubble")?.removeFromParent()
+        let bubble = SKNode()
+        bubble.name = "priceBubble"
+        bubble.position = CGPoint(x: p.x, y: p.y + tileSize * 0.9)
+        bubble.zPosition = 70
+        let bg = SKSpriteNode(color: Palette.parchment, size: CGSize(width: 72, height: 30))
+        let border = SKSpriteNode(color: Palette.outline, size: CGSize(width: 78, height: 36))
+        bubble.addChild(border)
+        bubble.addChild(bg)
+        let coin = SKSpriteNode(texture: Textures.named("ui_coin"), size: CGSize(width: 22, height: 22))
+        coin.position = CGPoint(x: -16, y: 0)
+        bubble.addChild(coin)
+        let label = PixelLabel.make("\(cost)", gold: false, scale: 2)
+        label.position = CGPoint(x: 10, y: 0)
+        bubble.addChild(label)
+        world.addChild(bubble)
+        bubble.setScale(0.3)
+        bubble.run(.sequence([
+            .scale(to: 1, duration: 0.12),
+            .wait(forDuration: 2.2),
+            .fadeOut(withDuration: 0.2),
+            .removeFromParent(),
+        ]))
     }
 }

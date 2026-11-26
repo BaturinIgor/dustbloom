@@ -3,6 +3,8 @@ import UIKit
 
 /// What a tap on a tile did, so the scene can play the right animation.
 enum TapOutcome: Equatable {
+    /// First tap on grass: show the price, a second tap on the same tile tills.
+    case confirmTill(cost: Int)
     case tilled
     case planted(String)
     case harvested(HarvestResult)
@@ -18,6 +20,9 @@ final class FarmStore: ObservableObject {
     @Published private(set) var farm: Farm
     @Published var selectedCrop: String
     @Published private(set) var isOnline = false
+    /// Plot the player tapped on unowned land; the HUD shows the offer.
+    @Published var plotOffer: PlotOffer?
+    private var pendingTill: (x: Int, y: Int)?
 
     let config: GameConfig
     private var api: APIClient?
@@ -43,7 +48,9 @@ final class FarmStore: ObservableObject {
         } else if let data = UserDefaults.standard.data(forKey: FarmStore.saveKey),
            let saved = try? JSONDecoder().decode(Farm.self, from: data),
            saved.width == config.farm.width, saved.height == config.farm.height {
-            farm = saved
+            var loaded = saved
+            loaded.ensurePlots(config: config)
+            farm = loaded
         } else {
             farm = Farm(config: config)
         }
@@ -73,8 +80,21 @@ final class FarmStore: ObservableObject {
     }
 
     /// Decides what a tap means for the tile: till grass, plant, or harvest.
-    func tap(x: Int, y: Int) -> TapOutcome {
+    /// `swipe` is true while the finger slides over beds: it never tills.
+    func tap(x: Int, y: Int, swipe: Bool = false) -> TapOutcome {
         guard let tile = farm.tile(x: x, y: y) else { return .nothing }
+        if !tile.tilled && !farm.owns(x: x, y: y, config: config) {
+            guard !swipe else { return .nothing }
+            let ps = config.farm.plotSize
+            plotOffer = PlotOffer(px: x / ps, py: y / ps)
+            return .nothing
+        }
+        if !tile.tilled && (swipe || !(pendingTill.map { $0.x == x && $0.y == y } ?? false)) {
+            guard !swipe else { return .nothing }
+            pendingTill = (x, y)
+            return .confirmTill(cost: config.farm.tillCost)
+        }
+        pendingTill = nil
         var next = farm
         let outcome: TapOutcome
         do {
@@ -88,6 +108,7 @@ final class FarmStore: ObservableObject {
                 let crop = selectedCrop
                 sync { try await $0.plant(x: x, y: y, crop: crop) }
             } else {
+                if swipe, (progress(of: tile) ?? 0) < 1 { return .nothing }
                 let result = try next.harvest(x: x, y: y, now: now, config: config)
                 outcome = .harvested(result)
                 sync { try await $0.harvest(x: x, y: y) }
@@ -100,6 +121,29 @@ final class FarmStore: ObservableObject {
         farm = next
         save()
         return outcome
+    }
+
+    // MARK: - land
+
+    struct PlotOffer: Identifiable, Equatable {
+        var px: Int
+        var py: Int
+        var id: Int { py * 100 + px }
+    }
+
+    func buyPlot(px: Int, py: Int) -> FarmError? {
+        var next = farm
+        do {
+            try next.buyPlot(px: px, py: py, config: config)
+        } catch let error as FarmError {
+            return error
+        } catch {
+            return nil
+        }
+        farm = next
+        save()
+        sync { try await $0.buyPlot(px: px, py: py) }
+        return nil
     }
 
     // MARK: - barn, workshop, raids

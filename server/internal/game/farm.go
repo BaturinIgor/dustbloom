@@ -2,6 +2,7 @@ package game
 
 import (
 	"errors"
+	"math"
 	"time"
 )
 
@@ -18,6 +19,9 @@ var (
 	ErrNotEnough     = errors.New("not_enough_coins")
 	ErrLocked        = errors.New("crop_locked")
 	ErrNoCrops       = errors.New("not_enough_crops")
+	ErrNotOwned      = errors.New("not_owned")
+	ErrOwned         = errors.New("already_owned")
+	ErrNotAdjacent   = errors.New("not_adjacent")
 )
 
 // Tile is one cell of the farm.
@@ -34,6 +38,8 @@ type Farm struct {
 	Coins  int    `json:"coins"`
 	XP     int    `json:"xp"`
 	Tiles  []Tile `json:"tiles"` // row-major, index = y*Width + x
+	// Plots marks owned land plots, row-major over the plot grid.
+	Plots []bool `json:"plots,omitempty"`
 
 	// Barn holds harvested crops: they are sold for coins or built into scarecrows.
 	Barn map[string]int `json:"barn,omitempty"`
@@ -59,7 +65,84 @@ func NewFarm(cfg *Config) *Farm {
 			}
 		}
 	}
+	f.EnsurePlots(cfg)
 	return f
+}
+
+// EnsurePlots gives farms saved before land plots existed their start plots.
+func (f *Farm) EnsurePlots(cfg *Config) {
+	n := cfg.Farm.PlotsX() * cfg.Farm.PlotsY()
+	if len(f.Plots) == n {
+		return
+	}
+	f.Plots = make([]bool, n)
+	for _, p := range cfg.Farm.StartPlots {
+		f.Plots[p[1]*cfg.Farm.PlotsX()+p[0]] = true
+	}
+}
+
+// Owns reports whether the tile (x, y) lies on an owned plot.
+func (f *Farm) Owns(cfg *Config, x, y int) bool {
+	if x < 0 || y < 0 || x >= f.Width || y >= f.Height {
+		return false
+	}
+	ps := cfg.Farm.PlotSize
+	i := (y/ps)*cfg.Farm.PlotsX() + x/ps
+	return i < len(f.Plots) && f.Plots[i]
+}
+
+// PlotsBought counts plots bought beyond the start ones.
+func (f *Farm) PlotsBought(cfg *Config) int {
+	n := 0
+	for _, o := range f.Plots {
+		if o {
+			n++
+		}
+	}
+	return n - len(cfg.Farm.StartPlots)
+}
+
+// PlotPrice is the coin cost and level needed for the next plot.
+func (f *Farm) PlotPrice(cfg *Config) (coins, level int) {
+	b := f.PlotsBought(cfg)
+	coins = int(math.Round(float64(cfg.Farm.PlotBaseCost) * math.Pow(cfg.Farm.PlotCostGrowth, float64(b))))
+	return coins, 1 + (b+1)/cfg.Farm.PlotLevelStep
+}
+
+// CanBuyPlot reports whether plot (px, py) is for sale: not owned and next to owned land.
+func (f *Farm) CanBuyPlot(cfg *Config, px, py int) error {
+	w, h := cfg.Farm.PlotsX(), cfg.Farm.PlotsY()
+	if px < 0 || py < 0 || px >= w || py >= h {
+		return ErrOutOfBounds
+	}
+	if f.Plots[py*w+px] {
+		return ErrOwned
+	}
+	for _, d := range [][2]int{{1, 0}, {-1, 0}, {0, 1}, {0, -1}} {
+		nx, ny := px+d[0], py+d[1]
+		if nx >= 0 && ny >= 0 && nx < w && ny < h && f.Plots[ny*w+nx] {
+			return nil
+		}
+	}
+	return ErrNotAdjacent
+}
+
+// BuyPlot buys a land plot next to owned land.
+func (f *Farm) BuyPlot(cfg *Config, px, py int) error {
+	f.EnsurePlots(cfg)
+	if err := f.CanBuyPlot(cfg, px, py); err != nil {
+		return err
+	}
+	coins, level := f.PlotPrice(cfg)
+	if f.Level() < level {
+		return ErrLocked
+	}
+	if f.Coins < coins {
+		return ErrNotEnough
+	}
+	f.Coins -= coins
+	f.Plots[py*cfg.Farm.PlotsX()+px] = true
+	return nil
 }
 
 // Level is derived from XP: each level needs 10 more XP than the last.
@@ -88,6 +171,10 @@ func (f *Farm) Till(cfg *Config, x, y int) error {
 	}
 	if t.Tilled {
 		return ErrAlreadyTilled
+	}
+	f.EnsurePlots(cfg)
+	if !f.Owns(cfg, x, y) {
+		return ErrNotOwned
 	}
 	if f.Coins < cfg.Farm.TillCost {
 		return ErrNotEnough

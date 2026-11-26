@@ -63,6 +63,10 @@ struct APIClient {
         return try await send("POST", "/v1/farm/sell", body: Body(crop: crop, count: count))
     }
 
+    func buyPlot(px: Int, py: Int) async throws -> FarmResponse {
+        try await send("POST", "/v1/farm/plot", body: TileBody(x: px, y: py, crop: nil))
+    }
+
     func build(scarecrow: String) async throws -> FarmResponse {
         try await send("POST", "/v1/army/build", body: ["scarecrow": scarecrow])
     }

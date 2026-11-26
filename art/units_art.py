@@ -247,3 +247,51 @@ def stage1_sprites():
         "icon_workshop": icon_hammer(),
         "icon_raid": icon_swords(),
     }
+
+
+# ------------------------------------------------------------------ land plots
+def edge_fence_h():
+    """Rail along a horizontal tile edge: 16 px wide, posts at both ends."""
+    im = new(16, 12)
+    for x in range(16):
+        put(im, x, 4, "w3")
+        put(im, x, 5, "w1")
+        put(im, x, 8, "w3")
+        put(im, x, 9, "w1")
+    for px in (0, 15):
+        rect(im, px, 1, px, 10, "w2")
+        put(im, px, 1, "w4")
+    return im
+
+
+def edge_fence_v():
+    """Rail along a vertical tile edge, seen from above: a post line."""
+    im = new(4, 16)
+    for y in range(16):
+        put(im, 1, y, "w3")
+        put(im, 2, y, "w1")
+    for y in (0, 8):
+        rect(im, 0, y, 3, y + 2, "w2")
+        put(im, 0, y, "w4")
+    return im
+
+
+def sale_sign():
+    """Wooden 'for sale' sign with a coin, planted on plots you can buy."""
+    im = new(16, 24)
+    rect(im, 7, 12, 8, 22, "w2")
+    put(im, 8, 12, "w1")
+    for y in range(3, 13):
+        for x in range(1, 15):
+            put(im, x, y, "w3" if y < 5 else ("w2" if (y + x) % 5 else "w1"))
+    for x in range(1, 15):
+        put(im, x, 12, "w0")
+    ball(im, 8, 8, 3.2, 3.2, ("y0", "y1", "y2", "y3", "y4", "y5"))
+    for x, y in ((8, 10), (8, 9), (7, 8), (9, 7)):
+        put(im, x, y, "y1")
+    shadow(im, 8, 22.5, 4, 1, 80)
+    return dark_outline(im)
+
+
+def land_sprites():
+    return {"edge_fence_h": edge_fence_h(), "edge_fence_v": edge_fence_v(), "prop_sale_sign": sale_sign()}

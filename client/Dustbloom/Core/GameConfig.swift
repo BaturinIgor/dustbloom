@@ -19,6 +19,14 @@ struct GameConfig: Codable, Equatable {
         var startCoins: Int
         var startTilled: Area
         var tillCost: Int
+        var plotSize: Int
+        var startPlots: [[Int]]
+        var plotBaseCost: Int
+        var plotCostGrowth: Double
+        var plotLevelStep: Int
+
+        var plotsX: Int { width / plotSize }
+        var plotsY: Int { height / plotSize }
     }
 
     struct Crop: Codable, Equatable, Identifiable {

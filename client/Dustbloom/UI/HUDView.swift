@@ -69,6 +69,13 @@ struct HUDView: View {
             .padding(.bottom, 12)
         }
         .sheet(item: $sheet) { t in ArmySheet(tab: t).environmentObject(store) }
+        .overlay {
+            if let offer = store.plotOffer {
+                PlotOfferCard(offer: offer)
+                    .transition(.scale(scale: 0.8).combined(with: .opacity))
+            }
+        }
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: store.plotOffer)
         .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { _ in store.settle() }
     }
 
@@ -159,5 +166,82 @@ private struct CropButton: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(crop.localizedName)
+    }
+}
+
+/// "Buy this plot?" card: what you get, price, level gate, buy / close.
+private struct PlotOfferCard: View {
+    @EnvironmentObject private var store: FarmStore
+    let offer: FarmStore.PlotOffer
+    @State private var error: FarmError?
+
+    private var ink: Color { Color(uiColor: Palette.ink) }
+    private var bad: Color { Color(red: 0.75, green: 0.18, blue: 0.25) }
+
+    var body: some View {
+        let cfg = store.config
+        let price = store.farm.plotPrice(config: cfg)
+        let sale = store.farm.canBuyPlot(px: offer.px, py: offer.py, config: cfg)
+        let levelOK = store.farm.level >= price.level
+        let coinsOK = store.farm.coins >= price.coins
+        let ru = L.ru
+        ZStack {
+            Color.black.opacity(0.35).ignoresSafeArea()
+                .onTapGesture { store.plotOffer = nil }
+            VStack(spacing: 12) {
+                Text(ru ? "Участок земли" : "Land plot")
+                    .font(.system(size: 20, weight: .heavy, design: .rounded)).foregroundStyle(ink)
+                Text(sale == .notAdjacent
+                     ? (ru ? "Сначала купи соседний участок." : "Buy a neighbouring plot first.")
+                     : (ru ? "\(cfg.farm.plotSize)×\(cfg.farm.plotSize) клеток под грядки. Каждый следующий участок дороже."
+                           : "\(cfg.farm.plotSize)×\(cfg.farm.plotSize) tiles for beds. Each next plot costs more."))
+                    .font(.system(size: 15, weight: .semibold, design: .rounded)).foregroundStyle(ink)
+                    .multilineTextAlignment(.center)
+                if sale == nil {
+                    HStack(spacing: 16) {
+                        HStack(spacing: 4) {
+                            Image("ui_coin").interpolation(.none).resizable().frame(width: 24, height: 24)
+                            Text("\(price.coins)").font(.system(size: 18, weight: .heavy, design: .rounded))
+                                .foregroundStyle(coinsOK ? ink : bad)
+                        }
+                        Text((ru ? "Уровень " : "Level ") + "\(price.level)")
+                            .font(.system(size: 18, weight: .heavy, design: .rounded))
+                            .foregroundStyle(levelOK ? ink : bad)
+                    }
+                    let owned = store.farm.plots.filter { $0 }.count
+                    Text(ru ? "Твоя земля: \(owned) из \(store.farm.plots.count) участков" : "Your land: \(owned) of \(store.farm.plots.count) plots")
+                        .font(.system(size: 13, weight: .semibold, design: .rounded)).foregroundStyle(ink.opacity(0.7))
+                }
+                HStack(spacing: 12) {
+                    Button { store.plotOffer = nil } label: {
+                        Text(ru ? "Закрыть" : "Close").font(.system(size: 15, weight: .heavy, design: .rounded))
+                            .foregroundStyle(ink).frame(width: 120, height: 48).background(slot(false))
+                    }
+                    if sale == nil {
+                        Button {
+                            if let e = store.buyPlot(px: offer.px, py: offer.py) {
+                                error = e
+                                Sfx.play(.error)
+                                UINotificationFeedbackGenerator().notificationOccurred(.warning)
+                            } else {
+                                UINotificationFeedbackGenerator().notificationOccurred(.success)
+                                store.plotOffer = nil
+                            }
+                        } label: {
+                            Text(ru ? "Купить" : "Buy").font(.system(size: 15, weight: .heavy, design: .rounded))
+                                .foregroundStyle(ink).frame(width: 120, height: 48).background(slot(true))
+                        }
+                        .disabled(!levelOK || !coinsOK)
+                        .opacity(levelOK && coinsOK ? 1 : 0.5)
+                    }
+                }
+            }
+            .padding(20)
+            .frame(width: 300)
+            .background(
+                Image("ui_panel").interpolation(.none)
+                    .resizable(capInsets: EdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12), resizingMode: .stretch)
+            )
+        }
     }
 }

@@ -992,8 +992,9 @@ def build_sprites():
         key = {"+": "plus"}.get(ch, ch)
         s["font_" + key] = glyph(ch, ("w0", "ink"), None)       # HUD: ink on parchment
         s["font_gold_" + key] = glyph(ch)                        # floating gains
-    from units_art import stage1_sprites  # needs this module's helpers
+    from units_art import land_sprites, stage1_sprites  # needs this module's helpers
     s.update(stage1_sprites())
+    s.update(land_sprites())
     return s
 
 
@@ -1003,7 +1004,7 @@ STRUCTURES = [
     # name, dx, dy (top-left tile), width, height in tiles
     ("prop_house", -1, -5, 3, 3),
     ("prop_windmill", 3, -5, 2, 3),
-    ("prop_pond", 4, 2, 3, 2),
+    ("prop_pond", 0, 4, 3, 2),
 ]
 DECOR = [
     ("prop_stones", 0, -2),

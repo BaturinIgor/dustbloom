@@ -33,8 +33,10 @@ extension FarmScene {
                 let bx = i % farm.width, by = i / farm.width
                 for (dx, dy) in [(1, 0), (0, 1), (-1, 0), (0, -1)] {
                     let x = bx + dx, y = by + dy
-                    guard let t = farm.tile(x: x, y: y), !t.tilled, !layout.isBlocked(x: x, y: y) else { continue }
-                    self.handleTap(x: x, y: y)
+                    guard let t = farm.tile(x: x, y: y), !t.tilled, !layout.isBlocked(x: x, y: y),
+                          farm.owns(x: x, y: y, config: store.config) else { continue }
+                    self.handleTap(x: x, y: y)  // shows the price
+                    self.handleTap(x: x, y: y)  // confirms
                     return
                 }
             }

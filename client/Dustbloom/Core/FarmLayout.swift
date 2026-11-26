@@ -28,7 +28,7 @@ struct FarmLayout {
         var p: [Piece] = [
             Piece(sprite: "prop_house", x: sx - 1, y: sy - 5, width: 3, height: 3, blocksTaps: true, bringsLife: true),
             Piece(sprite: "prop_windmill", x: sx + 3, y: sy - 5, width: 2, height: 3, blocksTaps: true, bringsLife: true),
-            Piece(sprite: "prop_pond", x: sx + 4, y: sy + 2, width: 3, height: 2, blocksTaps: true, bringsLife: true),
+            Piece(sprite: "prop_pond", x: sx, y: sy + 4, width: 3, height: 2, blocksTaps: true, bringsLife: true),
             Piece(sprite: "prop_stones", x: sx, y: sy - 2, width: 1, height: 1, blocksTaps: true, bringsLife: false),
             Piece(sprite: "prop_stones", x: sx, y: sy - 1, width: 1, height: 1, blocksTaps: true, bringsLife: false),
             Piece(sprite: "prop_scarecrow", x: sx - 1, y: sy + 1, width: 1, height: 2, blocksTaps: true, bringsLife: false),

@@ -154,4 +154,27 @@ final class FarmTests: XCTestCase {
         XCTAssertTrue(farm.barn.isEmpty)
         XCTAssertTrue(farm.army.isEmpty)
     }
+
+    // MARK: - land plots (mirrors TestLandPlots in farm_test.go)
+
+    func testLandPlots() throws {
+        var farm = Farm(config: config)
+        XCTAssertTrue(farm.owns(x: 6, y: 6, config: config))
+        XCTAssertFalse(farm.owns(x: 0, y: 0, config: config))
+        XCTAssertThrowsError(try farm.till(x: 0, y: 6, config: config)) {
+            XCTAssertEqual($0 as? FarmError, .notOwned)
+        }
+        let price = farm.plotPrice(config: config)
+        XCTAssertEqual(price.coins, config.farm.plotBaseCost)
+        XCTAssertEqual(price.level, 1)
+        XCTAssertEqual(farm.canBuyPlot(px: 3, py: 3, config: config), .notAdjacent)
+        XCTAssertEqual(farm.canBuyPlot(px: 1, py: 1, config: config), .alreadyOwned)
+        try farm.buyPlot(px: 0, py: 1, config: config)
+        XCTAssertEqual(farm.coins, config.farm.startCoins - price.coins)
+        try farm.till(x: 0, y: 6, config: config)
+        farm.coins = 10_000
+        XCTAssertThrowsError(try farm.buyPlot(px: 0, py: 0, config: config)) {
+            XCTAssertEqual($0 as? FarmError, .cropLocked)
+        }
+    }
 }
