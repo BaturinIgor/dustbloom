@@ -11,6 +11,8 @@
 //	POST /v1/farm/harvest           {"x","y"} -> farm + harvest result (crop goes to the barn)
 //	POST /v1/farm/sell              {"crop","count"} -> farm + sold coins
 //	POST /v1/farm/plot              {"x","y"} plot grid coords -> farm
+//	POST /v1/orders/deliver         {"index"} -> farm + order reward
+//	POST /v1/orders/skip            {"index"} -> farm (slot refills later)
 //	POST /v1/army/build             {"scarecrow"} -> farm with the workshop queue
 //	POST /v1/raid                   {"raid"} -> farm + raid result with every hit
 //
@@ -53,6 +55,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /v1/farm/sell", s.auth(s.sell))
 	mux.HandleFunc("POST /v1/farm/plot", s.auth(s.buyPlot))
 	mux.HandleFunc("POST /v1/army/build", s.auth(s.build))
+	mux.HandleFunc("POST /v1/orders/deliver", s.auth(s.deliverOrder))
+	mux.HandleFunc("POST /v1/orders/skip", s.auth(s.skipOrder))
 	mux.HandleFunc("POST /v1/raid", s.auth(s.raid))
 	return mux
 }
@@ -65,6 +69,7 @@ type farmResponse struct {
 	Harvest    *game.HarvestResult `json:"harvest,omitempty"`
 	Sold       int                 `json:"sold,omitempty"`
 	Raid       *game.RaidResult    `json:"raid,omitempty"`
+	Order      *game.OrderResult   `json:"order,omitempty"`
 }
 
 type errorResponse struct {
@@ -93,6 +98,7 @@ func gameErrStatus(w http.ResponseWriter, err error) {
 		game.ErrUnknownCrop, game.ErrNotEnough, game.ErrLocked, game.ErrNoCrops,
 		game.ErrUnknownScarecrow, game.ErrQueueFull, game.ErrUnknownRaid,
 		game.ErrRaidCooldown, game.ErrNoArmy, game.ErrNotOwned, game.ErrOwned, game.ErrNotAdjacent,
+		game.ErrNoOrder, game.ErrOrderNotReady,
 	} {
 		if errors.Is(err, known) {
 			writeErr(w, http.StatusConflict, known.Error())
@@ -151,6 +157,7 @@ func (s *Server) mutate(w http.ResponseWriter, token string, fn func(f *game.Far
 	err := s.Store.WithFarm(token, func(f *game.Farm) error {
 		f.EnsurePlots(s.Config)
 		f.Settle(s.Config, now)
+		f.FillOrders(s.Config, now, uint64(now.UnixNano()))
 		if err := fn(f, now, &resp); err != nil {
 			return err
 		}
@@ -254,5 +261,31 @@ func (s *Server) buyPlot(w http.ResponseWriter, r *http.Request, token string) {
 	}
 	s.mutate(w, token, func(f *game.Farm, now time.Time, _ *farmResponse) error {
 		return f.BuyPlot(s.Config, req.X, req.Y)
+	})
+}
+
+type orderReq struct {
+	Index int `json:"index"`
+}
+
+func (s *Server) deliverOrder(w http.ResponseWriter, r *http.Request, token string) {
+	var req orderReq
+	if !decode(w, r, &req) {
+		return
+	}
+	s.mutate(w, token, func(f *game.Farm, now time.Time, resp *farmResponse) error {
+		res, err := f.DeliverOrder(s.Config, req.Index, now, uint64(now.UnixNano())+1)
+		resp.Order = &res
+		return err
+	})
+}
+
+func (s *Server) skipOrder(w http.ResponseWriter, r *http.Request, token string) {
+	var req orderReq
+	if !decode(w, r, &req) {
+		return
+	}
+	s.mutate(w, token, func(f *game.Farm, now time.Time, _ *farmResponse) error {
+		return f.SkipOrder(s.Config, req.Index, now)
 	})
 }

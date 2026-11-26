@@ -1,5 +1,5 @@
 {
-  "version": 3,
+  "version": 4,
   "farm": {
     "width": 16,
     "height": 16,
@@ -207,5 +207,14 @@
       "cooldownSeconds": 1800,
       "unlockLevel": 3
     }
-  ]
+  ],
+  "orders": {
+    "slots": 3,
+    "rewardFactor": 1.6,
+    "xpPerCoin": 0.12,
+    "skipSeconds": 600,
+    "maxItemTypes": 2,
+    "baseCount": 4,
+    "countPerLevel": 0.15
+  }
 }

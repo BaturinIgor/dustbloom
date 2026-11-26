@@ -46,6 +46,8 @@ type Farm struct {
 	// Army is the scarecrows ready to fight; Queue is the workshop.
 	Army  []Unit  `json:"army,omitempty"`
 	Queue []Build `json:"queue,omitempty"`
+	// Orders is the order board.
+	Orders []Order `json:"orders,omitempty"`
 	// RaidReadyAt holds each raid's cooldown end.
 	RaidReadyAt map[string]time.Time `json:"raidReadyAt,omitempty"`
 }

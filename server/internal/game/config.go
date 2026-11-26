@@ -102,6 +102,7 @@ type Config struct {
 	Army       ArmyConfig  `json:"army"`
 	Scarecrows []Scarecrow `json:"scarecrows"`
 	Raids      []Raid      `json:"raids"`
+	Orders     OrderConfig `json:"orders"`
 
 	cropsByID map[string]Crop
 	scByID    map[string]Scarecrow
