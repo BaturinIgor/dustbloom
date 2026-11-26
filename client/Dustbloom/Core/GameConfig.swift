@@ -87,6 +87,7 @@ struct GameConfig: Codable, Equatable {
     var army: ArmyConfig
     var scarecrows: [Scarecrow]
     var raids: [Raid]
+    var orders: OrderConfig
 
     func crop(_ id: String) -> Crop? {
         crops.first { $0.id == id }

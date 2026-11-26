@@ -5,12 +5,13 @@ import UIKit
 /// Barn (sell crops), Workshop (build scarecrows), Raids (send the army).
 /// Layout rules: docs/ui-guidelines.md.
 enum ArmyTab: String, CaseIterable, Identifiable {
-    case barn, workshop, raids
+    case barn, orders, workshop, raids
     var id: String { rawValue }
 
     var icon: String {
         switch self {
         case .barn: return "icon_barn"
+        case .orders: return "icon_orders"
         case .workshop: return "icon_workshop"
         case .raids: return "icon_raid"
         }
@@ -20,6 +21,7 @@ enum ArmyTab: String, CaseIterable, Identifiable {
         let ru = Locale.current.language.languageCode?.identifier == "ru"
         switch self {
         case .barn: return ru ? "Амбар" : "Barn"
+        case .orders: return ru ? "Заказы" : "Orders"
         case .workshop: return ru ? "Мастерская" : "Workshop"
         case .raids: return ru ? "Набеги" : "Raids"
         }
@@ -77,6 +79,7 @@ struct ArmySheet: View {
             ScrollView {
                 switch tab {
                 case .barn: BarnTab()
+                case .orders: OrdersTab()
                 case .workshop: WorkshopTab()
                 case .raids: RaidsTab()
                 }
@@ -152,6 +155,71 @@ private struct BarnTab: View {
             label(title, size: 13).frame(minWidth: 56, minHeight: 44).background(slot(true))
         }
         .buttonStyle(.plain)
+    }
+}
+
+private struct OrdersTab: View {
+    @EnvironmentObject private var store: FarmStore
+    @State private var paid: Int?
+
+    var body: some View {
+        VStack(spacing: 8) {
+            ForEach(Array(store.farm.orders.enumerated()), id: \.offset) { i, order in
+                HStack(spacing: 12) {
+                    if let ready = order.readyAt {
+                        TimelineView(.periodic(from: .now, by: 1)) { _ in
+                            label((L.ru ? "Новый заказ через " : "New order in ") + timeLeft(ready, store.now), size: 13)
+                        }
+                        Spacer()
+                    } else {
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack(spacing: 10) {
+                                ForEach(order.items.sorted(by: { $0.key < $1.key }), id: \.key) { crop, n in
+                                    CostChip(image: "\(crop)_3", have: store.farm.barn[crop, default: 0], need: n)
+                                }
+                            }
+                            HStack(spacing: 4) {
+                                Image("ui_coin").interpolation(.none).resizable().frame(width: 16, height: 16)
+                                label("\(order.coins)", size: 13)
+                                label("  XP \(order.xp)", size: 13)
+                            }
+                        }
+                        Spacer()
+                        Button {
+                            store.skipOrder(i)
+                            Sfx.play(.select, volume: 0.5)
+                        } label: {
+                            label("✕", size: 15).frame(width: 44, height: 44).background(slot(false))
+                        }
+                        .buttonStyle(.plain)
+                        let can = store.farm.canDeliver(i)
+                        Button {
+                            if let r = store.deliverOrder(i) {
+                                Sfx.play(.coin)
+                                if r.levelUp { Sfx.play(.levelUp, after: 0.3) }
+                                UINotificationFeedbackGenerator().notificationOccurred(.success)
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.5)) { paid = r.coins }
+                            }
+                        } label: {
+                            label(L.ru ? "Отдать" : "Deliver", size: 13).frame(minWidth: 72, minHeight: 44).background(slot(can))
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(!can)
+                        .opacity(can ? 1 : 0.5)
+                    }
+                }
+                .padding(12)
+                .frame(minHeight: 72)
+                .background(slot(false))
+            }
+            if let paid {
+                HStack(spacing: 4) {
+                    Image("ui_coin").interpolation(.none).resizable().frame(width: 20, height: 20)
+                    PixelText(text: "+\(paid)", scale: 2)
+                }
+                .transition(.scale.combined(with: .opacity))
+            }
+        }
     }
 }
 

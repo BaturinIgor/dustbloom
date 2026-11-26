@@ -235,6 +235,21 @@ def icon_swords():
     return dark_outline(im)
 
 
+def icon_orders():
+    """Notice board with pinned papers."""
+    im = new(16, 16)
+    rect(im, 3, 11, 3, 15, "w1")
+    rect(im, 12, 11, 12, 15, "w1")
+    rect(im, 1, 2, 14, 11, "w2")
+    rect(im, 1, 2, 14, 2, "w3")
+    for (x0, y0) in ((3, 4), (9, 3)):
+        rect(im, x0, y0, x0 + 3, y0 + 5, "white")
+        for yy in range(y0 + 1, y0 + 5, 2):
+            line(im, x0 + 1, yy, x0 + 2, yy, "d3")
+        put(im, x0 + 1, y0, "r2")
+    return dark_outline(im)
+
+
 def stage1_sprites():
     return {
         "unit_straw_guard": straw_guard(),
@@ -246,6 +261,7 @@ def stage1_sprites():
         "icon_barn": icon_barn(),
         "icon_workshop": icon_hammer(),
         "icon_raid": icon_swords(),
+        "icon_orders": icon_orders(),
     }
 
 

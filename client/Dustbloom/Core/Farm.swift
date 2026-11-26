@@ -20,6 +20,8 @@ enum FarmError: String, Error, Codable {
     case notOwned = "not_owned"
     case alreadyOwned = "already_owned"
     case notAdjacent = "not_adjacent"
+    case noOrder = "no_order"
+    case orderNotReady = "order_not_ready"
 }
 
 struct Tile: Codable, Equatable {
@@ -52,9 +54,10 @@ struct Farm: Codable, Equatable {
     /// Owned land plots, row-major over the plot grid. Empty in old saves:
     /// `ensurePlots` fills in the start plots.
     var plots: [Bool] = []
+    var orders: [Order] = []
 
     private enum CodingKeys: String, CodingKey {
-        case width, height, coins, xp, tiles, barn, army, queue, raidReadyAt, plots
+        case width, height, coins, xp, tiles, barn, army, queue, raidReadyAt, plots, orders
     }
 
     /// Older saves and the server's omitempty fields may lack the army keys.
@@ -70,6 +73,7 @@ struct Farm: Codable, Equatable {
         queue = try c.decodeIfPresent([Build].self, forKey: .queue) ?? []
         raidReadyAt = try c.decodeIfPresent([String: Date].self, forKey: .raidReadyAt) ?? [:]
         plots = try c.decodeIfPresent([Bool].self, forKey: .plots) ?? []
+        orders = try c.decodeIfPresent([Order].self, forKey: .orders) ?? []
     }
 
     init(config: GameConfig) {

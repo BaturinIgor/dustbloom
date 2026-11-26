@@ -201,10 +201,30 @@ final class FarmStore: ObservableObject {
         }
     }
 
-    /// Moves finished scarecrows into the army; call on a timer from the UI.
+    @discardableResult
+    func deliverOrder(_ i: Int) -> OrderResult? {
+        var next = farm
+        guard let r = try? next.deliverOrder(i, now: now, config: config) else { return nil }
+        farm = next
+        save()
+        sync { try await $0.deliverOrder(i) }
+        return r
+    }
+
+    func skipOrder(_ i: Int) {
+        var next = farm
+        guard (try? next.skipOrder(i, now: now, config: config)) != nil else { return }
+        farm = next
+        save()
+        sync { try await $0.skipOrder(i) }
+    }
+
+    /// Moves finished scarecrows into the army and refills the order board;
+    /// call on a timer from the UI.
     func settle() {
         var next = farm
         next.settle(now: now, config: config)
+        if !isOnline { next.fillOrders(now: now, config: config) }
         if next != farm {
             farm = next
             save()

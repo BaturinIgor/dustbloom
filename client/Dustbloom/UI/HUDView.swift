@@ -33,7 +33,7 @@ struct HUDView: View {
 
             Spacer()
 
-            // action row: three equal 56 pt buttons, centred over the crop bar
+            // action row: four equal 56 pt buttons, centred over the crop bar
             HStack(spacing: 16) {
                 ForEach(ArmyTab.allCases) { t in
                     Button {
@@ -85,6 +85,7 @@ struct HUDView: View {
         let show: Bool = {
             switch t {
             case .barn: return !store.farm.barn.isEmpty
+            case .orders: return store.farm.orders.indices.contains { store.farm.canDeliver($0) }
             case .workshop: return false
             case .raids: return !store.farm.army.isEmpty
             }

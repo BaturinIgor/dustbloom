@@ -495,9 +495,9 @@ final class FarmScene: SKScene {
         jump.timingMode = .easeOut
         // the barn button sits at the bottom left of the screen
         let bounds = view?.bounds ?? CGRect(origin: .zero, size: size)
-        // HUD: barn button is the left one of three 56 pt buttons (16 pt gaps)
+        // HUD: barn button is the left one of four 56 pt buttons (16 pt gaps)
         // sitting above the crop bar
-        let barnInView = CGPoint(x: bounds.midX - 72, y: bounds.maxY - (view?.safeAreaInsets.bottom ?? 0) - 160)
+        let barnInView = CGPoint(x: bounds.midX - 108, y: bounds.maxY - (view?.safeAreaInsets.bottom ?? 0) - 160)
         let barn = world.convert(convertPoint(fromView: barnInView), from: self)
         let toBarn = SKAction.move(to: barn, duration: 0.4)
         toBarn.timingMode = .easeIn
