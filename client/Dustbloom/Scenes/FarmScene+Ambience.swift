@@ -30,11 +30,10 @@ extension FarmScene {
         guard let store, ambientCount < 28, let cam = camera else { return }
         let farm = store.farm
         // pick a random tile near what the camera sees
-        let half = size.width * cam.xScale / tileSize / 2 + 1
-        let cx = Int((cam.position.x / tileSize + CGFloat(farm.width) / 2).rounded())
-        let cy = Int((CGFloat(farm.height) / 2 - cam.position.y / tileSize).rounded())
+        let half = size.height * cam.yScale / tileH / 2 + 1
+        let (cx, cy) = grid(farm).tile(at: cam.position)
         let x = cx + Int.random(in: -Int(half)...Int(half))
-        let y = cy + Int.random(in: -Int(half * 2)...Int(half * 2))
+        let y = cy + Int.random(in: -Int(half)...Int(half))
         let p = position(x: x, y: y, farm: farm)
         let at = CGPoint(x: p.x + CGFloat.random(in: -20...20), y: p.y + CGFloat.random(in: -20...20))
 

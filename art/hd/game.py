@@ -231,24 +231,37 @@ def props(old):
 
 
 def hd_sprites(old):
+    """Isometric game sprites (see hd/iso.py), calmer daytime palette."""
     setup()
+    from .frame_iso import SOFT
+    from . import iso as I
+    P.RAMPS.update(SOFT)
     s = {}
-    dust = [tile_dust(k) for k in (1, 2, 3)]
-    grass = [tile_grass(11), tile_grass(12, 1), tile_grass(13, 2)]
+    dust = [I.tile_dust(k) for k in (1, 2, 3)]
+    grass = [I.tile_grass(11), I.tile_grass(12, 1), I.tile_grass(13, 2)]
     for i in range(3):
         s["tile_dust_%d" % i] = dust[i]
         s["tile_grass_%d" % i] = grass[i]
     for m in range(15):
-        s["tile_grass_edge_%d" % m] = tile_grass_edge(m, dust[0], grass[0])
-    s["tile_bed"] = tile_bed()
-    s.update(crops())
+        s["tile_grass_edge_%d" % m] = I.tile_grass_edge(m, grass[0], dust[0])
+    s["tile_bed"] = I.tile_bed()
+    s["ui_cursor"] = I.cursor()
+    s["edge_fence_x"] = I.fence_edge(True)
+    s["edge_fence_y"] = I.fence_edge(False)
+    for k, v in crops().items():
+        s[k] = I.crop_fit(v)
     s.update(props(old))
     out = {}
     for name, im in old.items():
         if name in s:
             out[name] = s[name]
         elif is_world(name):
-            out[name] = im.resize((im.width * 2, im.height * 2), Image.NEAREST)
+            im2 = im.resize((im.width * 2, im.height * 2), Image.NEAREST)
+            if name.split("_")[-1].isdigit() and im.size == (16, 24):  # old crop: trim to its base
+                im2 = I.crop_fit(im2)
+            out[name] = im2
+    for name in ("edge_fence_x", "edge_fence_y"):
+        out[name] = s[name]
     return out
 
 

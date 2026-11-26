@@ -9,8 +9,9 @@ final class FarmScene: SKScene {
         didSet { if store != nil, didBuild == false, view != nil { build() } }
     }
 
-    /// Size of one 16 px tile on screen, in points (16 px x 3).
-    let tileSize: CGFloat = 48
+    /// Isometric tile diamond on screen, in points.
+    let tileW: CGFloat = IsoGrid.tileW
+    let tileH: CGFloat = IsoGrid.tileH
     /// One art pixel in points.
     let px: CGFloat = 3
     /// Decorative wasteland drawn beyond the farm edge, in tiles. Wide enough
@@ -104,16 +105,15 @@ final class FarmScene: SKScene {
 
     // MARK: - building
 
+    func grid(_ farm: Farm) -> IsoGrid { IsoGrid(width: farm.width, height: farm.height) }
+
     /// Centre of tile (x, y) in world coordinates. Works outside the farm too.
     func position(x: Int, y: Int, farm: Farm) -> CGPoint {
-        CGPoint(
-            x: (CGFloat(x) + 0.5 - CGFloat(farm.width) / 2) * tileSize,
-            y: (CGFloat(farm.height) / 2 - CGFloat(y) - 0.5) * tileSize
-        )
+        grid(farm).center(x: x, y: y)
     }
 
-    /// Things lower on screen draw in front.
-    func depth(row: Int) -> CGFloat { 1 + CGFloat(row + pad) * 0.01 }
+    /// Things lower on screen (larger x + y) draw in front.
+    func depth(x: Int, y: Int) -> CGFloat { IsoGrid.depth(x: x, y: y, pad: pad) }
 
     private func build() {
         guard let store else { return }
@@ -132,16 +132,18 @@ final class FarmScene: SKScene {
 
         for y in 0..<farm.height {
             for x in 0..<farm.width {
-                let ground = SKSpriteNode(texture: nil, size: CGSize(width: tileSize, height: tileSize))
+                // ground diamonds overlap only at their transparent corners
+                let ground = SKSpriteNode(texture: nil, size: CGSize(width: tileW, height: tileH))
                 ground.position = position(x: x, y: y, farm: farm)
+                ground.zPosition = 0.1
                 world.addChild(ground)
                 groundNodes.append(ground)
 
-                // crop sprites are 16x24 px: taller than a tile, base on the bed
-                let crop = SKSpriteNode(texture: nil, size: CGSize(width: tileSize, height: tileSize * 1.5))
+                // crops stand on the middle of the bed's diamond; sized from the texture
+                let crop = SKSpriteNode(texture: nil, size: CGSize(width: tileW, height: tileW))
                 crop.anchorPoint = CGPoint(x: 0.5, y: 0)
-                crop.position = CGPoint(x: 0, y: -tileSize / 2)
-                crop.zPosition = depth(row: y)
+                crop.position = CGPoint(x: 0, y: -tileH * 0.2)
+                crop.zPosition = depth(x: x, y: y) - 0.1
                 crop.isHidden = true
                 ground.addChild(crop)
                 cropNodes.append(crop)
@@ -163,23 +165,23 @@ final class FarmScene: SKScene {
         refreshAll(animated: false)
     }
 
-    /// Adds a sprite standing on the bottom-centre of its footprint, with its
-    /// baked evening shadow underneath.
+    /// Adds a sprite standing on the front (bottom) corner of its isometric
+    /// footprint, with its baked shadow underneath. Iso art draws the
+    /// footprint's front corner at the bottom centre of the sprite.
     @discardableResult
     func stand(_ name: String, x: Int, y: Int, w: Int, h: Int, farm: Farm, shadow: String? = nil) -> SKSpriteNode {
         let tex = Textures.named(name)
         let node = SKSpriteNode(texture: tex, size: CGSize(width: tex.size().width * px, height: tex.size().height * px))
         node.anchorPoint = CGPoint(x: 0.5, y: 0)
-        let left = position(x: x, y: y + h - 1, farm: farm).x - tileSize / 2
-        let bottom = position(x: x, y: y + h - 1, farm: farm).y - tileSize / 2
-        node.position = CGPoint(x: left + CGFloat(w) * tileSize / 2, y: bottom)
-        node.zPosition = depth(row: y + h - 1)
+        let corner = grid(farm).frontCorner(x: x, y: y, w: w, h: h)
+        node.position = corner
+        node.zPosition = depth(x: x + w - 1, y: y + h - 1)
         world.addChild(node)
         if let shadow {
             let st = Textures.named(shadow)
             let s = SKSpriteNode(texture: st, size: CGSize(width: st.size().width * px, height: st.size().height * px))
             s.anchorPoint = .zero
-            s.position = CGPoint(x: node.position.x - node.size.width / 2, y: bottom)
+            s.position = CGPoint(x: node.position.x - node.size.width / 2, y: corner.y)
             s.zPosition = 0.5
             if shadow.hasPrefix("shadow_manor") { s.name = "manorShadow" }
             world.addChild(s)
@@ -287,7 +289,9 @@ final class FarmScene: SKScene {
         let stage = Farm.stage(progress: p)
         guard stage != cropStages[i] else { return }
         cropStages[i] = stage
-        node.texture = Textures.named("\(id)_\(stage)")
+        let tex = Textures.named("\(id)_\(stage)")
+        node.texture = tex
+        node.size = CGSize(width: tex.size().width * px, height: tex.size().height * px)
         node.isHidden = false
         node.removeAllActions()
         node.zRotation = 0
@@ -343,10 +347,8 @@ final class FarmScene: SKScene {
 
     private func tileAt(_ t: UITouch) -> (x: Int, y: Int)? {
         guard let store else { return nil }
-        let p = t.location(in: world)
         let farm = store.farm
-        let x = Int(floor(p.x / tileSize + CGFloat(farm.width) / 2))
-        let y = Int(floor(CGFloat(farm.height) / 2 - p.y / tileSize))
+        let (x, y) = grid(farm).tile(at: t.location(in: world))
         return farm.index(x: x, y: y) == nil ? nil : (x, y)
     }
 
@@ -385,10 +387,8 @@ final class FarmScene: SKScene {
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
         defer { touchStart = nil; swiping = false }
         guard !panned, let t = touches.first, let store else { return }
-        let p = t.location(in: world)
         let farm = store.farm
-        let x = Int(floor(p.x / tileSize + CGFloat(farm.width) / 2))
-        let y = Int(floor(CGFloat(farm.height) / 2 - p.y / tileSize))
+        let (x, y) = grid(farm).tile(at: t.location(in: world))
         guard farm.index(x: x, y: y) != nil else { return }
         if let m = manorPiece, x >= m.x, x < m.x + m.width, y >= m.y, y < m.y + m.height {
             Sfx.play(.select, volume: 0.6)
@@ -429,8 +429,10 @@ final class FarmScene: SKScene {
 
     private func clampCamera() {
         guard let store else { return }
-        let halfW = CGFloat(store.farm.width + 4) * tileSize / 2
-        let halfH = CGFloat(store.farm.height + 4) * tileSize / 2
+        // the farm is a big diamond: (w + h) / 2 tiles from the centre to a corner
+        let span = CGFloat(store.farm.width + store.farm.height) / 2 + 2
+        let halfW = span * tileW / 2
+        let halfH = span * tileH / 2
         cam.position.x = min(max(cam.position.x, -halfW), halfW)
         cam.position.y = min(max(cam.position.y, -halfH), halfH)
     }
@@ -481,7 +483,7 @@ final class FarmScene: SKScene {
 
     private func cursor(at p: CGPoint) {
         world.childNode(withName: "cursor")?.removeFromParent()
-        let c = SKSpriteNode(texture: Textures.named("ui_cursor"), size: CGSize(width: tileSize, height: tileSize))
+        let c = SKSpriteNode(texture: Textures.named("ui_cursor"), size: CGSize(width: tileW, height: tileH))
         c.name = "cursor"
         c.position = p
         c.zPosition = 50
@@ -613,25 +615,33 @@ extension FarmScene {
         lastPlots = farm.plots
         landLayer.removeAllChildren()
         let ps = cfg.farm.plotSize
-        let plotPts = CGFloat(ps) * tileSize
+        let g = grid(farm)
 
         for py in 0..<cfg.farm.plotsY {
             for px in 0..<cfg.farm.plotsX {
                 let owned = farm.plots.indices.contains(py * cfg.farm.plotsX + px) && farm.plots[py * cfg.farm.plotsX + px]
                 guard !owned else { continue }
-                let topLeft = position(x: px * ps, y: py * ps, farm: farm)
-                let center = CGPoint(x: topLeft.x - tileSize / 2 + plotPts / 2, y: topLeft.y + tileSize / 2 - plotPts / 2)
-                let shade = SKSpriteNode(color: Palette.dustDeep, size: CGSize(width: plotPts, height: plotPts))
+                // dim diamond over the plot for sale
+                let x0 = CGFloat(px * ps), y0 = CGFloat(py * ps), n = CGFloat(ps)
+                let path = CGMutablePath()
+                path.move(to: g.center(fx: x0, fy: y0))
+                path.addLine(to: g.center(fx: x0 + n, fy: y0))
+                path.addLine(to: g.center(fx: x0 + n, fy: y0 + n))
+                path.addLine(to: g.center(fx: x0, fy: y0 + n))
+                path.closeSubpath()
+                let shade = SKShapeNode(path: path)
+                shade.fillColor = Palette.dustDeep
+                shade.strokeColor = .clear
                 shade.alpha = 0.35
-                shade.position = center
                 shade.zPosition = 0.25
                 landLayer.addChild(shade)
+                let center = g.center(fx: x0 + n / 2, fy: y0 + n / 2)
                 if farm.canBuyPlot(px: px, py: py, config: cfg) == nil {
                     let tex = Textures.named("prop_sale_sign")
                     let sign = SKSpriteNode(texture: tex, size: CGSize(width: 16 * px3, height: 24 * px3))
                     sign.anchorPoint = CGPoint(x: 0.5, y: 0.1)
                     sign.position = center
-                    sign.zPosition = depth(row: py * ps + ps / 2)
+                    sign.zPosition = depth(x: px * ps + ps / 2, y: py * ps + ps / 2)
                     landLayer.addChild(sign)
                     let price = PixelLabel.make("\(farm.plotPrice(config: cfg).coins)", gold: true, scale: 2)
                     price.position = CGPoint(x: 0, y: 24 * px3 + 4)
@@ -646,23 +656,34 @@ extension FarmScene {
         // fence on every edge between owned land and anything else
         for y in 0..<farm.height {
             for x in 0..<farm.width where farm.owns(x: x, y: y, config: cfg) {
-                let c = position(x: x, y: y, farm: farm)
-                if !farm.owns(x: x, y: y - 1, config: cfg) { fence(h: true, at: CGPoint(x: c.x, y: c.y + tileSize / 2), row: y - 1) }
-                if !farm.owns(x: x, y: y + 1, config: cfg) { fence(h: true, at: CGPoint(x: c.x, y: c.y - tileSize / 2), row: y) }
-                if !farm.owns(x: x - 1, y: y, config: cfg) { fence(h: false, at: CGPoint(x: c.x - tileSize / 2, y: c.y), row: y) }
-                if !farm.owns(x: x + 1, y: y, config: cfg) { fence(h: false, at: CGPoint(x: c.x + tileSize / 2, y: c.y), row: y) }
+                // edge midpoints; "x" fences run along +x (screen "\\"), "y" fences along +y ("/")
+                let fx = CGFloat(x), fy = CGFloat(y)
+                if !farm.owns(x: x, y: y - 1, config: cfg) {
+                    fence(alongX: true, at: g.center(fx: fx + 0.5, fy: fy), depth: depth(x: x, y: y - 1))
+                }
+                if !farm.owns(x: x, y: y + 1, config: cfg) {
+                    fence(alongX: true, at: g.center(fx: fx + 0.5, fy: fy + 1), depth: depth(x: x, y: y) + 0.003)
+                }
+                if !farm.owns(x: x - 1, y: y, config: cfg) {
+                    fence(alongX: false, at: g.center(fx: fx, fy: fy + 0.5), depth: depth(x: x - 1, y: y))
+                }
+                if !farm.owns(x: x + 1, y: y, config: cfg) {
+                    fence(alongX: false, at: g.center(fx: fx + 1, fy: fy + 0.5), depth: depth(x: x, y: y) + 0.003)
+                }
             }
         }
     }
 
     private var px3: CGFloat { px }
 
-    private func fence(h: Bool, at p: CGPoint, row: Int) {
-        let tex = Textures.named(h ? "edge_fence_h" : "edge_fence_v")
+    /// One tile edge of fence, its art centred on the edge's midpoint
+    /// (the midpoint sits at the sprite's bottom-centre plus half an edge).
+    private func fence(alongX: Bool, at p: CGPoint, depth z: CGFloat) {
+        let tex = Textures.named(alongX ? "edge_fence_x" : "edge_fence_y")
         let n = SKSpriteNode(texture: tex, size: CGSize(width: tex.size().width * px, height: tex.size().height * px))
-        n.anchorPoint = h ? CGPoint(x: 0.5, y: 0.2) : CGPoint(x: 0.5, y: 0.5)
-        n.position = p
-        n.zPosition = depth(row: row) + 0.004
+        n.anchorPoint = CGPoint(x: 0.5, y: 0)
+        n.position = CGPoint(x: p.x, y: p.y - tileH / 4)
+        n.zPosition = z + 0.004
         landLayer.addChild(n)
     }
 
@@ -679,7 +700,7 @@ extension FarmScene {
         world.childNode(withName: "priceBubble")?.removeFromParent()
         let bubble = SKNode()
         bubble.name = "priceBubble"
-        bubble.position = CGPoint(x: p.x, y: p.y + tileSize * 0.9)
+        bubble.position = CGPoint(x: p.x, y: p.y + tileH * 1.4)
         bubble.zPosition = 70
         let bg = SKSpriteNode(color: Palette.parchment, size: CGSize(width: 72, height: 30))
         let border = SKSpriteNode(color: Palette.outline, size: CGSize(width: 78, height: 36))

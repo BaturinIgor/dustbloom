@@ -78,11 +78,11 @@ extension FarmScene {
     func demoFits(x: Int, y: Int, farm: Farm) -> Bool {
         let p = position(x: x, y: y, farm: farm)
         let s = cam.xScale
-        let half = tileSize / 2
+        let hw = tileW / 2, hh = tileH / 2
         let left = cam.position.x - size.width / 2 * s + 8 * s
         let right = cam.position.x + size.width / 2 * s - 8 * s
         let top = cam.position.y + size.height / 2 * s - 150 * s
         let bottom = cam.position.y - size.height / 2 * s + 230 * s
-        return p.x - half >= left && p.x + half <= right && p.y + half <= top && p.y - half >= bottom
+        return p.x - hw >= left && p.x + hw <= right && p.y + hh <= top && p.y - hh >= bottom
     }
 }
