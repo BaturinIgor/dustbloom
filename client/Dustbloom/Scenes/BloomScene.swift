@@ -717,7 +717,7 @@ final class BloomScene: SKScene {
                 for _ in 0..<5 { petal(at: f.position) }
                 game.add(.flower, 1)
                 game.gainXP(1)
-                floatText("+1", at: CGPoint(x: heroPos.x, y: heroPos.y + 20), color: UIColor(red: 1, green: 0.6, blue: 0.7, alpha: 1))
+                showPickup("flower", sprite: BItem.flower.sprite, amount: 1, color: UIColor(red: 1, green: 0.7, blue: 0.8, alpha: 1))
                 Sfx.playThrottled(.sparkle, gap: 0.1, volume: 0.6)
                 light.impactOccurred()
             }
@@ -866,15 +866,44 @@ final class BloomScene: SKScene {
         drops = keep
     }
 
+    /// One rolling "+N [icon]" per item kind above the hero, so fast pickups
+    /// add up instead of piling labels on top of each other.
+    private var pickupLabels: [String: (node: SKNode, total: Int, at: TimeInterval)] = [:]
+
+    private func showPickup(_ key: String, sprite: String, amount: Int, color: UIColor) {
+        var total = amount
+        if let old = pickupLabels[key], now - old.at < 0.6 {
+            total += old.total
+            old.node.removeFromParent()
+        }
+        let slot = CGFloat(pickupLabels.filter { $0.key != key && now - $0.value.at < 0.6 }.count)
+        let n = SKNode()
+        n.position = CGPoint(x: 0, y: 30 + slot * 9)
+        n.zPosition = 3000
+        let ic = SKSpriteNode(texture: tex(sprite))
+        ic.setScale(0.6)
+        ic.position = CGPoint(x: -6, y: 2.5)
+        n.addChild(ic)
+        let l = label("+\(total)", size: 5.5, color: color)
+        l.horizontalAlignmentMode = .left
+        l.position = CGPoint(x: -1.5, y: 0)
+        n.addChild(l)
+        hero.addChild(n)
+        n.setScale(0.6)
+        n.run(.sequence([.scale(to: 1.15, duration: 0.07), .scale(to: 1, duration: 0.07),
+                         .wait(forDuration: 0.45),
+                         .group([.moveBy(x: 0, y: 6, duration: 0.25), .fadeOut(withDuration: 0.25)]), .removeFromParent()]))
+        pickupLabels[key] = (n, total, now)
+    }
+
     private func collect(_ d: DropNode) {
         d.node.removeFromParent()
         if let i = d.item {
             game.add(i, d.amount)
-            floatText("+\(d.amount)", at: CGPoint(x: heroPos.x + CGFloat.random(in: -4...4), y: heroPos.y + 22))
+            showPickup(i.rawValue, sprite: i.sprite, amount: d.amount, color: .white)
         } else {
             game.addCoins(d.amount)
-            floatText("+\(d.amount)", at: CGPoint(x: heroPos.x + CGFloat.random(in: -4...4), y: heroPos.y + 22),
-                      color: UIColor(red: 1, green: 0.85, blue: 0.3, alpha: 1))
+            showPickup("coin", sprite: "bloom_item_coin", amount: d.amount, color: UIColor(red: 1, green: 0.85, blue: 0.3, alpha: 1))
         }
         Sfx.playThrottled(.coin, gap: 0.05, volume: 0.45)
         heroSprite.run(.sequence([.scaleY(to: 1.1, duration: 0.04), .scaleY(to: 1, duration: 0.06)]))
@@ -951,6 +980,18 @@ final class BloomScene: SKScene {
         if now < demoPause { stickVec = .zero; return }
         if !game.isBuilt(.furnace) && game.canBuild(.furnace) {
             game.build(.furnace); demoPause = now + 1; return
+        }
+        if !game.isBuilt(.market) && game.canBuild(.market) {
+            game.build(.market); demoPause = now + 1; return
+        }
+        if game.isBuilt(.market), game.count(.wood) + game.count(.berry) > 24 {
+            game.panel = .building(.market)
+            demoPause = now + 1.6
+            run(.sequence([.wait(forDuration: 0.7), .run { [weak self] in
+                self?.game.sell(.berry, all: true); self?.game.sell(.flower, all: true)
+                if let w = self?.game.count(.wood), w > 8 { for _ in 0..<(w - 8) { self?.game.sell(.wood, all: false) } }
+            }, .wait(forDuration: 0.8), .run { [weak self] in self?.game.panel = nil }]))
+            return
         }
         if game.isBuilt(.furnace), game.queue(for: .furnace)?.left ?? 0 == 0, game.count(.stone) >= 9,
            let r = BuildKind.furnace.recipes.first {

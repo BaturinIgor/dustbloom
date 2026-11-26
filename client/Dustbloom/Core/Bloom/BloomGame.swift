@@ -168,7 +168,7 @@ final class BloomGame: ObservableObject {
 
     /// Coins that fall out of a destroyed gatherable.
     func rollCoins(_ k: GatherKind, mult: Int) -> Int {
-        let chance = 0.18 + 0.06 * Double(mult - 1) + (k.isStone ? 0.1 : 0)
+        let chance = 0.28 + 0.06 * Double(mult - 1) + (k.isStone ? 0.1 : 0)
         return Double.random(in: 0..<1) < chance ? Int.random(in: 1...(k.isStone ? 3 : 2)) : 0
     }
 

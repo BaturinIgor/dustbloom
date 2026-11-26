@@ -392,9 +392,11 @@ def item(name):
                 cv.put(6 + dx, 10 - dy, 'cloth' if dx >= 0 else 'water_l')
         cv.put(5, 4, 'white')
     elif name == 'flower':
-        for (a, b) in ((6, 3), (3, 6), (9, 6), (6, 9), (4, 4), (8, 4), (4, 8), (8, 8)):
+        cv.rect(6, 7, 6, 11, 'l1'); cv.put(5, 9, 'l2'); cv.put(4, 8, 'l2'); cv.put(7, 10, 'l2')
+        for (a, b) in ((5, 1), (6, 1), (3, 3), (3, 4), (8, 3), (8, 4), (4, 6), (7, 6), (5, 6), (6, 6), (4, 2), (7, 2), (3, 5), (8, 5)):
             cv.put(a, b, 'berry_l')
-        cv.disc(6, 6, 1.8, 1.8, 'gold')
+        cv.put(4, 2, 'white'); cv.put(5, 1, 'white')
+        cv.rect(5, 3, 6, 5, 'gold'); cv.rect(4, 4, 7, 4, 'gold'); cv.put(5, 3, 'gold_l')
     cv.outline('ink')
     sprite('bloom_item_' + name, cv)
 
@@ -421,15 +423,15 @@ def fx():
 ISLANDS = [
     dict(id=0, name='Луг', price=0, rect=(0, 0, 5, 5), cut=[(0, 0), (5, 5)],
          spawn={'tree': 4, 'rock': 3, 'bush_berry': 2}, cap=10),
-    dict(id=1, name='Сосновый лес', price=30, rect=(0, 7, 5, 11), cut=[(0, 11), (5, 11)],
+    dict(id=1, name='Сосновый лес', price=15, rect=(0, 7, 5, 11), cut=[(0, 11), (5, 11)],
          spawn={'pine': 6, 'tree': 2, 'bush_cotton': 2, 'rock': 1}, cap=10),
-    dict(id=2, name='Каменный кряж', price=80, rect=(7, 0, 11, 5), cut=[(11, 0), (11, 5)],
+    dict(id=2, name='Каменный кряж', price=60, rect=(7, 0, 11, 5), cut=[(11, 0), (11, 5)],
          spawn={'rock': 5, 'rock_iron': 3, 'tree': 1}, cap=9),
-    dict(id=3, name='Ягодная поляна', price=150, rect=(0, -6, 5, -2), cut=[(0, -6), (5, -6)],
+    dict(id=3, name='Ягодная поляна', price=140, rect=(0, -6, 5, -2), cut=[(0, -6), (5, -6)],
          spawn={'bush_berry': 4, 'bush_cotton': 3, 'tree': 2, 'rock': 1}, cap=10),
-    dict(id=4, name='Золотая жила', price=300, rect=(-6, 0, -2, 5), cut=[(-6, 0), (-6, 5)],
+    dict(id=4, name='Золотая жила', price=280, rect=(-6, 0, -2, 5), cut=[(-6, 0), (-6, 5)],
          spawn={'rock': 3, 'rock_iron': 3, 'rock_gold': 3}, cap=9),
-    dict(id=5, name='Хрустальный холм', price=600, rect=(7, 7, 11, 11), cut=[(11, 11)],
+    dict(id=5, name='Хрустальный холм', price=500, rect=(7, 7, 11, 11), cut=[(11, 11)],
          spawn={'crystal': 3, 'rock_gold': 2, 'pine': 2, 'rock_iron': 2}, cap=9),
 ]
 # bridge tile, orientation, the two islands it joins
