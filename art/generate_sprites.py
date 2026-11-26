@@ -1251,6 +1251,10 @@ def render_preview(s, frames):
     return screen
 
 
+ARMY_NAMES = {"unit_" + k for k in ("straw_guard", "pumpkin_brute", "moon_witch", "crow_archer", "frost_sentinel",
+                                    "storm_shaman")} | {"enemy_" + k for k in (
+    "dust_rats", "rust_bandits", "scrap_golem", "thorn_wolves", "sand_wraiths", "locust_swarm", "iron_raiders",
+    "mire_hag", "dust_king")}
 INTRO_NAMES = {"intro_sky", "intro_sun", "intro_mesa", "intro_hills", "intro_field", "intro_stalk_0",
                "intro_stalk_1", "intro_stalk_2", "intro_hero", "intro_hero_eyes", "intro_crow_0",
                "intro_crow_1", "intro_rays"}
@@ -1266,7 +1270,7 @@ def main():
     light, vig = light_textures()
     frames["fx_light"], frames["fx_vignette"] = light, vig
 
-    keep = set(s) | {"edge_fence_x", "edge_fence_y", "ui_power"} | {"avatar_%d" % i for i in range(12)} | set(frames) | {"logo_wordmark"} | INTRO_NAMES
+    keep = set(s) | {"edge_fence_x", "edge_fence_y", "ui_power"} | {"avatar_%d" % i for i in range(12)} | ARMY_NAMES | set(frames) | {"logo_wordmark"} | INTRO_NAMES
     for d in os.listdir(ASSETS):
         if d.endswith(".imageset") and d[:-9] not in keep:
             for f in os.listdir(os.path.join(ASSETS, d)):
@@ -1285,6 +1289,9 @@ def main():
     from hd.avatars import sprites as avatar_sprites  # profile avatars and the power icon
     avatars = avatar_sprites()
     for name, im in avatars.items():
+        save_imageset(name, im)
+    from hd.army_art import sprites as army_sprites  # workshop and raid cards
+    for name, im in army_sprites().items():
         save_imageset(name, im)
     for name in ("ui_panel", "ui_slot", "ui_slot_selected"):
         # pre-scaled x3 so SwiftUI nine-slice cap insets are 12 pt

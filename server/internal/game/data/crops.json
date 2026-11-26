@@ -1,5 +1,5 @@
 {
-  "version": 8,
+  "version": 9,
   "farm": {
     "width": 16,
     "height": 16,
@@ -241,6 +241,54 @@
       "hp": 28,
       "attack": 14,
       "unlockLevel": 2
+    },
+    {
+      "id": "crow_archer",
+      "name": {
+        "en": "Crow Archer",
+        "ru": "Вороний лучник"
+      },
+      "cost": {
+        "suncrown": 1,
+        "ashcarrot": 3
+      },
+      "coins": 40,
+      "buildSeconds": 180,
+      "hp": 22,
+      "attack": 20,
+      "unlockLevel": 3
+    },
+    {
+      "id": "frost_sentinel",
+      "name": {
+        "en": "Frost Sentinel",
+        "ru": "Морозный часовой"
+      },
+      "cost": {
+        "frostcabbage": 1,
+        "ironbean": 1
+      },
+      "coins": 90,
+      "buildSeconds": 420,
+      "hp": 110,
+      "attack": 9,
+      "unlockLevel": 6
+    },
+    {
+      "id": "storm_shaman",
+      "name": {
+        "en": "Storm Shaman",
+        "ru": "Грозовой шаман"
+      },
+      "cost": {
+        "stormcorn": 1,
+        "glowmelon": 1
+      },
+      "coins": 250,
+      "buildSeconds": 900,
+      "hp": 60,
+      "attack": 45,
+      "unlockLevel": 10
     }
   ],
   "raids": [
@@ -323,6 +371,224 @@
       "unlockLevel": 3,
       "drops": {
         "chest_iron": 1
+      }
+    },
+    {
+      "id": "thorn_wolves",
+      "name": {
+        "en": "Thorn Wolf Den",
+        "ru": "Логово терновых волков"
+      },
+      "enemies": [
+        {
+          "hp": 34,
+          "attack": 8
+        },
+        {
+          "hp": 34,
+          "attack": 8
+        },
+        {
+          "hp": 34,
+          "attack": 8
+        },
+        {
+          "hp": 34,
+          "attack": 8
+        },
+        {
+          "hp": 34,
+          "attack": 8
+        }
+      ],
+      "rewardCoins": 160,
+      "rewardXp": 18,
+      "cooldownSeconds": 1200,
+      "unlockLevel": 4,
+      "drops": {
+        "speed_any_5m": 2
+      }
+    },
+    {
+      "id": "sand_wraiths",
+      "name": {
+        "en": "Sand Wraiths",
+        "ru": "Песчаные призраки"
+      },
+      "enemies": [
+        {
+          "hp": 55,
+          "attack": 12
+        },
+        {
+          "hp": 55,
+          "attack": 12
+        },
+        {
+          "hp": 55,
+          "attack": 12
+        }
+      ],
+      "rewardCoins": 260,
+      "rewardXp": 28,
+      "cooldownSeconds": 1800,
+      "unlockLevel": 5,
+      "drops": {
+        "chest_wood": 1
+      }
+    },
+    {
+      "id": "locust_swarm",
+      "name": {
+        "en": "Locust Swarm",
+        "ru": "Саранчовая туча"
+      },
+      "enemies": [
+        {
+          "hp": 25,
+          "attack": 6
+        },
+        {
+          "hp": 25,
+          "attack": 6
+        },
+        {
+          "hp": 25,
+          "attack": 6
+        },
+        {
+          "hp": 25,
+          "attack": 6
+        },
+        {
+          "hp": 25,
+          "attack": 6
+        },
+        {
+          "hp": 25,
+          "attack": 6
+        },
+        {
+          "hp": 25,
+          "attack": 6
+        },
+        {
+          "hp": 25,
+          "attack": 6
+        }
+      ],
+      "rewardCoins": 340,
+      "rewardXp": 36,
+      "cooldownSeconds": 2400,
+      "unlockLevel": 6,
+      "drops": {
+        "chest_wood": 1,
+        "speed_grow_15m": 1
+      }
+    },
+    {
+      "id": "iron_raiders",
+      "name": {
+        "en": "Iron Raider Fort",
+        "ru": "Форт железных налётчиков"
+      },
+      "enemies": [
+        {
+          "hp": 60,
+          "attack": 13
+        },
+        {
+          "hp": 60,
+          "attack": 13
+        },
+        {
+          "hp": 60,
+          "attack": 13
+        },
+        {
+          "hp": 60,
+          "attack": 13
+        },
+        {
+          "hp": 60,
+          "attack": 13
+        },
+        {
+          "hp": 60,
+          "attack": 13
+        }
+      ],
+      "rewardCoins": 420,
+      "rewardXp": 45,
+      "cooldownSeconds": 2700,
+      "unlockLevel": 7,
+      "drops": {
+        "chest_iron": 1
+      }
+    },
+    {
+      "id": "mire_hag",
+      "name": {
+        "en": "Mire Hag's Hut",
+        "ru": "Хижина болотной карги"
+      },
+      "enemies": [
+        {
+          "hp": 40,
+          "attack": 10
+        },
+        {
+          "hp": 40,
+          "attack": 10
+        },
+        {
+          "hp": 220,
+          "attack": 26
+        }
+      ],
+      "rewardCoins": 600,
+      "rewardXp": 60,
+      "cooldownSeconds": 3600,
+      "unlockLevel": 8,
+      "drops": {
+        "chest_iron": 1,
+        "speed_any_15m": 1
+      }
+    },
+    {
+      "id": "dust_king",
+      "name": {
+        "en": "The Dust King",
+        "ru": "Пыльный король"
+      },
+      "enemies": [
+        {
+          "hp": 90,
+          "attack": 16
+        },
+        {
+          "hp": 90,
+          "attack": 16
+        },
+        {
+          "hp": 90,
+          "attack": 16
+        },
+        {
+          "hp": 90,
+          "attack": 16
+        },
+        {
+          "hp": 900,
+          "attack": 40
+        }
+      ],
+      "rewardCoins": 1500,
+      "rewardXp": 150,
+      "cooldownSeconds": 14400,
+      "unlockLevel": 10,
+      "drops": {
+        "chest_gold": 1
       }
     }
   ],
