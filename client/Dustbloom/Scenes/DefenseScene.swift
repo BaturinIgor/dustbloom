@@ -56,6 +56,12 @@ final class DefenseScene: SKScene {
         .colorize(with: .white, colorBlendFactor: 0.85, duration: 0.02),
         .colorize(withColorBlendFactor: 0, duration: 0.09),
     ])
+    private let squash = SKAction.sequence([
+        .scaleX(to: 1.18, y: 0.84, duration: 0.04),
+        .scaleX(to: 0.94, y: 1.06, duration: 0.06),
+        .scale(to: 1, duration: 0.06),
+    ])
+    private var bossTint: SKSpriteNode?
     private let haptic = UIImpactFeedbackGenerator(style: .light)
     private let heavy = UIImpactFeedbackGenerator(style: .heavy)
 
@@ -83,6 +89,8 @@ final class DefenseScene: SKScene {
         buildDecor()
         buildSquad()
         buildStorm()
+        buildTrails()
+        buildAtmosphere()
         warmPools()
     }
 
@@ -175,8 +183,12 @@ final class DefenseScene: SKScene {
             fencePiece(alongX: false, at: p, z: 1)
         }
         // a little life on the farm
-        decorate("prop_windmill", tile: (5, 3), z: 30)
-        decorate("prop_house", tile: (1, 5), z: 30)
+        let house = sprite("prop_house", hd: true)
+        house.anchorPoint = CGPoint(x: 0.5, y: 0.1)
+        house.setScale(0.8)
+        house.position = world(grid.center(fx: 1.0, fy: 5.4))
+        house.zPosition = 100 - house.position.y * 0.01
+        world.addChild(house)
     }
 
     private func fencePiece(alongX: Bool, at p: CGPoint, z: CGFloat) {
@@ -187,23 +199,16 @@ final class DefenseScene: SKScene {
         world.addChild(n)
     }
 
-    private func decorate(_ name: String, tile: (Int, Int), z: CGFloat) {
-        let n = sprite(name, hd: true)
-        n.anchorPoint = CGPoint(x: 0.5, y: 0.1)
-        n.position = world(grid.center(x: tile.0, y: tile.1))
-        n.zPosition = z
-        world.addChild(n)
-    }
-
     // MARK: - lanes and squad
 
     private func buildLanes() {
         layoutLanes()
+        // big scarecrows stand in a line right behind the fence, spaced so no one hides anyone
         heroSpots = [
-            world(grid.center(fx: 0.75, fy: 1.9)),  // left lane
-            world(grid.center(fx: 1.9, fy: 0.75)),  // right lane
-            world(grid.center(fx: 0.65, fy: 0.65)), // centre, right behind the fence corner
-            world(grid.center(fx: 2.7, fy: 1.7)),   // ranged, to the right so nobody hides anybody
+            world(grid.center(fx: 0.6, fy: 0.6)),   // guard: the fence corner, first to meet the storm
+            world(grid.center(fx: 2.7, fy: 0.6)),   // archer: right
+            world(grid.center(fx: 0.6, fy: 2.7)),   // brute: left
+            world(grid.center(fx: 4.6, fy: 0.6)),   // frost: far right
         ]
         cropSpots = [[2, 2], [1, 3], [3, 1], [3, 3]].map { world(grid.center(x: $0[0], y: $0[1])) }
     }
@@ -293,24 +298,19 @@ final class DefenseScene: SKScene {
         let q = lanePoint(l, min(1, t + 0.01))
         let dx = q.x - p.x, dy = q.y - p.y
         let len = max(0.001, hypot(dx, dy))
-        let spread = 20 * CGFloat(1 - t * 0.6)
+        let spread = 30 * CGFloat(1 - t * 0.55)
         return CGPoint(x: p.x - dy / len * CGFloat(e.jitter) * spread, y: p.y + dx / len * CGFloat(e.jitter) * spread)
     }
 
     private func buildSquad() {
         heroNodes = DefenseContent.heroes.enumerated().map { i, h in
-            let n = sprite(h.sprite)
-            n.anchorPoint = CGPoint(x: 0.5, y: 0.08)
+            let n = sprite(h.sprite + "_idle_0")
+            n.anchorPoint = CGPoint(x: 0.5, y: 0.06)
             n.position = heroSpots[i]
             n.zPosition = 100 - n.position.y * 0.01
             n.isHidden = true
             world.addChild(n)
-            // idle sway, unique phase per hero
-            n.run(.repeatForever(.sequence([
-                .wait(forDuration: Double(i) * 0.3),
-                .scaleX(to: 1.03, y: 0.97, duration: 0.6),
-                .scaleX(to: 1, y: 1, duration: 0.6),
-            ])))
+            idle(n, hero: i)
             return n
         }
         cropNodes = DefenseContent.crops.enumerated().map { i, c in
@@ -323,6 +323,33 @@ final class DefenseScene: SKScene {
             return n
         }
         refreshSquad()
+    }
+
+    private func heroFrames(_ i: Int, _ names: [String]) -> [SKTexture] {
+        names.map { Textures.named(DefenseContent.heroes[i].sprite + "_" + $0) }
+    }
+
+    /// Breathing idle, each hero on its own beat.
+    private func idle(_ n: SKSpriteNode, hero i: Int) {
+        let a = SKAction.animate(with: heroFrames(i, ["idle_0", "idle_1"]), timePerFrame: 0.45 + Double(i) * 0.04)
+        n.run(.repeatForever(a), withKey: "idle")
+    }
+
+    /// Wind-up, strike, recover; then back to idle. Ignored while a swing is playing.
+    private func attack(_ i: Int) {
+        let n = heroNodes[i]
+        guard !n.isHidden, n.action(forKey: "attack") == nil else { return }
+        n.removeAction(forKey: "idle")
+        let melee = DefenseContent.heroes[i].melee
+        n.run(.sequence([
+            .animate(with: heroFrames(i, ["atk_0"]), timePerFrame: melee ? 0.09 : 0.06),
+            .group([
+                .animate(with: heroFrames(i, ["atk_1"]), timePerFrame: 0.1),
+                .sequence([.scaleX(to: 1.06, y: 0.95, duration: 0.05), .scale(to: 1, duration: 0.08)]),
+            ]),
+            .animate(with: heroFrames(i, ["atk_2"]), timePerFrame: 0.09),
+            .run { [weak self] in self?.idle(n, hero: i) },
+        ]), withKey: "attack")
     }
 
     func refreshSquad() {
@@ -375,11 +402,118 @@ final class DefenseScene: SKScene {
         world.addChild(haze)
     }
 
+    /// Worn dirt paths under the three lanes, baked at art resolution (1 px = 3 pt)
+    /// with speckles, so the field reads as a road the storm keeps walking.
+    private func buildTrails() {
+        let k: CGFloat = 3
+        let top = fenceTop
+        let ys = lanes.map { $0.0.y }
+        let yTop = (ys.max() ?? top.y + 500) + 40
+        let yBot = top.y - 30
+        let rect = CGRect(x: -240, y: yBot, width: 480, height: yTop - yBot)
+        let px = CGSize(width: rect.width / k, height: rect.height / k)
+        func toImg(_ p: CGPoint) -> CGPoint { CGPoint(x: (p.x - rect.minX) / k, y: (rect.maxY - p.y) / k) }
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = false
+        var rng = SplitMix(seed: 7)
+        let image = UIGraphicsImageRenderer(size: px, format: format).image { ctx in
+            let g = ctx.cgContext
+            g.setShouldAntialias(false)
+            g.setLineCap(.round)
+            for (width, color) in [(15.0, UIColor(hex: 0x8C6640).withAlphaComponent(0.45)),
+                                   (9.0, UIColor(hex: 0x7A5636).withAlphaComponent(0.4))] {
+                for l in lanes {
+                    g.setStrokeColor(color.cgColor)
+                    g.setLineWidth(CGFloat(width))
+                    g.move(to: toImg(l.0))
+                    g.addQuadCurve(to: toImg(l.2), control: toImg(l.1))
+                    g.strokePath()
+                }
+            }
+            // speckles: pebbles and footprints along the paths
+            for l in lanes {
+                for _ in 0..<70 {
+                    let t = rng.next()
+                    let p = toImg(lanePoint(l, t))
+                    let dx = CGFloat(rng.next() * 16 - 8), dy = CGFloat(rng.next() * 6 - 3)
+                    let light = rng.next() < 0.5
+                    UIColor(hex: light ? 0xC89A64 : 0x5E4028).withAlphaComponent(0.7).setFill()
+                    g.fill(CGRect(x: floor(p.x + dx), y: floor(p.y + dy), width: 1, height: 1))
+                }
+            }
+        }
+        let tex = SKTexture(image: image)
+        tex.filteringMode = .nearest
+        let node = SKSpriteNode(texture: tex, size: rect.size)
+        node.position = CGPoint(x: rect.midX, y: rect.midY)
+        node.zPosition = -5
+        world.addChild(node)
+    }
+
+    /// Storm mood: dust grains blowing across, and the top of the screen
+    /// darkened in hard pixel bands where the storm comes from.
+    private func buildAtmosphere() {
+        let grain = SKTexture(image: UIGraphicsImageRenderer(size: CGSize(width: 2, height: 2)).image { ctx in
+            UIColor.white.setFill()
+            ctx.fill(CGRect(x: 0, y: 0, width: 2, height: 2))
+        })
+        grain.filteringMode = .nearest
+        let e = SKEmitterNode()
+        e.particleTexture = grain
+        e.particleBirthRate = 14
+        e.particleLifetime = 7
+        e.particleSize = CGSize(width: 4, height: 4)
+        e.particleScaleRange = 0.5
+        e.particleColor = UIColor(hex: 0xF0D8A8)
+        e.particleColorBlendFactor = 1
+        e.particleAlpha = 0.55
+        e.particleAlphaRange = 0.3
+        e.particleAlphaSpeed = -0.06
+        e.particleSpeed = 90
+        e.particleSpeedRange = 40
+        e.emissionAngle = -.pi * 0.06
+        e.emissionAngleRange = 0.15
+        e.position = CGPoint(x: -260, y: fenceTop.y + 260)
+        e.particlePositionRange = CGVector(dx: 10, dy: 700)
+        e.zPosition = 310
+        e.targetNode = world
+        e.advanceSimulationTime(8)
+        world.addChild(e)
+
+        let h = size.height * camScale
+        let w = size.width * camScale + 20
+        for (k, a) in [0.22, 0.14, 0.07].enumerated() {
+            let band = SKSpriteNode(color: UIColor(hex: 0x3A2414), size: CGSize(width: w, height: 18))
+            band.alpha = a
+            band.anchorPoint = CGPoint(x: 0.5, y: 1)
+            band.position = CGPoint(x: 0, y: h / 2 - CGFloat(k) * 18)
+            band.zPosition = 700
+            cam.addChild(band)
+        }
+    }
+
+    private func setBossTint(_ on: Bool) {
+        if on {
+            if bossTint == nil {
+                let t = SKSpriteNode(color: UIColor(hex: 0x6A1E1E),
+                                     size: CGSize(width: size.width * camScale + 40, height: size.height * camScale + 40))
+                t.zPosition = 690
+                t.alpha = 0
+                cam.addChild(t)
+                bossTint = t
+            }
+            bossTint?.run(.fadeAlpha(to: 0.13, duration: 0.6))
+        } else {
+            bossTint?.run(.fadeAlpha(to: 0, duration: 0.8))
+        }
+    }
+
     // MARK: - pools
 
     private func warmPools() {
-        for _ in 0..<40 { enemyPool.append(makeEnemyNode()) }
-        for _ in 0..<40 { shotPool.append(makeSprite(z: 400)) }
+        for _ in 0..<64 { enemyPool.append(makeEnemyNode()) }
+        for _ in 0..<56 { shotPool.append(makeSprite(z: 400)) }
         for _ in 0..<40 {
             let l = SKLabelNode(fontNamed: DText.fontName)
             l.fontSize = 26
@@ -391,8 +525,8 @@ final class DefenseScene: SKScene {
             numberPool.append(l)
         }
         for _ in 0..<30 { sparkPool.append(makeSprite(z: 450, blend: .add)) }
-        for _ in 0..<20 { coinPool.append(makeSprite(z: 460)) }
-        for _ in 0..<20 { poofPool.append(makeSprite(z: 440)) }
+        for _ in 0..<32 { coinPool.append(makeSprite(z: 460)) }
+        for _ in 0..<32 { poofPool.append(makeSprite(z: 440)) }
     }
 
     private func makeSprite(z: CGFloat, blend: SKBlendMode = .alpha) -> SKSpriteNode {
@@ -466,6 +600,7 @@ final class DefenseScene: SKScene {
             bossBar?.removeFromParent()
             bossBar = nil
             bossId = nil
+            setBossTint(boss)
             if boss {
                 heavy.impactOccurred(intensity: 0.6)
                 Sfx.play(.boss, volume: 0.9)
@@ -474,7 +609,7 @@ final class DefenseScene: SKScene {
             guard let en = game.battle.enemy(id: id) else { return }
             let n = enemyPool.popLast() ?? makeEnemyNode()
             let tex = Textures.named("\(en.kind.sprite)_0")
-            let scale = en.isBoss ? px1 * 1.25 : px1 * CGFloat(en.kind.size)
+            let scale = en.isBoss ? px1 * 1.6 : px1 * 1.3 * CGFloat(en.kind.size)
             n.texture = tex
             n.size = CGSize(width: tex.size().width * scale, height: tex.size().height * scale)
             n.colorBlendFactor = 0
@@ -486,17 +621,19 @@ final class DefenseScene: SKScene {
             enemyNodes[id] = n
             if en.isBoss { attachBossBar(id) }
         case let .shot(from, enemy, projectile, delay):
+            if case let .hero(i) = from { attack(i) }
             guard let en = game.battle.enemy(id: enemy), let n = enemyNodes[enemy] else { return }
             fireShot(from: origin(from), to: CGPoint(x: n.position.x, y: n.position.y + n.size.height * 0.4),
                      lead: en, projectile: projectile, delay: delay)
         case let .melee(from):
-            if case let .hero(i) = from { lunge(heroNodes[i]) }
+            if case let .hero(i) = from { attack(i) }
             Sfx.playThrottled(.hit, gap: 0.12, volume: 0.8)
         case let .damage(enemy, amount, crit, delay):
             guard let n = enemyNodes[enemy] else { return }
             run(.wait(forDuration: delay)) { [weak self] in
                 guard let self else { return }
                 n.run(self.flash)
+                if n.action(forKey: "squash") == nil { n.run(self.squash, withKey: "squash") }
                 var p = self.pendingDamage[enemy] ?? (0, 0)
                 p.sum += amount
                 if crit || self.lastTime - p.last > 0.22 {
@@ -535,7 +672,7 @@ final class DefenseScene: SKScene {
 
     private func origin(_ s: Battle.Shooter.Source) -> CGPoint {
         switch s {
-        case let .hero(i): return CGPoint(x: heroSpots[i].x, y: heroSpots[i].y + 50)
+        case let .hero(i): return CGPoint(x: heroSpots[i].x - 14, y: heroSpots[i].y + 88)
         case let .crop(i): return CGPoint(x: cropSpots[i].x, y: cropSpots[i].y + 40)
         }
     }
@@ -591,14 +728,6 @@ final class DefenseScene: SKScene {
                 self?.spark(at: b, big: false)
             },
         ]))
-    }
-
-    private func lunge(_ n: SKSpriteNode) {
-        guard n.action(forKey: "lunge") == nil else { return }
-        n.run(.sequence([
-            .group([.moveBy(x: 0, y: 14, duration: 0.07), .scaleX(to: 0.92, y: 1.1, duration: 0.07)]),
-            .group([.moveBy(x: 0, y: -14, duration: 0.12), .scaleX(to: 1, y: 1, duration: 0.12)]),
-        ]), withKey: "lunge")
     }
 
     private func number(_ v: Double, crit: Bool, at p: CGPoint) {
@@ -657,6 +786,7 @@ final class DefenseScene: SKScene {
         }
         flyCoin(from: p)
         if boss {
+            setBossTint(false)
             bossBar?.removeFromParent()
             bossBar = nil
             bossId = nil
@@ -668,6 +798,7 @@ final class DefenseScene: SKScene {
 
     private func recycle(_ n: SKSpriteNode) {
         n.removeAllActions()
+        n.setScale(1)
         n.isHidden = true
         enemyPool.append(n)
     }

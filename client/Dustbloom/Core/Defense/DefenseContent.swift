@@ -79,19 +79,19 @@ enum DefenseContent {
                                 name: ["ru": "Королева саранчи", "en": "Locust Queen"])
 
     static let heroes: [HeroKind] = [
-        HeroKind(id: "straw_guard", sprite: "unit_straw_guard", dpsFactor: 1.0, interval: 0.7, range: 0.13,
+        HeroKind(id: "straw_guard", sprite: "def_hero_straw_guard", dpsFactor: 1.0, interval: 0.7, range: 0.13,
                  melee: true, splash: false, projectile: .none, slow: 0, skill: .wall, skillCooldown: 25,
                  unlockWave: 1, name: ["ru": "Соломенный страж", "en": "Straw Guard"],
                  skillName: ["ru": "Соломенная стена", "en": "Straw Wall"]),
-        HeroKind(id: "crow_archer", sprite: "unit_crow_archer", dpsFactor: 1.0, interval: 0.55, range: 0.92,
+        HeroKind(id: "crow_archer", sprite: "def_hero_crow_archer", dpsFactor: 1.0, interval: 0.55, range: 0.92,
                  melee: false, splash: false, projectile: .arrow, slow: 0, skill: .arrowRain, skillCooldown: 20,
                  unlockWave: 1, name: ["ru": "Вороний лучник", "en": "Crow Archer"],
                  skillName: ["ru": "Град стрел", "en": "Arrow Rain"]),
-        HeroKind(id: "pumpkin_brute", sprite: "unit_pumpkin_brute", dpsFactor: 1.15, interval: 1.2, range: 0.16,
+        HeroKind(id: "pumpkin_brute", sprite: "def_hero_pumpkin_brute", dpsFactor: 1.15, interval: 1.2, range: 0.16,
                  melee: true, splash: true, projectile: .none, slow: 0, skill: .smash, skillCooldown: 30,
                  unlockWave: 25, name: ["ru": "Тыквенный громила", "en": "Pumpkin Brute"],
                  skillName: ["ru": "Тыквенный удар", "en": "Pumpkin Smash"]),
-        HeroKind(id: "frost_sentinel", sprite: "unit_frost_sentinel", dpsFactor: 0.9, interval: 0.9, range: 0.7,
+        HeroKind(id: "frost_sentinel", sprite: "def_hero_frost_sentinel", dpsFactor: 0.9, interval: 0.9, range: 0.7,
                  melee: false, splash: false, projectile: .frost, slow: 0.3, skill: .blizzard, skillCooldown: 35,
                  unlockWave: 60, name: ["ru": "Морозный часовой", "en": "Frost Sentinel"],
                  skillName: ["ru": "Стужа", "en": "Blizzard"]),

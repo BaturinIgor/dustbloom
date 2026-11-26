@@ -49,6 +49,7 @@ struct OutlinedText: View {
     var color: Color = DText.cream
     /// false: one line that shrinks to fit its frame instead of widening the layout.
     var fixed = true
+    var lines = 1
 
     var body: some View {
         let base = ZStack {
@@ -58,7 +59,8 @@ struct OutlinedText: View {
             }
             Text(text).font(DText.font(size)).foregroundStyle(color)
         }
-        .lineLimit(1)
+        .lineLimit(lines)
+        .multilineTextAlignment(.center)
         if fixed {
             base.fixedSize()
         } else {
@@ -263,7 +265,7 @@ struct DefenseHUD: View {
         let h = DefenseContent.heroes[i]
         let level = game.progress.heroLevels[i]
         return UpgradeCard(
-            image: h.sprite, hd: false, level: level, locked: !game.heroUnlocked(i),
+            image: h.sprite + "_idle_0", hd: false, level: level, locked: !game.heroUnlocked(i),
             unlockWave: h.unlockWave, title: DefenseContent.text(h.name),
             dps: game.heroDPS(i), cost: game.heroCost(i), currency: "ui_coin",
             canAfford: game.progress.coins >= game.heroCost(i)
@@ -311,9 +313,9 @@ struct UpgradeCard: View {
                     .frame(maxWidth: .infinity)
                 if !locked { LevelBadge(level: level, size: 24) }
             }
-            OutlinedText(text: title, size: 10, fixed: false)
+            OutlinedText(text: title, size: 12.5, fixed: false, lines: 2)
                 .frame(maxWidth: .infinity)
-                .frame(height: 12)
+                .frame(height: 30)
             if locked {
                 OutlinedText(text: (Locale.preferredLanguages.first?.hasPrefix("ru") ?? false ? "волна " : "wave ") + "\(unlockWave)",
                              size: 11, color: DText.cream.opacity(0.7))
@@ -364,7 +366,7 @@ struct SkillButton: View {
         } label: {
             ZStack {
                 Circle().fill(Color(red: 0.23, green: 0.14, blue: 0.09))
-                Image(DefenseContent.heroes[hero].sprite).interpolation(.none).resizable().scaledToFit()
+                Image(DefenseContent.heroes[hero].sprite + "_idle_0").interpolation(.none).resizable().scaledToFit()
                     .frame(width: 40, height: 40)
                     .offset(y: 4)
                     .clipShape(Circle())

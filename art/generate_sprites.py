@@ -1293,6 +1293,9 @@ def main():
     from hd.defense_art import sprites as defense_sprites  # Farm Defense battle
     for name, im in defense_sprites().items():
         save_imageset(name, im)
+    from hd.defense_heroes import sprites as hero_sprites  # big animated scarecrows
+    for name, im in hero_sprites().items():
+        save_imageset(name, im)
     from hd.army_art import sprites as army_sprites  # workshop and raid cards
     for name, im in army_sprites().items():
         save_imageset(name, im)
