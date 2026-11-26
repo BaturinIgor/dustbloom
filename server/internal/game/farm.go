@@ -52,6 +52,10 @@ type Farm struct {
 	RaidReadyAt map[string]time.Time `json:"raidReadyAt,omitempty"`
 	// Items is the storage (Склад): speedups and chests by item id.
 	Items map[string]int `json:"items,omitempty"`
+	// Manor is the main building level (0 in old saves means 1) and the
+	// end of its running upgrade, if any.
+	Manor        int        `json:"manor,omitempty"`
+	ManorReadyAt *time.Time `json:"manorReadyAt,omitempty"`
 }
 
 // NewFarm creates a starting farm from the config.
@@ -61,6 +65,7 @@ func NewFarm(cfg *Config) *Farm {
 		Height: cfg.Farm.Height,
 		Coins:  cfg.Farm.StartCoins,
 		Tiles:  make([]Tile, cfg.Farm.Width*cfg.Farm.Height),
+		Manor:  1,
 	}
 	for y := 0; y < f.Height; y++ {
 		for x := 0; x < f.Width; x++ {

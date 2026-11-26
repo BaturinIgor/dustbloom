@@ -29,6 +29,8 @@ enum FarmError: String, Error, Codable {
     case unknownTarget = "unknown_target"
     case notAChest = "not_a_chest"
     case notASpeedup = "not_a_speedup"
+    case busy
+    case maxLevel = "max_level"
 }
 
 struct Tile: Codable, Equatable {
@@ -66,9 +68,12 @@ struct Farm: Codable, Equatable {
     var orders: [Order] = []
     /// The storage (Склад): item id -> count.
     var items: [String: Int] = [:]
+    /// Manor (Усадьба) level, 0 in old saves = 1, and its running upgrade.
+    var manor: Int = 1
+    var manorReadyAt: Date?
 
     private enum CodingKeys: String, CodingKey {
-        case width, height, coins, xp, tiles, barn, army, queue, raidReadyAt, plots, orders, items
+        case width, height, coins, xp, tiles, barn, army, queue, raidReadyAt, plots, orders, items, manor, manorReadyAt
     }
 
     /// Older saves and the server's omitempty fields may lack the army keys.
@@ -86,6 +91,8 @@ struct Farm: Codable, Equatable {
         plots = try c.decodeIfPresent([Bool].self, forKey: .plots) ?? []
         orders = try c.decodeIfPresent([Order].self, forKey: .orders) ?? []
         items = try c.decodeIfPresent([String: Int].self, forKey: .items) ?? [:]
+        manor = try c.decodeIfPresent(Int.self, forKey: .manor) ?? 1
+        manorReadyAt = try c.decodeIfPresent(Date.self, forKey: .manorReadyAt)
     }
 
     init(config: GameConfig) {

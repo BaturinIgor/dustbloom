@@ -213,3 +213,21 @@ func TestStorageEndpoints(t *testing.T) {
 		t.Fatalf("chest left: %v", fr.Farm.Items)
 	}
 }
+
+func TestManorEndpoint(t *testing.T) {
+	e := newEnv(t)
+	e.login("device-manor-1")
+	var fr farmResponse
+	if code := e.do("POST", "/v1/manor/upgrade", nil, &fr); code != 200 || fr.Farm.ManorReadyAt == nil {
+		t.Fatalf("upgrade = %d", code)
+	}
+	var er errorResponse
+	if code := e.do("POST", "/v1/manor/upgrade", nil, &er); code != 409 || er.Error != "busy" {
+		t.Fatalf("busy = %d %q", code, er.Error)
+	}
+	e.now = e.now.Add(time.Hour)
+	fr = farmResponse{}
+	if code := e.do("GET", "/v1/farm", nil, &fr); code != 200 || fr.Farm.ManorLevel() != 2 {
+		t.Fatalf("after an hour manor = %d", fr.Farm.ManorLevel())
+	}
+}

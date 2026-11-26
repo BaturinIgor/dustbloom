@@ -24,6 +24,8 @@ final class FarmStore: ObservableObject {
     @Published var plotOffer: PlotOffer?
     /// Growing crop the player tapped; the HUD offers a speedup.
     @Published var growOffer: TileRef?
+    /// The manor card is open (tap on the house).
+    @Published var showManor = false
     private var pendingTill: (x: Int, y: Int)?
 
     let config: GameConfig
@@ -228,6 +230,23 @@ final class FarmStore: ObservableObject {
         farm = next
         save()
         sync { try await $0.skipOrder(i) }
+    }
+
+    // MARK: - manor (Усадьба)
+
+    func upgradeManor() -> FarmError? {
+        var next = farm
+        do {
+            try next.upgradeManor(now: now, config: config)
+        } catch let error as FarmError {
+            return error
+        } catch {
+            return nil
+        }
+        farm = next
+        save()
+        sync { try await $0.upgradeManor() }
+        return nil
     }
 
     // MARK: - storage (Склад)

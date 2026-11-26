@@ -115,6 +115,9 @@ extension Farm {
         case SpeedTarget.recruit:
             guard let last = queue.last else { throw FarmError.nothingToSpeedUp }
             return max(0, Int(last.readyAt.timeIntervalSince(now).rounded(.up)))
+        case SpeedTarget.build:
+            guard let ready = manorReadyAt else { throw FarmError.nothingToSpeedUp }
+            return max(0, Int(ready.timeIntervalSince(now).rounded(.up)))
         case SpeedTarget.grow:
             guard let tl = tile(x: t.x, y: t.y) else { throw FarmError.outOfBounds }
             guard let id = tl.crop, let planted = tl.plantedAt else { throw FarmError.nothingToSpeedUp }
@@ -148,6 +151,9 @@ extension Farm {
             for i in queue.indices {
                 queue[i].readyAt = max(now, queue[i].readyAt.addingTimeInterval(-d))
             }
+            settle(now: now, config: config)
+        case SpeedTarget.build:
+            if let ready = manorReadyAt { manorReadyAt = max(now, ready.addingTimeInterval(-d)) }
             settle(now: now, config: config)
         default:
             if let i = index(x: t.x, y: t.y), let p = tiles[i].plantedAt {

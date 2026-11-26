@@ -38,11 +38,13 @@ struct RaidResult: Codable, Equatable {
 extension Farm {
     func armySlots(config: GameConfig) -> Int {
         let n = config.army.baseSlots + config.army.slotsPerLevel * (level - 1)
-        return config.army.maxSlots > 0 ? min(n, config.army.maxSlots) : n
+        let capped = config.army.maxSlots > 0 ? min(n, config.army.maxSlots) : n
+        return capped + (config.manor.armySlotEvery > 0 ? manorLevel / config.manor.armySlotEvery : 0)
     }
 
     /// Moves finished scarecrows into the army while there is room.
     mutating func settle(now: Date, config: GameConfig) {
+        settleManor(now: now)
         while let first = queue.first, first.readyAt <= now, army.count < armySlots(config: config) {
             army.append(ArmyUnit(type: first.type))
             queue.removeFirst()

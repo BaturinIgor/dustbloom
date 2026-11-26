@@ -106,6 +106,7 @@ type Config struct {
 	Raids      []Raid      `json:"raids"`
 	Orders     OrderConfig `json:"orders"`
 	Items      ItemsConfig `json:"items"`
+	Manor      ManorConfig `json:"manor"`
 
 	cropsByID  map[string]Crop
 	scByID     map[string]Scarecrow
@@ -178,6 +179,9 @@ func ParseConfig(data []byte) (*Config, error) {
 		c.raidsByID[r.ID] = r
 	}
 	if err := c.indexItems(); err != nil {
+		return nil, err
+	}
+	if err := c.validateManor(); err != nil {
 		return nil, err
 	}
 	return &c, nil

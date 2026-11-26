@@ -999,6 +999,8 @@ def build_sprites():
     s.update(crop_sprites())
     from items_art import item_sprites
     s.update(item_sprites())
+    from manor_art import manor_sprites
+    s.update(manor_sprites())
     return s
 
 

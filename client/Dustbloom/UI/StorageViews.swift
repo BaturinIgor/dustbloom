@@ -31,6 +31,7 @@ enum Items {
         switch target {
         case "recruit": return ru ? "Найм пугал" : "Scarecrow building"
         case "grow": return ru ? "Рост урожая" : "Crop growth"
+        case "build": return ru ? "Стройка" : "Construction"
         default: return ru ? "Любые ускорения" : "Any speedups"
         }
     }
@@ -40,6 +41,7 @@ enum Items {
         switch target {
         case "recruit": return ru ? "Только для мастерской" : "Workshop only"
         case "grow": return ru ? "Только для грядок" : "Beds only"
+        case "build": return ru ? "Только для зданий" : "Buildings only"
         default: return ru ? "Подходят для всего" : "Work on anything"
         }
     }
@@ -152,8 +154,8 @@ struct StorageTab: View {
                     .multilineTextAlignment(.center)
                     .padding(.top, 24)
             } else {
-                text(L.ru ? "Ускорение тратится само: нажми «Ускорить» в мастерской или на растущей грядке."
-                          : "Tap Speed up in the workshop or on a growing bed: the best speedups are picked for you.", 12, ink.opacity(0.7))
+                text(L.ru ? "Нажми «Ускорить» в мастерской, у Усадьбы или на растущей грядке: лучшие ускорения подберутся сами."
+                          : "Tap Speed up in the workshop, at the manor or on a growing bed: the best speedups are picked for you.", 12, ink.opacity(0.7))
                     .multilineTextAlignment(.center)
             }
         }

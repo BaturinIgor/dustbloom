@@ -18,6 +18,7 @@
 //	POST /v1/items/speedup          {"target":{"kind","x","y"},"items":{id:n}} -> farm + seconds saved
 //	POST /v1/items/smart            {"target":{"kind","x","y"}} -> farm + plan used + seconds saved
 //	POST /v1/items/open             {"item","count"} -> farm + loot
+//	POST /v1/manor/upgrade          {} -> farm with manorReadyAt
 //
 // Authenticated calls send "Authorization: Bearer <token>".
 package api
@@ -64,6 +65,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /v1/items/speedup", s.auth(s.speedup))
 	mux.HandleFunc("POST /v1/items/smart", s.auth(s.smartSpeedup))
 	mux.HandleFunc("POST /v1/items/open", s.auth(s.openChest))
+	mux.HandleFunc("POST /v1/manor/upgrade", s.auth(s.upgradeManor))
 	return mux
 }
 
@@ -110,6 +112,7 @@ func gameErrStatus(w http.ResponseWriter, err error) {
 		game.ErrNoOrder, game.ErrOrderNotReady,
 		game.ErrUnknownItem, game.ErrNoItems, game.ErrWrongTarget, game.ErrNothingToSpeed,
 		game.ErrUnknownTarget, game.ErrNotAChest, game.ErrNotASpeedup,
+		game.ErrBusy, game.ErrMaxLevel,
 	} {
 		if errors.Is(err, known) {
 			writeErr(w, http.StatusConflict, known.Error())
@@ -347,5 +350,11 @@ func (s *Server) openChest(w http.ResponseWriter, r *http.Request, token string)
 		loot, err := f.OpenChest(s.Config, req.Item, req.Count, uint64(now.UnixNano()))
 		resp.Loot = loot
 		return err
+	})
+}
+
+func (s *Server) upgradeManor(w http.ResponseWriter, r *http.Request, token string) {
+	s.mutate(w, token, func(f *game.Farm, now time.Time, _ *farmResponse) error {
+		return f.UpgradeManor(s.Config, now)
 	})
 }

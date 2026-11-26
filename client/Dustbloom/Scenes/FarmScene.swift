@@ -37,6 +37,9 @@ final class FarmScene: SKScene {
     private var swipeVisited: Set<Int> = []
     var landLayer = SKNode()
     var lastPlots: [Bool] = []
+    var manorNode: SKSpriteNode?
+    var manorShownTier = -1
+    var manorPiece: FarmLayout.Piece?
     private var pinch: UIPinchGestureRecognizer?
 
     private let lightTap = UIImpactFeedbackGenerator(style: .light)
@@ -177,6 +180,7 @@ final class FarmScene: SKScene {
             s.anchorPoint = .zero
             s.position = CGPoint(x: node.position.x - node.size.width / 2, y: bottom)
             s.zPosition = 0.5
+            if shadow.hasPrefix("shadow_manor") { s.name = "manorShadow" }
             world.addChild(s)
         }
         return node
@@ -186,9 +190,14 @@ final class FarmScene: SKScene {
         for piece in layout.pieces {
             switch piece.sprite {
             case "prop_house":
-                let house = stand("prop_house", x: piece.x, y: piece.y, w: piece.width, h: piece.height,
-                                  farm: farm, shadow: "shadow_house")
+                // the Усадьба: its look follows the manor level (a new one every 5 levels)
+                let tier = farm.manorTier
+                let house = stand("prop_manor_\(tier)", x: piece.x, y: piece.y, w: piece.width, h: piece.height,
+                                  farm: farm, shadow: "shadow_manor_\(tier)")
                 chimneySmoke(on: house)
+                manorNode = house
+                manorShownTier = tier
+                manorPiece = piece
             case "prop_windmill":
                 let mill = stand("prop_windmill", x: piece.x, y: piece.y, w: piece.width, h: piece.height,
                                  farm: farm, shadow: "shadow_windmill")
@@ -321,6 +330,7 @@ final class FarmScene: SKScene {
             rebuildLand()
             if !first { celebratePlot() }
         }
+        if let store { refreshManor(store.farm) }
         refreshAll(animated: true)
     }
 
@@ -375,6 +385,13 @@ final class FarmScene: SKScene {
         let x = Int(floor(p.x / tileSize + CGFloat(farm.width) / 2))
         let y = Int(floor(CGFloat(farm.height) / 2 - p.y / tileSize))
         guard farm.index(x: x, y: y) != nil else { return }
+        if let m = manorPiece, x >= m.x, x < m.x + m.width, y >= m.y, y < m.y + m.height {
+            Sfx.play(.select, volume: 0.6)
+            lightTap.impactOccurred(intensity: 0.6)
+            manorNode?.run(.sequence([.scaleY(to: 0.94, duration: 0.06), .scaleY(to: 1, duration: 0.12)]))
+            store.showManor = true
+            return
+        }
         if layout?.isBlocked(x: x, y: y) == true {
             lightTap.impactOccurred(intensity: 0.4)
             return
@@ -460,7 +477,7 @@ final class FarmScene: SKScene {
         c.run(.sequence([.scale(to: 1, duration: 0.12), .wait(forDuration: 0.6), .fadeOut(withDuration: 0.25), .removeFromParent()]))
     }
 
-    private func dustPuff(at p: CGPoint) {
+    func dustPuff(at p: CGPoint) {
         for k in 0..<6 {
             let d = SKSpriteNode(color: Palette.dustLight, size: CGSize(width: 6, height: 6))
             d.position = p

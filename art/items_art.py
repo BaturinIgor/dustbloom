@@ -2,11 +2,12 @@
 Uses the drawing helpers and palette of generate_sprites.py."""
 from generate_sprites import dark_outline, line, new, put, rect
 
-# speedup frame colours by target: any = gold, recruit = red, grow = green
+# speedup frame colours by target: any = gold, recruit = red, grow = green, build = blue
 SPEED_COLS = {
     "any": ("y1", "y2", "y3"),
     "recruit": ("c1", "c2", "c3"),
     "grow": ("g1", "g2", "g4"),
+    "build": ("m0", "m1", "m2"),
 }
 
 

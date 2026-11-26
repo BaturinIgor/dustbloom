@@ -33,12 +33,16 @@ func (f *Farm) ArmySlots(cfg *Config) int {
 	if cfg.Army.MaxSlots > 0 && n > cfg.Army.MaxSlots {
 		n = cfg.Army.MaxSlots
 	}
+	if cfg.Manor.ArmySlotEvery > 0 {
+		n += f.ManorLevel() / cfg.Manor.ArmySlotEvery
+	}
 	return n
 }
 
 // Settle moves finished scarecrows from the workshop into the army while
 // there is room. Every action calls it first, so time is the only input.
 func (f *Farm) Settle(cfg *Config, now time.Time) {
+	f.settleManor(now)
 	for len(f.Queue) > 0 && !now.Before(f.Queue[0].ReadyAt) && len(f.Army) < f.ArmySlots(cfg) {
 		f.Army = append(f.Army, Unit{Type: f.Queue[0].Type})
 		f.Queue = f.Queue[1:]

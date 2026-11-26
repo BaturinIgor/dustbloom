@@ -222,6 +222,11 @@ func (f *Farm) Remaining(cfg *Config, t SpeedTarget, now time.Time) (int, error)
 			return 0, ErrNothingToSpeed
 		}
 		return ceilSeconds(f.Queue[len(f.Queue)-1].ReadyAt.Sub(now)), nil
+	case TargetBuild:
+		if f.ManorReadyAt == nil {
+			return 0, ErrNothingToSpeed
+		}
+		return ceilSeconds(f.ManorReadyAt.Sub(now)), nil
 	case TargetGrow:
 		tl, err := f.tile(t.X, t.Y)
 		if err != nil {
@@ -289,6 +294,13 @@ func (f *Farm) UseSpeedups(cfg *Config, t SpeedTarget, use map[string]int, now t
 				f.Queue[i].ReadyAt = now.UTC()
 			}
 		}
+		f.Settle(cfg, now)
+	case TargetBuild:
+		r := f.ManorReadyAt.Add(-d)
+		if r.Before(now) {
+			r = now.UTC()
+		}
+		f.ManorReadyAt = &r
 		f.Settle(cfg, now)
 	case TargetGrow:
 		tl, _ := f.tile(t.X, t.Y)

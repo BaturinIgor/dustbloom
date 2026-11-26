@@ -234,4 +234,28 @@ final class FarmTests: XCTestCase {
         XCTAssertEqual(up.items["chest_wood"], 4)
         XCTAssertEqual(up.items["chest_iron"], 1)
     }
+
+    // MARK: - manor (mirrors server/internal/game/manor_test.go)
+
+    func testManorUpgradeAndSpeedup() throws {
+        var farm = Farm(config: config)
+        let t0 = Date(timeIntervalSince1970: 1_000_000)
+        XCTAssertEqual(farm.manorLevel, 1)
+        XCTAssertEqual(config.manor.levels.count, 29)
+        let next = try XCTUnwrap(farm.nextManor(config: config))
+        try farm.upgradeManor(now: t0, config: config)
+        XCTAssertEqual(farm.coins, config.farm.startCoins - next.coins)
+        XCTAssertThrowsError(try farm.upgradeManor(now: t0, config: config)) {
+            XCTAssertEqual($0 as? FarmError, .busy)
+        }
+        farm.items = ["speed_build_1m": 1]
+        try farm.useSpeedups(["speed_build_1m": 1], on: SpeedTarget(kind: SpeedTarget.build), now: t0, config: config)
+        XCTAssertEqual(farm.manorLevel, 2)
+        XCTAssertNil(farm.manorReadyAt)
+        let slots = farm.armySlots(config: config)
+        farm.manor = 3
+        XCTAssertEqual(farm.armySlots(config: config), slots + 1)
+        farm.manor = 6
+        XCTAssertEqual(farm.manorTier, 1)
+    }
 }
