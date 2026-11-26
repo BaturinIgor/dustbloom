@@ -133,13 +133,13 @@ func TestLevelCurve(t *testing.T) {
 func TestProgressClamps(t *testing.T) {
 	c := Crop{GrowSeconds: 100}
 	t0 := time.Unix(1000, 0)
-	if p := Progress(c, t0, t0.Add(-time.Second)); p != 0 {
+	if p := Progress(c.GrowSeconds, t0, t0.Add(-time.Second)); p != 0 {
 		t.Errorf("before plant: %v", p)
 	}
-	if p := Progress(c, t0, t0.Add(50*time.Second)); p != 0.5 {
+	if p := Progress(c.GrowSeconds, t0, t0.Add(50*time.Second)); p != 0.5 {
 		t.Errorf("half: %v", p)
 	}
-	if p := Progress(c, t0, t0.Add(time.Hour)); p != 1 {
+	if p := Progress(c.GrowSeconds, t0, t0.Add(time.Hour)); p != 1 {
 		t.Errorf("overgrown: %v", p)
 	}
 }

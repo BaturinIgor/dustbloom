@@ -231,3 +231,26 @@ func TestManorEndpoint(t *testing.T) {
 		t.Fatalf("after an hour manor = %d", fr.Farm.ManorLevel())
 	}
 }
+
+func TestBuildingEndpoint(t *testing.T) {
+	e := newEnv(t)
+	e.login("device-build-1")
+	var er errorResponse
+	if code := e.do("POST", "/v1/buildings/upgrade", map[string]string{"building": "well"}, &er); code != 409 || er.Error != "manor_too_low" {
+		t.Fatalf("well at manor 1 = %d %q", code, er.Error)
+	}
+	var fr farmResponse
+	if code := e.do("POST", "/v1/manor/upgrade", nil, &fr); code != 200 {
+		t.Fatalf("manor = %d", code)
+	}
+	e.now = e.now.Add(time.Hour)
+	fr = farmResponse{}
+	if code := e.do("POST", "/v1/buildings/upgrade", map[string]string{"building": "well"}, &fr); code != 200 || fr.Farm.Work == nil {
+		t.Fatalf("well upgrade = %d", code)
+	}
+	e.now = e.now.Add(time.Hour)
+	fr = farmResponse{}
+	if code := e.do("GET", "/v1/farm", nil, &fr); code != 200 || fr.Farm.Buildings["well"] != 1 {
+		t.Fatalf("well after an hour = %v", fr.Farm.Buildings)
+	}
+}

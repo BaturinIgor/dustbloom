@@ -73,7 +73,7 @@ func (f *Farm) newOrder(cfg *Config, rng *rand.Rand) Order {
 		o.Items[c.ID] = n
 		value += n * c.SellPrice
 	}
-	o.Coins = int(float64(value)*cfg.Orders.RewardFactor + 0.5)
+	o.Coins = f.more(cfg, EffectOrderReward, int(float64(value)*cfg.Orders.RewardFactor+0.5))
 	o.XP = max(1, int(float64(o.Coins)*cfg.Orders.XPPerCoin+0.5))
 	return o
 }

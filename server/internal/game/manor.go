@@ -17,11 +17,12 @@ const TargetBuild = "build"
 
 // ManorConfig is the main building: 30 levels. Levels[i] is the cost of
 // going from level i+1 to i+2. Every ArmySlotEvery levels adds an army slot;
-// later buildings will be capped at the manor's level.
+// working buildings are capped at the manor's level.
 type ManorConfig struct {
 	MaxLevel      int          `json:"maxLevel"`
 	ArmySlotEvery int          `json:"armySlotEvery"`
 	Levels        []ManorLevel `json:"levels"`
+	StartPower    int          `json:"startPower"`
 }
 
 // ManorLevel is one upgrade step.
@@ -30,6 +31,8 @@ type ManorLevel struct {
 	Crops       map[string]int `json:"crops"`
 	Seconds     int            `json:"seconds"`
 	PlayerLevel int            `json:"playerLevel"`
+	// Power is the Мощь this level adds.
+	Power int `json:"power"`
 }
 
 func (c *Config) validateManor() error {
@@ -78,7 +81,7 @@ func (f *Farm) settleManor(now time.Time) {
 // UpgradeManor pays for the next manor level and starts building it.
 func (f *Farm) UpgradeManor(cfg *Config, now time.Time) error {
 	f.Settle(cfg, now)
-	if f.ManorReadyAt != nil {
+	if f.Busy() {
 		return ErrBusy
 	}
 	next, ok := f.NextManor(cfg)

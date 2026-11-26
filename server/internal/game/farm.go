@@ -29,6 +29,17 @@ type Tile struct {
 	Tilled    bool       `json:"tilled"`
 	Crop      string     `json:"crop,omitempty"`
 	PlantedAt *time.Time `json:"plantedAt,omitempty"`
+	// Grow is the growth time fixed at planting (with the well bonus);
+	// 0 in old saves means the crop's own time.
+	Grow int `json:"grow,omitempty"`
+}
+
+// GrowSeconds is how long the crop on this tile takes in total.
+func (t *Tile) GrowSeconds(crop Crop) int {
+	if t.Grow > 0 {
+		return t.Grow
+	}
+	return crop.GrowSeconds
 }
 
 // Farm is a player's farm state.
@@ -56,6 +67,10 @@ type Farm struct {
 	// end of its running upgrade, if any.
 	Manor        int        `json:"manor,omitempty"`
 	ManorReadyAt *time.Time `json:"manorReadyAt,omitempty"`
+	// Buildings holds working building levels; Work is the one under
+	// construction (the manor and buildings share one builder).
+	Buildings map[string]int `json:"buildings,omitempty"`
+	Work      *Work          `json:"work,omitempty"`
 }
 
 // NewFarm creates a starting farm from the config.
@@ -220,6 +235,10 @@ func (f *Farm) Plant(cfg *Config, x, y int, cropID string, now time.Time) error 
 	planted := now.UTC()
 	t.Crop = cropID
 	t.PlantedAt = &planted
+	t.Grow = 0
+	if g := f.faster(cfg, EffectGrow, crop.GrowSeconds); g != crop.GrowSeconds {
+		t.Grow = g
+	}
 	return nil
 }
 
@@ -246,13 +265,14 @@ func (f *Farm) Harvest(cfg *Config, x, y int, now time.Time) (HarvestResult, err
 	if !ok {
 		return HarvestResult{}, ErrUnknownCrop
 	}
-	if Progress(crop, *t.PlantedAt, now) < 1 {
+	if Progress(t.GrowSeconds(crop), *t.PlantedAt, now) < 1 {
 		return HarvestResult{}, ErrNotReady
 	}
 	f.addCrops(crop.ID, 1)
 	up, items := f.gainXP(cfg, crop.XP)
 	t.Crop = ""
 	t.PlantedAt = nil
+	t.Grow = 0
 	return HarvestResult{
 		Crop:    crop.ID,
 		Count:   1,
@@ -282,18 +302,18 @@ func (f *Farm) Sell(cfg *Config, cropID string, count int) (int, error) {
 		return 0, ErrNoCrops
 	}
 	f.addCrops(cropID, -count)
-	coins := crop.SellPrice * count
+	coins := f.more(cfg, EffectSell, crop.SellPrice*count)
 	f.Coins += coins
 	return coins, nil
 }
 
 // Progress is how far a crop has grown, from 0 to 1.
-func Progress(crop Crop, plantedAt, now time.Time) float64 {
+func Progress(growSeconds int, plantedAt, now time.Time) float64 {
 	elapsed := now.Sub(plantedAt).Seconds()
 	if elapsed <= 0 {
 		return 0
 	}
-	p := elapsed / float64(crop.GrowSeconds)
+	p := elapsed / float64(max(1, growSeconds))
 	if p > 1 {
 		return 1
 	}

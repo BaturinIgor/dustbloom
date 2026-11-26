@@ -223,10 +223,13 @@ func (f *Farm) Remaining(cfg *Config, t SpeedTarget, now time.Time) (int, error)
 		}
 		return ceilSeconds(f.Queue[len(f.Queue)-1].ReadyAt.Sub(now)), nil
 	case TargetBuild:
-		if f.ManorReadyAt == nil {
-			return 0, ErrNothingToSpeed
+		switch {
+		case f.ManorReadyAt != nil:
+			return ceilSeconds(f.ManorReadyAt.Sub(now)), nil
+		case f.Work != nil:
+			return ceilSeconds(f.Work.ReadyAt.Sub(now)), nil
 		}
-		return ceilSeconds(f.ManorReadyAt.Sub(now)), nil
+		return 0, ErrNothingToSpeed
 	case TargetGrow:
 		tl, err := f.tile(t.X, t.Y)
 		if err != nil {
@@ -239,7 +242,7 @@ func (f *Farm) Remaining(cfg *Config, t SpeedTarget, now time.Time) (int, error)
 		if !ok {
 			return 0, ErrUnknownCrop
 		}
-		return ceilSeconds(time.Duration(crop.GrowSeconds)*time.Second - now.Sub(*tl.PlantedAt)), nil
+		return ceilSeconds(time.Duration(tl.GrowSeconds(crop))*time.Second - now.Sub(*tl.PlantedAt)), nil
 	}
 	return 0, ErrUnknownTarget
 }
@@ -296,11 +299,18 @@ func (f *Farm) UseSpeedups(cfg *Config, t SpeedTarget, use map[string]int, now t
 		}
 		f.Settle(cfg, now)
 	case TargetBuild:
-		r := f.ManorReadyAt.Add(-d)
-		if r.Before(now) {
-			r = now.UTC()
+		clamp := func(t time.Time) time.Time {
+			if t = t.Add(-d); t.Before(now) {
+				return now.UTC()
+			}
+			return t
 		}
-		f.ManorReadyAt = &r
+		if f.ManorReadyAt != nil {
+			r := clamp(*f.ManorReadyAt)
+			f.ManorReadyAt = &r
+		} else if f.Work != nil {
+			f.Work.ReadyAt = clamp(f.Work.ReadyAt)
+		}
 		f.Settle(cfg, now)
 	case TargetGrow:
 		tl, _ := f.tile(t.X, t.Y)

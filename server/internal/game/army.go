@@ -43,6 +43,7 @@ func (f *Farm) ArmySlots(cfg *Config) int {
 // there is room. Every action calls it first, so time is the only input.
 func (f *Farm) Settle(cfg *Config, now time.Time) {
 	f.settleManor(now)
+	f.settleBuildings(cfg, now)
 	for len(f.Queue) > 0 && !now.Before(f.Queue[0].ReadyAt) && len(f.Army) < f.ArmySlots(cfg) {
 		f.Army = append(f.Army, Unit{Type: f.Queue[0].Type})
 		f.Queue = f.Queue[1:]
@@ -82,7 +83,7 @@ func (f *Farm) BuildScarecrow(cfg *Config, id string, now time.Time) error {
 	if len(f.Queue) > 0 && f.Queue[len(f.Queue)-1].ReadyAt.After(start) {
 		start = f.Queue[len(f.Queue)-1].ReadyAt
 	}
-	f.Queue = append(f.Queue, Build{Type: id, ReadyAt: start.Add(time.Duration(sc.BuildSeconds) * time.Second)})
+	f.Queue = append(f.Queue, Build{Type: id, ReadyAt: start.Add(time.Duration(f.faster(cfg, EffectBuildTime, sc.BuildSeconds)) * time.Second)})
 	return nil
 }
 
@@ -133,7 +134,7 @@ func (f *Farm) Raid(cfg *Config, raidID string, now time.Time, seed uint64) (Rai
 	ours := make([]fighter, len(f.Army))
 	for i, u := range f.Army {
 		sc, _ := cfg.Scarecrow(u.Type)
-		ours[i] = fighter{sc.HP, sc.Attack}
+		ours[i] = fighter{f.more(cfg, EffectArmyPower, sc.HP), f.more(cfg, EffectArmyPower, sc.Attack)}
 	}
 	theirs := make([]fighter, len(raid.Enemies))
 	for i, e := range raid.Enemies {
@@ -192,7 +193,7 @@ func (f *Farm) Raid(cfg *Config, raidID string, now time.Time, seed uint64) (Rai
 		if f.RaidReadyAt == nil {
 			f.RaidReadyAt = map[string]time.Time{}
 		}
-		f.RaidReadyAt[raidID] = now.UTC().Add(time.Duration(raid.CooldownSeconds) * time.Second)
+		f.RaidReadyAt[raidID] = now.UTC().Add(time.Duration(f.faster(cfg, EffectRaidCooldown, raid.CooldownSeconds)) * time.Second)
 	}
 	f.Settle(cfg, now) // freed slots take waiting scarecrows
 	return res, nil

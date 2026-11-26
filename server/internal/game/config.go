@@ -98,21 +98,23 @@ type Raid struct {
 
 // Config is the full game balance file shared with the client.
 type Config struct {
-	Version    int         `json:"version"`
-	Farm       FarmConfig  `json:"farm"`
-	Crops      []Crop      `json:"crops"`
-	Army       ArmyConfig  `json:"army"`
-	Scarecrows []Scarecrow `json:"scarecrows"`
-	Raids      []Raid      `json:"raids"`
-	Orders     OrderConfig `json:"orders"`
-	Items      ItemsConfig `json:"items"`
-	Manor      ManorConfig `json:"manor"`
+	Version    int             `json:"version"`
+	Farm       FarmConfig      `json:"farm"`
+	Crops      []Crop          `json:"crops"`
+	Army       ArmyConfig      `json:"army"`
+	Scarecrows []Scarecrow     `json:"scarecrows"`
+	Raids      []Raid          `json:"raids"`
+	Orders     OrderConfig     `json:"orders"`
+	Items      ItemsConfig     `json:"items"`
+	Manor      ManorConfig     `json:"manor"`
+	Buildings  BuildingsConfig `json:"buildings"`
 
-	cropsByID  map[string]Crop
-	scByID     map[string]Scarecrow
-	raidsByID  map[string]Raid
-	speedups   map[string]Speedup
-	chestsByID map[string]Chest
+	cropsByID     map[string]Crop
+	scByID        map[string]Scarecrow
+	raidsByID     map[string]Raid
+	speedups      map[string]Speedup
+	chestsByID    map[string]Chest
+	buildingsByID map[string]BuildingType
 }
 
 // DefaultConfig parses the embedded balance file.
@@ -182,6 +184,9 @@ func ParseConfig(data []byte) (*Config, error) {
 		return nil, err
 	}
 	if err := c.validateManor(); err != nil {
+		return nil, err
+	}
+	if err := c.indexBuildings(); err != nil {
 		return nil, err
 	}
 	return &c, nil
