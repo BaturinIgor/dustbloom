@@ -72,7 +72,8 @@ struct ArmySheet: View {
                             Image(t.icon).interpolation(.none).resizable().frame(width: 32, height: 32)
                             label(t.title, size: 13)
                                 .lineLimit(1)
-                                .minimumScaleFactor(0.6)
+                                .minimumScaleFactor(0.5)
+                                .padding(.horizontal, 4)
                         }
                         .frame(maxWidth: .infinity, minHeight: 64)
                         .background(slot(t == tab))
@@ -114,6 +115,7 @@ private struct CostChip: View {
         HStack(spacing: 4) {
             Image(image).interpolation(.none).resizable().scaledToFit().frame(width: 20, height: 24)
             label("\(have)/\(need)", size: 13, color: have >= need ? ink : bad)
+                .fixedSize()
         }
     }
 }
