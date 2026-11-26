@@ -13,13 +13,13 @@ FONT = __file__.rsplit('/art/', 1)[0] + '/client/Dustbloom/Fonts/Rubik-Bold.ttf'
 T = 16
 
 C = dict(
-    ink="#2a1d2e",
-    water="#38a9c6", water_d="#2b8db0", water_l="#6fd0e0", foam="#effcff",
-    g0="#3f9a3a", g1="#56b944", g2="#7bd456", g3="#aeea6c",
-    d0="#5e3420", d1="#8a4f2c", d2="#b8743f", d3="#d99a5a",
-    t0="#5e3420", t1="#8a5532",
-    l0="#24703a", l1="#33914a", l2="#4fb556", l3="#7bd76a", l4="#b5f08a",
-    r0="#4f5668", r1="#7b8397", r2="#a6aebf", r3="#d3d9e4",
+    ink="#2b2340",
+    water="#4fc4ec", water_d="#3eaee0", water_l="#8fe0f7", foam="#ffffff",
+    g0="#5aae3c", g1="#7ccc4a", g2="#94dc58", g3="#c8f383", gline="#2f6e3a",
+    d0="#7a4a2e", d1="#a8653a", d2="#cf8a4c", d3="#eab071",
+    t0="#6b3f2a", t1="#9c6238",
+    l0="#1f6b45", l1="#2f9a4e", l2="#4cbf55", l3="#7fdc5e", l4="#c4f58a",
+    r0="#5d6680", r1="#8d97ad", r2="#b7c0d1", r3="#e6ebf2", rline="#3a3f57",
     iron="#e0874a", gold="#ffd040", berry="#e8394f", berry_l="#ff8a9a",
     cream="#ffc9d8", cream_d="#f394b0", cream_dd="#d0607f",
     fire0="#e2462a", fire1="#ff9a2e", fire2="#ffe066",
@@ -57,12 +57,12 @@ def disc(cx, cy, rx, ry, c):
 rnd = random.Random(3)
 
 # ---------------------------------------------------------------- water
-for _ in range(90):
+for _ in range(55):
     x, y = rnd.randrange(W), rnd.randrange(H)
-    n = rnd.choice((2, 3, 4))
-    c = rnd.choice(('water_l', 'water_d', 'water_d'))
+    n = rnd.choice((3, 4, 5))
     for k in range(n):
-        put(x + k, y, c)
+        put(x + k, y, 'water_l', 170)
+    put(x + 1, y + 1, 'water_d'); put(x + n - 2, y + 1, 'water_d')
 
 # ---------------------------------------------------------------- islands
 def island(cells, ox, oy, locked=False):
@@ -86,7 +86,7 @@ def island(cells, ox, oy, locked=False):
     for (x, y) in list(mask):
         for dy in range(1, cliff + 3):
             if (x, y + dy) not in mask:
-                put(x + 1, y + dy + 1, 'water_d')
+                put(x + 1, y + dy + 1, '#2f8fc4', 110)
     for (x, y) in list(mask):
         for (dx, dy) in ((1, 0), (-1, 0), (0, -1), (0, cliff + 1), (1, cliff + 1), (-1, cliff + 1)):
             q = (x + dx, y + dy)
@@ -100,28 +100,29 @@ def island(cells, ox, oy, locked=False):
                 if k == 1 and (x % 5 == 0):
                     c = 'd3'
                 put(x, y + k, c)
-            put(x, y + cliff + 1, 'ink')
+            put(x, y + cliff + 1, 'd0')
             if x % 7 == 3:
                 put(x, y + 3, 'd0')
     # grass
     for (x, y) in mask:
-        n = math.sin(x * 0.7 + y * 0.3) + math.sin(x * 0.23 - y * 0.61) * 1.3
-        c = 'g1' if n < 1.2 else 'g2'
-        if n < -1.4:
-            c = 'g0'
+        n = math.sin(x * 0.21 + y * 0.13) + math.sin(x * 0.11 - y * 0.27) * 1.2
+        c = 'g2' if n > 0.9 else 'g1'
+        if ((x - ox) // 8 + (y - oy) // 8) % 2 == 0 and c == 'g1':
+            c = '#83d24e'
         put(x, y, c)
     # top rim highlight and side outlines
     for (x, y) in mask:
         if (x, y - 1) not in mask:
             put(x, y, 'g3')
-            put(x, y - 1, 'ink')
+            put(x, y - 1, 'gline')
         if (x - 1, y) not in mask:
-            put(x - 1, y, 'ink')
+            put(x - 1, y, 'gline')
+            put(x, y, 'g3')
         if (x + 1, y) not in mask:
-            put(x + 1, y, 'ink')
+            put(x + 1, y, 'gline')
             put(x, y, 'g0')
     # grass tufts
-    for _ in range(len(cells) * 5):
+    for _ in range(len(cells) * 3):
         (x, y) = rnd.choice(sorted(mask))
         if all((x + a, y + b) in mask for a in (-2, 2) for b in (-2, 2)):
             put(x, y, 'g3'); put(x - 1, y + 1, 'g2'); put(x + 1, y + 1, 'g2')
@@ -129,34 +130,38 @@ def island(cells, ox, oy, locked=False):
         for (x, y) in mask:
             if not (0 <= x < W and 0 <= y < H): continue
             r, g, b, _ = px[x, y]
-            px[x, y] = (r // 2 + 20, g // 2 + 30, b // 2 + 50, 255)
+            l = (r * 30 + g * 59 + b * 11) // 100
+            px[x, y] = ((l + 150) // 2, (l + 215) // 2, (l + 200) // 2, 255)
     return mask
 
 main = {(c, r) for c in range(5) for r in range(6)} - {(0, 0), (4, 5), (0, 5)} | {(2, -1)}
 island_mask = island(main, 9, 60)
-island({(0, 0), (1, 0), (2, 0), (1, 1)}, 52, 172, locked=True)
+island({(0, 0), (1, 0), (2, 0)}, 50, 166, locked=True)
 island({(0, 0), (1, 0), (0, 1)}, 80, 20, locked=True)
 
 # ---------------------------------------------------------------- props
 def shadow(cx, cy, rx):
     for x in range(int(cx - rx), int(cx + rx) + 1):
-        put(x, cy, 'g0'); put(x, cy + 1, 'g0') if abs(x - cx) < rx - 1 else None
+        put(x, cy, '#2f6e3a', 90); put(x, cy + 1, '#2f6e3a', 90) if abs(x - cx) < rx - 1 else None
 
 def tree(x, y):
     shadow(x, y, 6)
     rect(x - 1, y - 7, x + 1, y, 't1'); rect(x + 1, y - 7, x + 1, y, 't0')
     put(x - 2, y, 't1'); put(x + 2, y, 't0')
-    disc(x, y - 13, 7.5, 6.5, 'ink')
-    disc(x, y - 13, 6.5, 5.5, 'l1')
-    disc(x - 1, y - 14, 5, 4, 'l2')
-    disc(x - 2, y - 15, 3, 2.4, 'l3')
-    put(x - 3, y - 16, 'l4'); put(x - 2, y - 17, 'l4')
-    for (a, b) in ((3, -10), (4, -12), (-4, -9)):
+    rect(x - 2, y - 7, x - 2, y, 'ink'); rect(x + 2, y - 7, x + 2, y, 'ink')
+    disc(x, y - 14, 8.5, 7.5, 'l0')
+    disc(x, y - 14, 7.5, 6.5, 'l1')
+    disc(x - 1, y - 15, 6, 5, 'l2')
+    disc(x - 2, y - 17, 3.6, 2.8, 'l3')
+    put(x - 4, y - 18, 'l4'); put(x - 3, y - 19, 'l4'); put(x - 2, y - 19, 'l4')
+    for (a, b) in ((4, -10), (5, -13), (-5, -10), (2, -9)):
         put(x + a, y + b, 'l0')
+    for (a, b) in ((3, -15), (-3, -12)):
+        put(x + a, y + b, 'berry'); put(x + a, y + b - 1, 'berry_l')
 
 def rock(x, y, ore=None):
     shadow(x, y, 6)
-    disc(x, y - 4, 6.5, 5, 'ink')
+    disc(x, y - 4, 6.5, 5, 'rline')
     disc(x, y - 4, 5.5, 4, 'r1')
     disc(x - 1, y - 5, 4, 3, 'r2')
     put(x - 3, y - 7, 'r3'); put(x - 2, y - 7, 'r3'); put(x - 3, y - 6, 'r3')
@@ -168,7 +173,7 @@ def rock(x, y, ore=None):
 
 def bush(x, y):
     shadow(x, y, 5)
-    disc(x, y - 4, 5.5, 4.5, 'ink')
+    disc(x, y - 4, 5.5, 4.5, 'l0')
     disc(x, y - 4, 4.5, 3.5, 'l1')
     disc(x - 1, y - 5, 3, 2.2, 'l2')
     for (a, b) in ((-2, -4), (2, -5), (1, -2), (-3, -2), (3, -3)):
@@ -251,7 +256,7 @@ for p in props:
     elif k == 'anvil': anvil(p[1], p[2])
 if not drawn_player:
     bloomling(*player)
-sign_price(70, 182)
+sign_price(66, 179)
 
 # hit on the rock the player is mining: sparks + HP bar
 rx, ry = 62, 96
@@ -324,7 +329,7 @@ bar_y = H * K - 330
 pill(40, bar_y, W * K - 40, bar_y + 170, fill=(42, 29, 46, 215), r=50)
 items = [('wood', '24'), ('stone', '31'), ('iron', '6'), ('berry', '9'), ('coin', '')]
 for i, (k, n) in enumerate(items[:4]):
-    cx = 150 + i * 200
+    cx = W * K // 2 - 300 + i * 200
     pill(cx - 75, bar_y + 18, cx + 75, bar_y + 152, fill=(255, 255, 255, 40), r=30)
     ic = Image.new('RGBA', (12, 12), (0, 0, 0, 0)); ip = ic.load()
     def ip_put(x, y, c):
@@ -356,11 +361,15 @@ for i, (k, n) in enumerate(items[:4]):
 # joystick ghost (left) and build hammer button (right)
 o = Image.new('RGBA', big.size, (0, 0, 0, 0)); od = ImageDraw.Draw(o)
 jy = bar_y - 260
-od.ellipse((90, jy - 120, 330, jy + 120), outline=(255, 255, 255, 120), width=10)
-od.ellipse((170, jy - 40, 250, jy + 40), fill=(255, 255, 255, 150))
-od.ellipse((W * K - 300, jy - 110, W * K - 80, jy + 110), fill=(255, 160, 60, 255), outline=(42, 29, 46, 255), width=12)
+jx = W * K - 260   # floating stick: appears under the right thumb
+od.ellipse((jx - 130, jy - 130, jx + 130, jy + 130), fill=(255, 255, 255, 45), outline=(255, 255, 255, 140), width=10)
+od.ellipse((jx - 10, jy - 95, jx + 90, jy + 5), fill=(255, 255, 255, 190))
+bx = 190
+od.ellipse((bx - 110, jy - 110, bx + 110, jy + 110), fill=(43, 35, 64, 255))
+od.ellipse((bx - 98, jy - 104, bx + 98, jy + 92), fill=(255, 170, 60, 255))
+od.ellipse((bx - 80, jy - 92, bx + 70, jy - 10), fill=(255, 205, 120, 255))
 big.alpha_composite(o)
-label(W * K - 190, jy, 'Строить', 40, sw=7)
+label(bx, jy - 6, 'Строить', 40, sw=7)
 # price on the locked island sign
-label(71 * K + 20, 170 * K, '50', 40, fill=(42, 29, 46), sw=0)
+label(67 * K + 20, 167 * K, '50', 40, fill=(42, 29, 46), sw=0)
 big.convert('RGB').save(sys.argv[1])
