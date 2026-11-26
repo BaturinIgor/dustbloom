@@ -255,7 +255,7 @@ struct Farm: Codable, Equatable {
         take(cropID, count)
         let earned = more(Effect.sell, crop.sellPrice * count, config: config)
         coins += earned
-        count("sell", count)
+        self.count("sell", count)
         return earned
     }
 

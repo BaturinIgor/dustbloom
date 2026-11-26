@@ -42,8 +42,8 @@ enum Quests {
         let (kind, id) = split(q.goal)
         switch kind {
         case "harvest": return "\(id ?? "dustwheat")_3"
-        case "plant": return "dustwheat_1"
-        case "till": return "dustwheat_0"
+        case "plant": return "dustwheat_2"
+        case "till": return "dustwheat_1"
         case "sell": return "ui_coin"
         case "order": return "icon_orders"
         case "clear": return "prop_dead_tree"
@@ -86,9 +86,9 @@ struct QuestTracker: View {
                             .lineLimit(1)
                             .minimumScaleFactor(0.7)
                         ProgressBar(value: Double(have) / Double(max(1, q.count)), height: 6)
-                            .frame(width: 120)
+                            .frame(width: 104)
                     }
-                    .frame(width: 128, alignment: .leading)
+                    .frame(width: 104, alignment: .leading)
                 } else {
                     Text(L.ru ? "Задания" : "Quests")
                         .font(.system(size: 13, weight: .heavy, design: .rounded))
@@ -129,7 +129,7 @@ struct ProgressBar: View {
     var body: some View {
         GeometryReader { g in
             ZStack(alignment: .leading) {
-                Capsule().fill(Color.black.opacity(0.45))
+                Capsule().fill(Color(uiColor: UIColor(hex: 0x8A6A4A)).opacity(0.55))
                 Capsule().fill(Color(uiColor: Palette.goldDeep))
                     .frame(width: max(height, g.size.width * min(1, max(0, value))))
                     .opacity(value > 0 ? 1 : 0)
