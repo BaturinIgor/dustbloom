@@ -958,8 +958,9 @@ final class BloomScene: SKScene {
             let d = hypot(node.position.x - heroPos.x, node.position.y - heroPos.y)
             if d < best { best = d; n = .building(b.kind) }
         }
-        if n == nil {
-            best = 26
+        // an island sign wins when it is closer than the building (or the building is a bit far)
+        best = n == nil ? 26 : min(26, best + 6)
+        do {
             for (i, s) in signs {
                 let d = hypot(s.position.x - heroPos.x, s.position.y - heroPos.y)
                 if d < best {
