@@ -172,6 +172,10 @@ def badge(dst, cx, cy, s):
 
 
 def hud(dst):
+    hud_parts(dst)
+
+
+def hud_parts(dst, tray=True, gain=(100, 312)):
     lf = life_sprites()
     from generate_sprites import coin
     coin_im = coin()
@@ -206,21 +210,22 @@ def hud(dst):
             badge(dst, 372, y + 2, b)
 
     # seed tray: slides up over the dock while an empty bed is selected
-    ty0 = 634
-    panel(dst, 12, ty0, 378, ty0 + 66, fill="#26163a", rim="#ffce50", hi="#34204c", r=14)
-    seeds = [(O.wheat(3), "2", "Пыльная пшеница"), (O.ember_pumpkin(3), "8", ""), (O.moon_turnip(2), "20", ""),
-             (O.frost_cabbage(), "35", ""), (O.sprout(), "60", "")]
-    for i, (sp, cost, _) in enumerate(seeds):
-        cx = 49 + i * 73
-        if i == 1:
-            panel(dst, cx - 30, ty0 + 7, cx + 30, ty0 + 59, fill="#7a3a18", rim="#ffce50", hi="#b8661e", r=10,
-                  shadow=False, alpha=255)
-        icon(dst, sp.crop((0, 12, 32, 44)), cx, ty0 + 27, 34)
-        icon(dst, coin_im, cx - 9, ty0 + 50, 10)
-        text(dst, cx - 2, ty0 + 50, cost, 11, anchor="lm", sw=1.5)
+    if tray:
+        ty0 = 634
+        panel(dst, 12, ty0, 378, ty0 + 66, fill="#26163a", rim="#ffce50", hi="#34204c", r=14)
+        seeds = [(O.wheat(3), "2", "Пыльная пшеница"), (O.ember_pumpkin(3), "8", ""), (O.moon_turnip(2), "20", ""),
+                 (O.frost_cabbage(), "35", ""), (O.sprout(), "60", "")]
+        for i, (sp, cost, _) in enumerate(seeds):
+            cx = 49 + i * 73
+            if i == 1:
+                panel(dst, cx - 30, ty0 + 7, cx + 30, ty0 + 59, fill="#7a3a18", rim="#ffce50", hi="#b8661e", r=10,
+                      shadow=False, alpha=255)
+            icon(dst, sp.crop((0, 12, 32, 44)), cx, ty0 + 27, 34)
+            icon(dst, coin_im, cx - 9, ty0 + 50, 10)
+            text(dst, cx - 2, ty0 + 50, cost, 11, anchor="lm", sw=1.5)
     # floating gain over the wheat
-    text(dst, 100, 312, "+22", 18, fill="#ffe590", anchor="mm")
-    icon(dst, coin_im, 122, 312, 14)
+    text(dst, gain[0], gain[1], "+22", 18, fill="#ffe590", anchor="mm")
+    icon(dst, coin_im, gain[0] + 22, gain[1], 14)
 
     # dock
     dock = 740
