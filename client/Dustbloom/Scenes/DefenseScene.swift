@@ -43,6 +43,8 @@ final class DefenseScene: SKScene {
     private var poofPool: [SKSpriteNode] = []
 
     private var walkCache: [String: SKAction] = [:]
+    /// Damage numbers are merged per enemy so a crowd of hits stays readable.
+    private var pendingDamage: [Int: (sum: Double, last: TimeInterval)] = [:]
     private lazy var sparkAnim = SKAction.animate(with: (0..<3).map { Textures.named("def_hit_\($0)") }, timePerFrame: 0.045)
     private lazy var poofAnim = SKAction.animate(with: (0..<4).map { Textures.named("def_poof_\($0)") }, timePerFrame: 0.07)
     private let flash = SKAction.sequence([
@@ -82,12 +84,17 @@ final class DefenseScene: SKScene {
         if built { fitCamera() }
     }
 
-    /// The farm sits at the bottom, the storm comes from the top; the field is
-    /// 560 points wide, whatever the phone.
+    /// The fence corner sits just above the middle of the screen, the storm
+    /// enters right under the top HUD, and the field is 440 points wide on
+    /// every phone, so sprites keep one size.
+    private var camScale: CGFloat { 440 / max(size.width, 1) }
+    private var fenceTop: CGPoint { world(grid.center(fx: 0, fy: 0)) }
+
     private func fitCamera() {
-        let s = 560 / max(size.width, 1)
-        cam.setScale(s)
-        cam.position = CGPoint(x: 0, y: farmOffset.y + size.height * s * 0.5 - 300)
+        let k = camScale
+        cam.setScale(k)
+        cam.position = CGPoint(x: 0, y: fenceTop.y + size.height * k * 0.02)
+        if !lanes.isEmpty { layoutLanes() }
     }
 
     private func world(_ p: CGPoint) -> CGPoint { CGPoint(x: p.x + farmOffset.x, y: p.y + farmOffset.y) }
@@ -185,28 +192,7 @@ final class DefenseScene: SKScene {
     // MARK: - lanes and squad
 
     private func buildLanes() {
-        let top = world(grid.center(fx: 0, fy: 0))
-        let leftEnd = world(grid.center(fx: 0, fy: 2.6))
-        let rightEnd = world(grid.center(fx: 2.6, fy: 0))
-        let yTop = top.y + 900
-        lanes = [
-            (CGPoint(x: -250, y: yTop - 40), CGPoint(x: -260, y: top.y + 380), leftEnd),
-            (CGPoint(x: 0, y: yTop), CGPoint(x: 30, y: top.y + 420), CGPoint(x: top.x, y: top.y + 6)),
-            (CGPoint(x: 250, y: yTop - 40), CGPoint(x: 260, y: top.y + 380), rightEnd),
-        ]
-        // faint trodden paths so the lanes read at a glance
-        for l in lanes {
-            for k in 0..<26 {
-                let t = Double(k) / 25
-                let p = lanePoint(l, t)
-                let d = SKSpriteNode(texture: Textures.named("def_shadow"))
-                d.size = CGSize(width: 30, height: 11)
-                d.alpha = 0.22
-                d.position = p
-                d.zPosition = -5
-                world.addChild(d)
-            }
-        }
+        layoutLanes()
         heroSpots = [
             world(grid.center(fx: 0.75, fy: 1.9)),  // left lane
             world(grid.center(fx: 1.9, fy: 0.75)),  // right lane
@@ -214,6 +200,20 @@ final class DefenseScene: SKScene {
             world(grid.center(fx: 1.55, fy: 1.55)),
         ]
         cropSpots = [[2, 2], [1, 3], [3, 1], [3, 3]].map { world(grid.center(x: $0[0], y: $0[1])) }
+    }
+
+    /// Lanes start just below the top HUD (20% from the top of the screen).
+    private func layoutLanes() {
+        let top = fenceTop
+        let leftEnd = world(grid.center(fx: 0, fy: 2.6))
+        let rightEnd = world(grid.center(fx: 2.6, fy: 0))
+        let yStart = cam.position.y + size.height * camScale * 0.30
+        let mid = (yStart + top.y) / 2
+        lanes = [
+            (CGPoint(x: -175, y: yStart - 20), CGPoint(x: -190, y: mid), leftEnd),
+            (CGPoint(x: 0, y: yStart), CGPoint(x: 24, y: mid + 20), CGPoint(x: top.x, y: top.y + 6)),
+            (CGPoint(x: 175, y: yStart - 20), CGPoint(x: 190, y: mid), rightEnd),
+        ]
     }
 
     private func lanePoint(_ l: (CGPoint, CGPoint, CGPoint), _ t: Double) -> CGPoint {
@@ -229,7 +229,7 @@ final class DefenseScene: SKScene {
         let q = lanePoint(l, min(1, t + 0.01))
         let dx = q.x - p.x, dy = q.y - p.y
         let len = max(0.001, hypot(dx, dy))
-        let spread = 26 * CGFloat(1 - t * 0.6)
+        let spread = 20 * CGFloat(1 - t * 0.6)
         return CGPoint(x: p.x - dy / len * CGFloat(e.jitter) * spread, y: p.y + dx / len * CGFloat(e.jitter) * spread)
     }
 
@@ -388,6 +388,10 @@ final class DefenseScene: SKScene {
         case let .waveStart(_, boss):
             for (_, n) in enemyNodes { recycle(n) }
             enemyNodes.removeAll()
+            pendingDamage.removeAll()
+            bossBar?.removeFromParent()
+            bossBar = nil
+            bossId = nil
             if boss { heavy.impactOccurred(intensity: 0.6) }
         case let .spawn(id):
             guard let en = game.battle.enemy(id: id) else { return }
@@ -415,7 +419,15 @@ final class DefenseScene: SKScene {
             run(.wait(forDuration: delay)) { [weak self] in
                 guard let self else { return }
                 n.run(self.flash)
-                self.number(amount, crit: crit, at: CGPoint(x: n.position.x, y: n.position.y + n.size.height * 0.8))
+                var p = self.pendingDamage[enemy] ?? (0, 0)
+                p.sum += amount
+                if crit || self.lastTime - p.last > 0.22 {
+                    let wide = n.size.width * 0.35
+                    self.number(p.sum, crit: crit, at: CGPoint(x: n.position.x + .random(in: -wide...wide),
+                                                               y: n.position.y + n.size.height * 0.85))
+                    p = (0, self.lastTime)
+                }
+                self.pendingDamage[enemy] = p
                 if crit { self.spark(at: CGPoint(x: n.position.x, y: n.position.y + n.size.height * 0.4), big: false) }
             }
         case let .death(enemy, coins, delay):
@@ -464,7 +476,14 @@ final class DefenseScene: SKScene {
         let s = shotPool.popLast() ?? makeSprite(z: 400)
         let tex = Textures.named(texture(for: projectile))
         s.texture = tex
-        s.size = CGSize(width: tex.size().width * px1 * 1.4, height: tex.size().height * px1 * 1.4)
+        let glowing = projectile != .arrow
+        let k: CGFloat = glowing ? px1 * 2.4 : px1 * 1.6
+        s.size = CGSize(width: tex.size().width * k, height: tex.size().height * k)
+        s.blendMode = glowing ? .add : .alpha
+        if glowing {
+            s.removeAction(forKey: "spin")
+            s.run(.repeatForever(.rotate(byAngle: .pi, duration: 0.25)), withKey: "spin")
+        }
         switch projectile {
         case .fluff: s.color = .white; s.colorBlendFactor = 0.9
         case .berry: s.color = UIColor(hex: 0xE0405A); s.colorBlendFactor = 0.7
@@ -505,7 +524,7 @@ final class DefenseScene: SKScene {
         l.text = BigNumber.format(v) + (crit ? "!" : "")
         l.fontColor = crit ? UIColor(hex: 0xFFD24A) : .white
         l.fontSize = crit ? 34 : 24
-        l.position = CGPoint(x: p.x + CGFloat.random(in: -12...12), y: p.y)
+        l.position = p
         l.alpha = 1
         l.setScale(crit ? 0.6 : 1)
         l.isHidden = false

@@ -169,13 +169,24 @@ def locust_queen(f):
 
 
 # ---------------------------------------------------------------- projectiles and fx
-def ember():
-    """Ember Pepper shot: a hot seed with a glow."""
-    im = new(9, 9)
-    glow(im, 4, 4, 4.5, "#ffae40", 0.7)
-    ball(im, 4, 4, 2.2, 2.2, "pumpkin", lo=0.5, hi=1.0) if "pumpkin" in P.RAMPS else rect(im, 3, 3, 5, 5, "#ff8a30")
-    put(im, 3, 3, "#fff4c0")
+def _orb(core, mid, edge):
+    im = new(11, 11)
+    for y in range(11):
+        for x in range(11):
+            d = math.hypot(x - 5, y - 5)
+            if d <= 2.0:
+                put(im, x, y, core)
+            elif d <= 3.6:
+                put(im, x, y, mid)
+            elif d <= 5.2:
+                put(im, x, y, edge, int(200 * (5.2 - d) / 1.6))
+    put(im, 4, 4, "#ffffff")
     return im
+
+
+def ember():
+    """Ember Pepper shot: a hot glowing seed (drawn additive in game)."""
+    return _orb("#fff2b0", "#ffa040", "#e05a20")
 
 
 def arrow():
@@ -193,13 +204,8 @@ def arrow():
 
 
 def frost():
-    """Frost bolt (Frost Sentinel, Frost Cabbage)."""
-    im = new(9, 9)
-    glow(im, 4, 4, 4.5, "#a8e8ff", 0.7)
-    for (x, y) in ((4, 1), (4, 7), (1, 4), (7, 4)):
-        line(im, 4, 4, x, y, "#d8f6ff")
-    put(im, 4, 4, "#ffffff")
-    return im
+    """Frost bolt: an icy orb (Frost Sentinel; tinted for crops)."""
+    return _orb("#ffffff", "#a8e8ff", "#4a9ad8")
 
 
 def hit(f):

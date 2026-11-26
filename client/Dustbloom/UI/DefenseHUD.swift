@@ -81,10 +81,11 @@ struct LevelBadge: View {
 /// Wooden pixel button with a squash on press.
 struct WoodButtonStyle: ButtonStyle {
     var enabled = true
+    var minHeight: CGFloat = 44
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .padding(.horizontal, 10)
-            .frame(minHeight: 44)
+            .frame(minHeight: minHeight)
             .background(
                 Image(enabled ? "ui_slot_selected" : "ui_slot")
                     .interpolation(.none)
@@ -119,9 +120,16 @@ struct DefenseHUD: View {
             Spacer()
             skillRow
             bottomPanel
+                .background(alignment: .bottom) {
+                    // dark wood under the panel down to the screen edge: no stray strip of ground
+                    Color(red: 0.17, green: 0.11, blue: 0.07)
+                        .frame(height: 60)
+                        .padding(.horizontal, -12)
+                        .ignoresSafeArea(edges: .bottom)
+                }
         }
         .padding(.horizontal, 12)
-        .padding(.bottom, 4)
+        .frame(maxWidth: .infinity)
         .animation(.spring(response: 0.3, dampingFraction: 0.75), value: game.lostWave)
     }
 
@@ -185,7 +193,7 @@ struct DefenseHUD: View {
     // MARK: skills
 
     private var skillRow: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 8) {
             ForEach(DefenseContent.heroes.indices, id: \.self) { i in
                 if game.progress.heroLevels[i] > 0 {
                     SkillButton(hero: i, charge: game.skillCharge[i]) {
@@ -194,8 +202,10 @@ struct DefenseHUD: View {
                 }
             }
             Spacer(minLength: 0)
-            toggle(on: game.autoSkills, label: "AUTO") { game.autoSkills.toggle() }
-            toggle(on: game.fast, label: "x2") { game.fast.toggle() }
+            VStack(spacing: 4) {
+                toggle(on: game.autoSkills, label: "AUTO") { game.autoSkills.toggle() }
+                toggle(on: game.fast, label: "x2") { game.fast.toggle() }
+            }
         }
     }
 
@@ -204,10 +214,10 @@ struct DefenseHUD: View {
             action()
             Sfx.play(.select, volume: 0.6)
         } label: {
-            OutlinedText(text: label, size: 14, color: on ? DText.gold : DText.cream)
-                .frame(width: 34)
+            OutlinedText(text: label, size: 13, color: on ? DText.gold : DText.cream)
+                .frame(width: 40, height: 22)
         }
-        .buttonStyle(WoodButtonStyle(enabled: on))
+        .buttonStyle(WoodButtonStyle(enabled: on, minHeight: 26))
     }
 
     // MARK: bottom
@@ -359,7 +369,7 @@ struct SkillButton: View {
                 }
                 Circle().strokeBorder(charge <= 0 ? DText.gold : Color.gray, lineWidth: 3)
             }
-            .frame(width: 56, height: 56)
+            .frame(width: 52, height: 52)
             .scaleEffect(charge <= 0 ? 1 : 0.94)
             .animation(.spring(response: 0.25, dampingFraction: 0.5), value: charge <= 0)
         }

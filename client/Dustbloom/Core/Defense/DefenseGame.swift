@@ -57,7 +57,7 @@ final class DefenseGame: ObservableObject {
             while balance.heroBaseDps * 4.5 * balance.levelMult(lvl) < balance.requiredDPS(w) * 0.9 { lvl += 1 }
             p.heroLevels = DefenseContent.heroes.map { w + 1 >= $0.unlockWave ? lvl : 0 }
             p.cropLevels = DefenseContent.crops.map { w + 1 >= $0.unlockWave ? lvl : 0 }
-            p.lastSeen = Date().addingTimeInterval(-3 * 3600)
+            p.lastSeen = Date()  // no offline popup over the demo fight
         }
         progress = p
         battle = Battle(balance: balance, wave: p.wave)
