@@ -202,8 +202,8 @@ final class DefenseScene: SKScene {
         heroSpots = [
             world(grid.center(fx: 0.75, fy: 1.9)),  // left lane
             world(grid.center(fx: 1.9, fy: 0.75)),  // right lane
-            world(grid.center(fx: 0.8, fy: 0.8)),   // centre
-            world(grid.center(fx: 1.55, fy: 1.55)),
+            world(grid.center(fx: 0.65, fy: 0.65)), // centre, right behind the fence corner
+            world(grid.center(fx: 2.7, fy: 1.7)),   // ranged, to the right so nobody hides anybody
         ]
         cropSpots = [[2, 2], [1, 3], [3, 1], [3, 3]].map { world(grid.center(x: $0[0], y: $0[1])) }
     }
@@ -229,7 +229,7 @@ final class DefenseScene: SKScene {
         func rnd() -> Double { rng.next() }
         let top = fenceTop
         let farmCenter = world(grid.center(fx: 3, fy: 3))
-        let yMax = (lanes.map { $0.0.y }.max() ?? top.y + 400) + 30
+        let yMax = (lanes.map { $0.0.y }.max() ?? top.y + 400) - 50  // keep clear of the top HUD
         let props: [(String, Bool)] = [
             ("def_bones", false), ("def_skull", false), ("def_wheel", false), ("def_shrub_0", false),
             ("def_shrub_1", false), ("prop_rock", true), ("prop_stones", true), ("prop_dead_tree", true),
@@ -248,7 +248,7 @@ final class DefenseScene: SKScene {
         var tries = 0
         while i < props.count * 2 && tries < 600 {
             tries += 1
-            let p = CGPoint(x: CGFloat(rnd() * 460 - 230), y: top.y + 30 + CGFloat(rnd()) * (yMax - top.y))
+            let p = CGPoint(x: CGFloat(rnd() * 360 - 180), y: top.y + 30 + CGFloat(rnd()) * (yMax - top.y))
             // keep off the lanes, off the farm and away from other props
             let farmDistance = abs(p.x - farmCenter.x) / 216 + abs(p.y - farmCenter.y) / 108
             if nearLane(p, 50) || farmDistance < 1.15 || placed.contains(where: { hypot($0.x - p.x, $0.y - p.y) < 70 }) { continue }
@@ -277,27 +277,6 @@ final class DefenseScene: SKScene {
             n.position = world(grid.center(fx: tile.0, fy: tile.1))
             n.zPosition = 100 - n.position.y * 0.01
             world.addChild(n)
-        }
-        // two dust devils drifting across the wasteland
-        for k in 0..<2 {
-            let d = SKSpriteNode(texture: Textures.smooth("def_cloud"))
-            d.size = CGSize(width: 70, height: 110)
-            d.color = UIColor(hex: 0xD8B880)
-            d.colorBlendFactor = 1
-            d.alpha = 0
-            d.zPosition = 280
-            world.addChild(d)
-            let y = top.y + 160 + CGFloat(k) * 180
-            let fromLeft = k == 0
-            d.run(.repeatForever(.sequence([
-                .wait(forDuration: 6 + Double(k) * 7),
-                .move(to: CGPoint(x: fromLeft ? -260 : 260, y: y), duration: 0),
-                .group([
-                    .move(to: CGPoint(x: fromLeft ? 260 : -260, y: y + 40), duration: 9),
-                    .sequence([.fadeAlpha(to: 0.35, duration: 1.5), .wait(forDuration: 6), .fadeOut(withDuration: 1.5)]),
-                    .repeat(.sequence([.scaleX(to: 0.8, y: 1.05, duration: 0.25), .scaleX(to: 1.1, y: 0.95, duration: 0.25)]), count: 18),
-                ]),
-            ])))
         }
     }
 
