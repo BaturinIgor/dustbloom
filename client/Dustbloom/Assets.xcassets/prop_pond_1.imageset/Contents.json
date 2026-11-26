@@ -2,7 +2,8 @@
   "images": [
     {
       "filename": "prop_pond_1.png",
-      "idiom": "universal"
+      "idiom": "universal",
+      "scale": "2x"
     }
   ],
   "info": {

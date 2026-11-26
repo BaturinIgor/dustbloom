@@ -888,13 +888,18 @@ def sparkle():
 
 
 # ------------------------------------------------------------------ output
-def save_imageset(name, im):
+def save_imageset(name, im, scale=1):
+    """scale=2 ships the image as @2x: SpriteKit and UIKit then size it in
+    points as half its pixels, so 32 px hd art replaces 16 px art 1:1."""
     d = os.path.join(ASSETS, name + ".imageset")
     os.makedirs(d, exist_ok=True)
     im.save(os.path.join(d, name + ".png"))
+    img = {"filename": name + ".png", "idiom": "universal"}
+    if scale != 1:
+        img["scale"] = "%dx" % scale
     with open(os.path.join(d, "Contents.json"), "w") as f:
         json.dump({
-            "images": [{"filename": name + ".png", "idiom": "universal"}],
+            "images": [img],
             "info": {"author": "xcode", "version": 1},
         }, f, indent=2)
 
@@ -992,6 +997,17 @@ def build_sprites():
         key = {"+": "plus"}.get(ch, ch)
         s["font_" + key] = glyph(ch, ("w0", "ink"), None)       # HUD: ink on parchment
         s["font_gold_" + key] = glyph(ch)                        # floating gains
+    from units_art import land_sprites, stage1_sprites  # needs this module's helpers
+    s.update(stage1_sprites())
+    s.update(land_sprites())
+    from crops_art import crop_sprites
+    s.update(crop_sprites())
+    from items_art import item_sprites
+    s.update(item_sprites())
+    from manor_art import manor_sprites
+    s.update(manor_sprites())
+    from buildings_art import building_sprites
+    s.update(building_sprites())
     return s
 
 
@@ -1001,7 +1017,7 @@ STRUCTURES = [
     # name, dx, dy (top-left tile), width, height in tiles
     ("prop_house", -1, -5, 3, 3),
     ("prop_windmill", 3, -5, 2, 3),
-    ("prop_pond", 4, 2, 3, 2),
+    ("prop_pond", 0, 4, 3, 2),
 ]
 DECOR = [
     ("prop_stones", 0, -2),
@@ -1235,6 +1251,15 @@ def render_preview(s, frames):
     return screen
 
 
+ARMY_NAMES = {"unit_" + k for k in ("straw_guard", "pumpkin_brute", "moon_witch", "crow_archer", "frost_sentinel",
+                                    "storm_shaman")} | {"enemy_" + k for k in (
+    "dust_rats", "rust_bandits", "scrap_golem", "thorn_wolves", "sand_wraiths", "locust_swarm", "iron_raiders",
+    "mire_hag", "dust_king")}
+INTRO_NAMES = {"intro_sky", "intro_sun", "intro_mesa", "intro_hills", "intro_field", "intro_stalk_0",
+               "intro_stalk_1", "intro_stalk_2", "intro_hero", "intro_hero_eyes", "intro_crow_0",
+               "intro_crow_1", "intro_rays"}
+
+
 def main():
     os.makedirs(ASSETS, exist_ok=True)
     with open(os.path.join(ASSETS, "Contents.json"), "w") as f:
@@ -1245,13 +1270,28 @@ def main():
     light, vig = light_textures()
     frames["fx_light"], frames["fx_vignette"] = light, vig
 
-    keep = set(s) | set(frames) | {"logo_wordmark"}
+    keep = set(s) | {"edge_fence_x", "edge_fence_y", "ui_power"} | {"avatar_%d" % i for i in range(12)} | ARMY_NAMES | set(frames) | {"logo_wordmark"} | INTRO_NAMES
     for d in os.listdir(ASSETS):
         if d.endswith(".imageset") and d[:-9] not in keep:
             for f in os.listdir(os.path.join(ASSETS, d)):
                 os.remove(os.path.join(ASSETS, d, f))
             os.rmdir(os.path.join(ASSETS, d))
+    # world sprites in the approved daytime style, 32 px per tile (art/hd/game.py)
+    from hd.game import hd_sprites
+    hd = hd_sprites(s)
     for name, im in s.items():
+        if name in hd:
+            save_imageset(name, hd[name], 2)
+        else:
+            save_imageset(name, im)
+    for name in set(hd) - set(s):  # new iso-only sprites
+        save_imageset(name, hd[name], 2)
+    from hd.avatars import sprites as avatar_sprites  # profile avatars and the power icon
+    avatars = avatar_sprites()
+    for name, im in avatars.items():
+        save_imageset(name, im)
+    from hd.army_art import sprites as army_sprites  # workshop and raid cards
+    for name, im in army_sprites().items():
         save_imageset(name, im)
     for name in ("ui_panel", "ui_slot", "ui_slot_selected"):
         # pre-scaled x3 so SwiftUI nine-slice cap insets are 12 pt
@@ -1265,6 +1305,14 @@ def main():
         save_imageset("logo_wordmark", Image.open(os.path.join(src, "wordmark.png")).convert("RGBA"))
     if os.path.exists(os.path.join(src, "app_icon_1024.png")):
         write_app_icon(os.path.join(src, "app_icon_1024.png"))
+
+    # splash layers in the icon's style (art/hd/intro.py)
+    from hd.intro import layers as intro_layers
+    pix, smooth = intro_layers()
+    for name, im in list(pix.items()) + list(smooth.items()):
+        save_imageset(name, im)
+    keep_intro = set(pix) | set(smooth)
+    assert keep_intro
 
     render_preview(s, frames).convert("RGB").save(os.path.join(ROOT, "art", "preview.png"))
 

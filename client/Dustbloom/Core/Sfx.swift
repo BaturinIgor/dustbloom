@@ -1,22 +1,24 @@
 import AVFoundation
 
-/// Plays the synthesized sound effects (audio/generate_sfx.py).
+/// Plays the sound effects built from CC0 Kenney packs (audio/build_sfx.py).
 /// Ambient session: respects the silent switch and mixes with the player's music.
 @MainActor
 enum Sfx {
     enum Sound: String, CaseIterable {
         case till = "sfx_till", plant = "sfx_plant", harvest = "sfx_harvest", coin = "sfx_coin"
         case levelUp = "sfx_levelup", error = "sfx_error", select = "sfx_select", sparkle = "sfx_sparkle"
+        case chest = "sfx_chest", speedup = "sfx_speedup", victory = "sfx_victory", defeat = "sfx_defeat"
     }
 
-    /// Overall level of all effects. The WAVs are mastered near full scale, which is
-    /// too loud next to music; 0.4 is about -8 dB. Later this becomes a settings slider.
-    static var master: Float = 0.4
+    /// Overall level of all effects. build_sfx.py already levels the WAVs to about
+    /// -20 dB RMS, so this only trims a little. Later this becomes a settings slider.
+    static var master: Float = 0.8
 
     /// Per-sound mix: sounds heard on every tap sit lower, rare rewards stand out.
     private static let mix: [Sound: Float] = [
-        .till: 0.6, .plant: 0.7, .select: 0.7, .error: 0.7,
-        .harvest: 0.85, .coin: 0.75, .sparkle: 0.8, .levelUp: 1.0,
+        .till: 0.8, .plant: 0.9, .select: 0.8, .error: 0.8,
+        .harvest: 1.0, .coin: 0.9, .sparkle: 0.9, .levelUp: 1.0,
+        .chest: 1.0, .speedup: 0.9, .victory: 1.0, .defeat: 0.9,
     ]
 
     private static var players: [Sound: [AVAudioPlayer]] = [:]
@@ -26,6 +28,9 @@ enum Sfx {
     static func prepare() {
         guard !ready else { return }
         ready = true
+        if UserDefaults.standard.object(forKey: "dustbloom.volume") != nil {
+            master = Float(UserDefaults.standard.double(forKey: "dustbloom.volume"))
+        }
         try? AVAudioSession.sharedInstance().setCategory(.ambient, options: [.mixWithOthers])
         for s in Sound.allCases {
             guard let url = Bundle.main.url(forResource: s.rawValue, withExtension: "wav") else { continue }

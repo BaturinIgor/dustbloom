@@ -1,0 +1,12 @@
+{
+  "images": [
+    {
+      "filename": "enemy_sand_wraiths.png",
+      "idiom": "universal"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  }
+}

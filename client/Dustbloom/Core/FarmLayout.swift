@@ -14,6 +14,15 @@ struct FarmLayout {
         var bringsLife: Bool
     }
 
+    /// Building footprints relative to the start patch: id, dx, dy, width, height.
+    static let buildingSpots: [(String, Int, Int, Int, Int)] = [
+        ("well", 4, -2, 1, 1),
+        ("workshop", 5, -3, 2, 2),   // right of the field on screen (iso: +x lower right, +y lower left)
+        ("forge", 6, 1, 2, 2),
+        ("order_board", -2, 3, 1, 1),
+        ("watchtower", -2, -4, 1, 1),
+    ]
+
     let width: Int
     let height: Int
     let pieces: [Piece]
@@ -28,11 +37,15 @@ struct FarmLayout {
         var p: [Piece] = [
             Piece(sprite: "prop_house", x: sx - 1, y: sy - 5, width: 3, height: 3, blocksTaps: true, bringsLife: true),
             Piece(sprite: "prop_windmill", x: sx + 3, y: sy - 5, width: 2, height: 3, blocksTaps: true, bringsLife: true),
-            Piece(sprite: "prop_pond", x: sx + 4, y: sy + 2, width: 3, height: 2, blocksTaps: true, bringsLife: true),
+            Piece(sprite: "prop_pond", x: sx, y: sy + 4, width: 3, height: 2, blocksTaps: true, bringsLife: true),
             Piece(sprite: "prop_stones", x: sx, y: sy - 2, width: 1, height: 1, blocksTaps: true, bringsLife: false),
             Piece(sprite: "prop_stones", x: sx, y: sy - 1, width: 1, height: 1, blocksTaps: true, bringsLife: false),
             Piece(sprite: "prop_scarecrow", x: sx - 1, y: sy + 1, width: 1, height: 2, blocksTaps: true, bringsLife: false),
         ]
+        // working buildings (sprite "bld:<id>"); the windmill is the mill
+        for (id, dx, dy, w, h) in FarmLayout.buildingSpots {
+            p.append(Piece(sprite: "bld:\(id)", x: sx + dx, y: sy + dy, width: w, height: h, blocksTaps: true, bringsLife: true))
+        }
         for fx in [sx - 2, sx - 1, sx + 1, sx + 2, sx + 3] {
             p.append(Piece(sprite: "prop_fence", x: fx, y: sy - 2, width: 1, height: 1, blocksTaps: true, bringsLife: false))
         }

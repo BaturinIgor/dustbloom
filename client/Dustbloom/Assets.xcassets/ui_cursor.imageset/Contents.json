@@ -2,7 +2,8 @@
   "images": [
     {
       "filename": "ui_cursor.png",
-      "idiom": "universal"
+      "idiom": "universal",
+      "scale": "2x"
     }
   ],
   "info": {

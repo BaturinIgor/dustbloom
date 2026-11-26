@@ -1,0 +1,13 @@
+{
+  "images": [
+    {
+      "filename": "prop_sale_sign.png",
+      "idiom": "universal",
+      "scale": "2x"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  }
+}

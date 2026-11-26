@@ -32,6 +32,8 @@ type Store interface {
 	// WithFarm runs fn on the player's farm under a lock and saves the result
 	// if fn returns nil.
 	WithFarm(token string, fn func(*game.Farm) error) error
+	// PlayerID returns the player id behind a token (for analytics).
+	PlayerID(token string) (string, error)
 }
 
 // Memory is a thread-safe in-memory store.
@@ -131,4 +133,15 @@ func (m *Memory) saveLocked() error {
 		return err
 	}
 	return os.Rename(tmp, m.path)
+}
+
+// PlayerID implements Store.
+func (m *Memory) PlayerID(token string) (string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	p, ok := m.byToken[token]
+	if !ok {
+		return "", ErrNoPlayer
+	}
+	return p.ID, nil
 }

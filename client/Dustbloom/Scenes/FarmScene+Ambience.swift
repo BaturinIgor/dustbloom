@@ -3,11 +3,17 @@ import SpriteKit
 /// Ambient life: chimney smoke, fireflies over the grass, dust drifting over
 /// the wasteland. Cheap sprite actions, capped so they never pile up.
 extension FarmScene {
+    /// Chimney top above the manor's front corner, in points, per tier
+    /// (art/hd/iso_objects.py MANOR); tier 0 is a hut without a chimney.
+    static let chimneyTop: [CGPoint?] = [
+        nil, CGPoint(x: 6, y: 141), CGPoint(x: 7, y: 151), CGPoint(x: 7, y: 158),
+        CGPoint(x: 7, y: 174), CGPoint(x: 8, y: 183),
+    ]
+
     func chimneySmoke(on house: SKSpriteNode) {
-        // chimney top in the 48x48 house sprite: x 35, y 0 (from the top)
-        let origin = CGPoint(x: (35 - 24) * px, y: 48 * px)
-        let puff = SKAction.run { [weak house] in
-            guard let house else { return }
+        let puff = SKAction.run { [weak self, weak house] in
+            guard let self, let house, Self.chimneyTop.indices.contains(self.manorShownTier),
+                  let origin = Self.chimneyTop[self.manorShownTier] else { return }
             let s = SKSpriteNode(texture: Textures.named("fx_smoke"), size: CGSize(width: 8 * 3, height: 8 * 3))
             s.position = origin
             s.zPosition = 0.002
@@ -27,14 +33,13 @@ extension FarmScene {
     }
 
     private func spawnAmbient(layout: FarmLayout) {
-        guard let store, world.children.filter({ $0.name == "ambient" }).count < 28, let cam = camera else { return }
+        guard let store, ambientCount < 28, let cam = camera else { return }
         let farm = store.farm
         // pick a random tile near what the camera sees
-        let half = size.width * cam.xScale / tileSize / 2 + 1
-        let cx = Int((cam.position.x / tileSize + CGFloat(farm.width) / 2).rounded())
-        let cy = Int((CGFloat(farm.height) / 2 - cam.position.y / tileSize).rounded())
+        let half = size.height * cam.yScale / tileH / 2 + 1
+        let (cx, cy) = grid(farm).tile(at: cam.position)
         let x = cx + Int.random(in: -Int(half)...Int(half))
-        let y = cy + Int.random(in: -Int(half * 2)...Int(half * 2))
+        let y = cy + Int.random(in: -Int(half)...Int(half))
         let p = position(x: x, y: y, farm: farm)
         let at = CGPoint(x: p.x + CGFloat.random(in: -20...20), y: p.y + CGFloat.random(in: -20...20))
 
@@ -60,10 +65,12 @@ extension FarmScene {
         node.zPosition = 80
         node.alpha = 0
         world.addChild(node)
+        ambientCount += 1
         node.run(.sequence([
             .fadeIn(withDuration: 0.6),
             .wait(forDuration: life - 1.2),
             .fadeOut(withDuration: 0.6),
+            .run { [weak self] in self?.ambientCount -= 1 },
             .removeFromParent(),
         ]), withKey: "life")
     }

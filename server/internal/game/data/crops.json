@@ -1,16 +1,54 @@
 {
-  "version": 1,
+  "version": 11,
   "farm": {
     "width": 16,
     "height": 16,
     "startCoins": 100,
-    "startTilled": { "x": 6, "y": 6, "width": 4, "height": 4 },
-    "tillCost": 5
+    "startTilled": {
+      "x": 6,
+      "y": 6,
+      "width": 4,
+      "height": 4
+    },
+    "tillCost": 5,
+    "plotSize": 4,
+    "startPlots": [
+      [
+        1,
+        0
+      ],
+      [
+        2,
+        0
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        2,
+        1
+      ],
+      [
+        1,
+        2
+      ],
+      [
+        2,
+        2
+      ]
+    ],
+    "plotBaseCost": 60,
+    "plotCostGrowth": 1.6,
+    "plotLevelStep": 2
   },
   "crops": [
     {
       "id": "dustwheat",
-      "name": { "en": "Dustwheat", "ru": "Пыльный колос" },
+      "name": {
+        "en": "Dustwheat",
+        "ru": "Пыльный колос"
+      },
       "growSeconds": 30,
       "seedCost": 2,
       "sellPrice": 5,
@@ -19,7 +57,10 @@
     },
     {
       "id": "emberpumpkin",
-      "name": { "en": "Ember Pumpkin", "ru": "Угольная тыква" },
+      "name": {
+        "en": "Ember Pumpkin",
+        "ru": "Угольная тыква"
+      },
       "growSeconds": 120,
       "seedCost": 8,
       "sellPrice": 22,
@@ -28,12 +69,3099 @@
     },
     {
       "id": "moonturnip",
-      "name": { "en": "Moon Turnip", "ru": "Лунная репа" },
+      "name": {
+        "en": "Moon Turnip",
+        "ru": "Лунная репа"
+      },
       "growSeconds": 300,
       "seedCost": 20,
       "sellPrice": 60,
       "xp": 10,
       "unlockLevel": 1
+    },
+    {
+      "id": "ashcarrot",
+      "name": {
+        "en": "Ash Carrot",
+        "ru": "Пепельная морковь"
+      },
+      "growSeconds": 60,
+      "seedCost": 4,
+      "sellPrice": 11,
+      "xp": 2,
+      "unlockLevel": 2
+    },
+    {
+      "id": "suncrown",
+      "name": {
+        "en": "Suncrown",
+        "ru": "Солнцевенец"
+      },
+      "growSeconds": 600,
+      "seedCost": 30,
+      "sellPrice": 85,
+      "xp": 14,
+      "unlockLevel": 3
+    },
+    {
+      "id": "bloodberry",
+      "name": {
+        "en": "Bloodberry",
+        "ru": "Кровяника"
+      },
+      "growSeconds": 900,
+      "seedCost": 40,
+      "sellPrice": 120,
+      "xp": 18,
+      "unlockLevel": 4
+    },
+    {
+      "id": "ironbean",
+      "name": {
+        "en": "Iron Bean",
+        "ru": "Железный боб"
+      },
+      "growSeconds": 1200,
+      "seedCost": 50,
+      "sellPrice": 150,
+      "xp": 22,
+      "unlockLevel": 5
+    },
+    {
+      "id": "frostcabbage",
+      "name": {
+        "en": "Frost Cabbage",
+        "ru": "Морозная капуста"
+      },
+      "growSeconds": 1800,
+      "seedCost": 70,
+      "sellPrice": 210,
+      "xp": 30,
+      "unlockLevel": 6
+    },
+    {
+      "id": "emberpepper",
+      "name": {
+        "en": "Ember Pepper",
+        "ru": "Угольный перец"
+      },
+      "growSeconds": 2700,
+      "seedCost": 90,
+      "sellPrice": 280,
+      "xp": 38,
+      "unlockLevel": 7
+    },
+    {
+      "id": "cottonpuff",
+      "name": {
+        "en": "Cottonpuff",
+        "ru": "Пушной хлопок"
+      },
+      "growSeconds": 3600,
+      "seedCost": 110,
+      "sellPrice": 350,
+      "xp": 45,
+      "unlockLevel": 8
+    },
+    {
+      "id": "glowmelon",
+      "name": {
+        "en": "Glowmelon",
+        "ru": "Светодыня"
+      },
+      "growSeconds": 7200,
+      "seedCost": 180,
+      "sellPrice": 600,
+      "xp": 70,
+      "unlockLevel": 9
+    },
+    {
+      "id": "stormcorn",
+      "name": {
+        "en": "Storm Corn",
+        "ru": "Грозовая кукуруза"
+      },
+      "growSeconds": 14400,
+      "seedCost": 300,
+      "sellPrice": 1050,
+      "xp": 120,
+      "unlockLevel": 10
     }
-  ]
+  ],
+  "army": {
+    "baseSlots": 3,
+    "slotsPerLevel": 1,
+    "maxSlots": 12,
+    "queueSize": 3
+  },
+  "scarecrows": [
+    {
+      "id": "straw_guard",
+      "name": {
+        "en": "Straw Guard",
+        "ru": "Соломенный страж"
+      },
+      "cost": {
+        "dustwheat": 5
+      },
+      "coins": 5,
+      "buildSeconds": 20,
+      "hp": 20,
+      "attack": 4,
+      "unlockLevel": 1
+    },
+    {
+      "id": "pumpkin_brute",
+      "name": {
+        "en": "Pumpkin Brute",
+        "ru": "Тыквенный громила"
+      },
+      "cost": {
+        "emberpumpkin": 3,
+        "dustwheat": 2
+      },
+      "coins": 15,
+      "buildSeconds": 60,
+      "hp": 45,
+      "attack": 7,
+      "unlockLevel": 1
+    },
+    {
+      "id": "moon_witch",
+      "name": {
+        "en": "Moon Witch",
+        "ru": "Лунная ведьма"
+      },
+      "cost": {
+        "moonturnip": 2,
+        "emberpumpkin": 1
+      },
+      "coins": 30,
+      "buildSeconds": 120,
+      "hp": 28,
+      "attack": 14,
+      "unlockLevel": 2
+    },
+    {
+      "id": "crow_archer",
+      "name": {
+        "en": "Crow Archer",
+        "ru": "Вороний лучник"
+      },
+      "cost": {
+        "suncrown": 1,
+        "ashcarrot": 3
+      },
+      "coins": 40,
+      "buildSeconds": 180,
+      "hp": 22,
+      "attack": 20,
+      "unlockLevel": 3
+    },
+    {
+      "id": "frost_sentinel",
+      "name": {
+        "en": "Frost Sentinel",
+        "ru": "Морозный часовой"
+      },
+      "cost": {
+        "frostcabbage": 1,
+        "ironbean": 1
+      },
+      "coins": 90,
+      "buildSeconds": 420,
+      "hp": 110,
+      "attack": 9,
+      "unlockLevel": 6
+    },
+    {
+      "id": "storm_shaman",
+      "name": {
+        "en": "Storm Shaman",
+        "ru": "Грозовой шаман"
+      },
+      "cost": {
+        "stormcorn": 1,
+        "glowmelon": 1
+      },
+      "coins": 250,
+      "buildSeconds": 900,
+      "hp": 60,
+      "attack": 45,
+      "unlockLevel": 10
+    }
+  ],
+  "raids": [
+    {
+      "id": "dust_rats",
+      "name": {
+        "en": "Dust Rat Nest",
+        "ru": "Гнездо пыльных крыс"
+      },
+      "enemies": [
+        {
+          "hp": 10,
+          "attack": 3
+        },
+        {
+          "hp": 10,
+          "attack": 3
+        },
+        {
+          "hp": 10,
+          "attack": 3
+        }
+      ],
+      "rewardCoins": 25,
+      "rewardXp": 3,
+      "cooldownSeconds": 120,
+      "unlockLevel": 1,
+      "drops": {
+        "speed_recruit_1m": 2
+      }
+    },
+    {
+      "id": "rust_bandits",
+      "name": {
+        "en": "Rust Bandit Camp",
+        "ru": "Лагерь ржавых бандитов"
+      },
+      "enemies": [
+        {
+          "hp": 22,
+          "attack": 5
+        },
+        {
+          "hp": 22,
+          "attack": 5
+        },
+        {
+          "hp": 30,
+          "attack": 7
+        },
+        {
+          "hp": 22,
+          "attack": 5
+        }
+      ],
+      "rewardCoins": 80,
+      "rewardXp": 10,
+      "cooldownSeconds": 600,
+      "unlockLevel": 2,
+      "drops": {
+        "speed_recruit_5m": 1,
+        "speed_any_5m": 1
+      }
+    },
+    {
+      "id": "scrap_golem",
+      "name": {
+        "en": "Scrap Golem",
+        "ru": "Свалочный голем"
+      },
+      "enemies": [
+        {
+          "hp": 260,
+          "attack": 22
+        }
+      ],
+      "rewardCoins": 200,
+      "rewardXp": 25,
+      "cooldownSeconds": 1800,
+      "unlockLevel": 3,
+      "drops": {
+        "chest_iron": 1
+      }
+    },
+    {
+      "id": "thorn_wolves",
+      "name": {
+        "en": "Thorn Wolf Den",
+        "ru": "Логово терновых волков"
+      },
+      "enemies": [
+        {
+          "hp": 34,
+          "attack": 8
+        },
+        {
+          "hp": 34,
+          "attack": 8
+        },
+        {
+          "hp": 34,
+          "attack": 8
+        },
+        {
+          "hp": 34,
+          "attack": 8
+        },
+        {
+          "hp": 34,
+          "attack": 8
+        }
+      ],
+      "rewardCoins": 160,
+      "rewardXp": 18,
+      "cooldownSeconds": 1200,
+      "unlockLevel": 4,
+      "drops": {
+        "speed_any_5m": 2
+      }
+    },
+    {
+      "id": "sand_wraiths",
+      "name": {
+        "en": "Sand Wraiths",
+        "ru": "Песчаные призраки"
+      },
+      "enemies": [
+        {
+          "hp": 55,
+          "attack": 12
+        },
+        {
+          "hp": 55,
+          "attack": 12
+        },
+        {
+          "hp": 55,
+          "attack": 12
+        }
+      ],
+      "rewardCoins": 260,
+      "rewardXp": 28,
+      "cooldownSeconds": 1800,
+      "unlockLevel": 5,
+      "drops": {
+        "chest_wood": 1
+      }
+    },
+    {
+      "id": "locust_swarm",
+      "name": {
+        "en": "Locust Swarm",
+        "ru": "Саранчовая туча"
+      },
+      "enemies": [
+        {
+          "hp": 25,
+          "attack": 6
+        },
+        {
+          "hp": 25,
+          "attack": 6
+        },
+        {
+          "hp": 25,
+          "attack": 6
+        },
+        {
+          "hp": 25,
+          "attack": 6
+        },
+        {
+          "hp": 25,
+          "attack": 6
+        },
+        {
+          "hp": 25,
+          "attack": 6
+        },
+        {
+          "hp": 25,
+          "attack": 6
+        },
+        {
+          "hp": 25,
+          "attack": 6
+        }
+      ],
+      "rewardCoins": 340,
+      "rewardXp": 36,
+      "cooldownSeconds": 2400,
+      "unlockLevel": 6,
+      "drops": {
+        "chest_wood": 1,
+        "speed_grow_15m": 1
+      }
+    },
+    {
+      "id": "iron_raiders",
+      "name": {
+        "en": "Iron Raider Fort",
+        "ru": "Форт железных налётчиков"
+      },
+      "enemies": [
+        {
+          "hp": 60,
+          "attack": 13
+        },
+        {
+          "hp": 60,
+          "attack": 13
+        },
+        {
+          "hp": 60,
+          "attack": 13
+        },
+        {
+          "hp": 60,
+          "attack": 13
+        },
+        {
+          "hp": 60,
+          "attack": 13
+        },
+        {
+          "hp": 60,
+          "attack": 13
+        }
+      ],
+      "rewardCoins": 420,
+      "rewardXp": 45,
+      "cooldownSeconds": 2700,
+      "unlockLevel": 7,
+      "drops": {
+        "chest_iron": 1
+      }
+    },
+    {
+      "id": "mire_hag",
+      "name": {
+        "en": "Mire Hag's Hut",
+        "ru": "Хижина болотной карги"
+      },
+      "enemies": [
+        {
+          "hp": 40,
+          "attack": 10
+        },
+        {
+          "hp": 40,
+          "attack": 10
+        },
+        {
+          "hp": 220,
+          "attack": 26
+        }
+      ],
+      "rewardCoins": 600,
+      "rewardXp": 60,
+      "cooldownSeconds": 3600,
+      "unlockLevel": 8,
+      "drops": {
+        "chest_iron": 1,
+        "speed_any_15m": 1
+      }
+    },
+    {
+      "id": "dust_king",
+      "name": {
+        "en": "The Dust King",
+        "ru": "Пыльный король"
+      },
+      "enemies": [
+        {
+          "hp": 90,
+          "attack": 16
+        },
+        {
+          "hp": 90,
+          "attack": 16
+        },
+        {
+          "hp": 90,
+          "attack": 16
+        },
+        {
+          "hp": 90,
+          "attack": 16
+        },
+        {
+          "hp": 900,
+          "attack": 40
+        }
+      ],
+      "rewardCoins": 1500,
+      "rewardXp": 150,
+      "cooldownSeconds": 14400,
+      "unlockLevel": 10,
+      "drops": {
+        "chest_gold": 1
+      }
+    }
+  ],
+  "orders": {
+    "slots": 3,
+    "rewardFactor": 1.6,
+    "xpPerCoin": 0.12,
+    "skipSeconds": 600,
+    "maxItemTypes": 2,
+    "baseCount": 4,
+    "countPerLevel": 0.15
+  },
+  "items": {
+    "speedupTargets": [
+      "any",
+      "build",
+      "recruit",
+      "grow"
+    ],
+    "speedupSeconds": [
+      60,
+      300,
+      900,
+      1800,
+      3600,
+      10800,
+      28800,
+      86400
+    ],
+    "chests": [
+      {
+        "id": "chest_wood",
+        "name": {
+          "en": "Wooden Chest",
+          "ru": "Деревянный сундук"
+        },
+        "rolls": 2,
+        "drops": [
+          {
+            "item": "speed_any_1m",
+            "min": 2,
+            "max": 4,
+            "weight": 30
+          },
+          {
+            "item": "speed_any_5m",
+            "min": 1,
+            "max": 2,
+            "weight": 25
+          },
+          {
+            "item": "speed_grow_15m",
+            "min": 1,
+            "max": 1,
+            "weight": 15
+          },
+          {
+            "item": "speed_recruit_15m",
+            "min": 1,
+            "max": 1,
+            "weight": 15
+          },
+          {
+            "item": "coins",
+            "min": 30,
+            "max": 80,
+            "weight": 15
+          },
+          {
+            "item": "speed_build_15m",
+            "min": 1,
+            "max": 1,
+            "weight": 15
+          }
+        ]
+      },
+      {
+        "id": "chest_iron",
+        "name": {
+          "en": "Iron Chest",
+          "ru": "Железный сундук"
+        },
+        "rolls": 3,
+        "drops": [
+          {
+            "item": "speed_any_15m",
+            "min": 1,
+            "max": 2,
+            "weight": 25
+          },
+          {
+            "item": "speed_any_30m",
+            "min": 1,
+            "max": 1,
+            "weight": 15
+          },
+          {
+            "item": "speed_grow_1h",
+            "min": 1,
+            "max": 1,
+            "weight": 15
+          },
+          {
+            "item": "speed_recruit_1h",
+            "min": 1,
+            "max": 1,
+            "weight": 15
+          },
+          {
+            "item": "coins",
+            "min": 150,
+            "max": 300,
+            "weight": 20
+          },
+          {
+            "item": "chest_wood",
+            "min": 1,
+            "max": 1,
+            "weight": 10
+          },
+          {
+            "item": "speed_build_1h",
+            "min": 1,
+            "max": 1,
+            "weight": 15
+          }
+        ]
+      },
+      {
+        "id": "chest_gold",
+        "name": {
+          "en": "Golden Chest",
+          "ru": "Золотой сундук"
+        },
+        "rolls": 4,
+        "drops": [
+          {
+            "item": "speed_any_1h",
+            "min": 1,
+            "max": 2,
+            "weight": 25
+          },
+          {
+            "item": "speed_any_3h",
+            "min": 1,
+            "max": 1,
+            "weight": 15
+          },
+          {
+            "item": "speed_recruit_3h",
+            "min": 1,
+            "max": 1,
+            "weight": 15
+          },
+          {
+            "item": "speed_grow_3h",
+            "min": 1,
+            "max": 1,
+            "weight": 15
+          },
+          {
+            "item": "coins",
+            "min": 500,
+            "max": 900,
+            "weight": 20
+          },
+          {
+            "item": "speed_any_8h",
+            "min": 1,
+            "max": 1,
+            "weight": 10
+          },
+          {
+            "item": "speed_build_3h",
+            "min": 1,
+            "max": 2,
+            "weight": 15
+          }
+        ]
+      }
+    ],
+    "startItems": {
+      "speed_any_5m": 3,
+      "speed_grow_15m": 2,
+      "speed_recruit_5m": 2,
+      "chest_wood": 1,
+      "speed_build_5m": 2
+    },
+    "levelUp": [
+      {
+        "every": 1,
+        "items": {
+          "chest_wood": 1
+        }
+      },
+      {
+        "every": 5,
+        "items": {
+          "chest_iron": 1
+        }
+      },
+      {
+        "every": 10,
+        "items": {
+          "chest_gold": 1
+        }
+      }
+    ]
+  },
+  "manor": {
+    "maxLevel": 30,
+    "armySlotEvery": 3,
+    "levels": [
+      {
+        "coins": 50,
+        "crops": {},
+        "seconds": 30,
+        "playerLevel": 1,
+        "power": 40
+      },
+      {
+        "coins": 70,
+        "crops": {
+          "dustwheat": 6
+        },
+        "seconds": 40,
+        "playerLevel": 2,
+        "power": 49
+      },
+      {
+        "coins": 100,
+        "crops": {
+          "dustwheat": 7
+        },
+        "seconds": 50,
+        "playerLevel": 3,
+        "power": 60
+      },
+      {
+        "coins": 130,
+        "crops": {
+          "dustwheat": 8,
+          "emberpumpkin": 4
+        },
+        "seconds": 70,
+        "playerLevel": 4,
+        "power": 73
+      },
+      {
+        "coins": 180,
+        "crops": {
+          "dustwheat": 8,
+          "emberpumpkin": 4
+        },
+        "seconds": 100,
+        "playerLevel": 5,
+        "power": 89
+      },
+      {
+        "coins": 250,
+        "crops": {
+          "dustwheat": 9,
+          "emberpumpkin": 5
+        },
+        "seconds": 130,
+        "playerLevel": 6,
+        "power": 108
+      },
+      {
+        "coins": 350,
+        "crops": {
+          "dustwheat": 11,
+          "emberpumpkin": 6,
+          "moonturnip": 4
+        },
+        "seconds": 180,
+        "playerLevel": 7,
+        "power": 132
+      },
+      {
+        "coins": 480,
+        "crops": {
+          "dustwheat": 12,
+          "emberpumpkin": 6,
+          "moonturnip": 4
+        },
+        "seconds": 240,
+        "playerLevel": 8,
+        "power": 161
+      },
+      {
+        "coins": 660,
+        "crops": {
+          "dustwheat": 13,
+          "emberpumpkin": 7,
+          "moonturnip": 5
+        },
+        "seconds": 330,
+        "playerLevel": 9,
+        "power": 196
+      },
+      {
+        "coins": 910,
+        "crops": {
+          "dustwheat": 15,
+          "emberpumpkin": 8,
+          "moonturnip": 6,
+          "ironbean": 4
+        },
+        "seconds": 440,
+        "playerLevel": 10,
+        "power": 239
+      },
+      {
+        "coins": 1250,
+        "crops": {
+          "dustwheat": 17,
+          "emberpumpkin": 9,
+          "moonturnip": 6,
+          "ironbean": 4
+        },
+        "seconds": 590,
+        "playerLevel": 11,
+        "power": 292
+      },
+      {
+        "coins": 1730,
+        "crops": {
+          "dustwheat": 19,
+          "emberpumpkin": 10,
+          "moonturnip": 7,
+          "ironbean": 5
+        },
+        "seconds": 800,
+        "playerLevel": 12,
+        "power": 356
+      },
+      {
+        "coins": 2390,
+        "crops": {
+          "dustwheat": 21,
+          "emberpumpkin": 11,
+          "moonturnip": 8,
+          "ironbean": 6
+        },
+        "seconds": 1080,
+        "playerLevel": 13,
+        "power": 435
+      },
+      {
+        "coins": 3290,
+        "crops": {
+          "emberpumpkin": 12,
+          "moonturnip": 9,
+          "ironbean": 6,
+          "frostcabbage": 4
+        },
+        "seconds": 1460,
+        "playerLevel": 14,
+        "power": 531
+      },
+      {
+        "coins": 4540,
+        "crops": {
+          "emberpumpkin": 14,
+          "moonturnip": 10,
+          "ironbean": 7,
+          "frostcabbage": 4
+        },
+        "seconds": 1960,
+        "playerLevel": 15,
+        "power": 647
+      },
+      {
+        "coins": 6270,
+        "crops": {
+          "moonturnip": 11,
+          "ironbean": 8,
+          "frostcabbage": 5
+        },
+        "seconds": 2650,
+        "playerLevel": 16,
+        "power": 790
+      },
+      {
+        "coins": 8650,
+        "crops": {
+          "moonturnip": 12,
+          "ironbean": 9,
+          "frostcabbage": 6
+        },
+        "seconds": 3570,
+        "playerLevel": 17,
+        "power": 963
+      },
+      {
+        "coins": 11940,
+        "crops": {
+          "moonturnip": 14,
+          "ironbean": 10,
+          "frostcabbage": 6,
+          "glowmelon": 3
+        },
+        "seconds": 4810,
+        "playerLevel": 18,
+        "power": 1175
+      },
+      {
+        "coins": 16470,
+        "crops": {
+          "ironbean": 11,
+          "frostcabbage": 7,
+          "glowmelon": 3
+        },
+        "seconds": 6480,
+        "playerLevel": 19,
+        "power": 1434
+      },
+      {
+        "coins": 22730,
+        "crops": {
+          "ironbean": 12,
+          "frostcabbage": 8,
+          "glowmelon": 4
+        },
+        "seconds": 8730,
+        "playerLevel": 20,
+        "power": 1749
+      },
+      {
+        "coins": 31370,
+        "crops": {
+          "ironbean": 14,
+          "frostcabbage": 9,
+          "glowmelon": 4
+        },
+        "seconds": 11770,
+        "playerLevel": 21,
+        "power": 2134
+      },
+      {
+        "coins": 43290,
+        "crops": {
+          "frostcabbage": 10,
+          "glowmelon": 5
+        },
+        "seconds": 15870,
+        "playerLevel": 22,
+        "power": 2604
+      },
+      {
+        "coins": 59750,
+        "crops": {
+          "frostcabbage": 11,
+          "glowmelon": 5,
+          "stormcorn": 3
+        },
+        "seconds": 21390,
+        "playerLevel": 23,
+        "power": 3177
+      },
+      {
+        "coins": 82450,
+        "crops": {
+          "frostcabbage": 12,
+          "glowmelon": 6,
+          "stormcorn": 3
+        },
+        "seconds": 28840,
+        "playerLevel": 24,
+        "power": 3876
+      },
+      {
+        "coins": 113780,
+        "crops": {
+          "frostcabbage": 14,
+          "glowmelon": 7,
+          "stormcorn": 4
+        },
+        "seconds": 38880,
+        "playerLevel": 25,
+        "power": 4728
+      },
+      {
+        "coins": 157020,
+        "crops": {
+          "glowmelon": 7,
+          "stormcorn": 4
+        },
+        "seconds": 52400,
+        "playerLevel": 26,
+        "power": 5768
+      },
+      {
+        "coins": 216680,
+        "crops": {
+          "glowmelon": 8,
+          "stormcorn": 5
+        },
+        "seconds": 70640,
+        "playerLevel": 27,
+        "power": 7037
+      },
+      {
+        "coins": 299020,
+        "crops": {
+          "glowmelon": 9,
+          "stormcorn": 5
+        },
+        "seconds": 95220,
+        "playerLevel": 28,
+        "power": 8586
+      },
+      {
+        "coins": 412650,
+        "crops": {
+          "glowmelon": 10,
+          "stormcorn": 6
+        },
+        "seconds": 128360,
+        "playerLevel": 29,
+        "power": 10475
+      }
+    ],
+    "startPower": 30
+  },
+  "buildings": {
+    "list": [
+      {
+        "id": "well",
+        "name": {
+          "ru": "Колодец",
+          "en": "Well"
+        },
+        "effect": "grow",
+        "perLevel": 1.5,
+        "cap": 45,
+        "unlockManor": 2,
+        "startLevel": 0,
+        "levels": [
+          {
+            "coins": 40,
+            "crops": {},
+            "seconds": 20,
+            "power": 8
+          },
+          {
+            "coins": 55,
+            "crops": {},
+            "seconds": 27,
+            "power": 10
+          },
+          {
+            "coins": 70,
+            "crops": {
+              "dustwheat": 2
+            },
+            "seconds": 35,
+            "power": 12
+          },
+          {
+            "coins": 90,
+            "crops": {
+              "dustwheat": 3
+            },
+            "seconds": 47,
+            "power": 14
+          },
+          {
+            "coins": 120,
+            "crops": {
+              "dustwheat": 4
+            },
+            "seconds": 63,
+            "power": 17
+          },
+          {
+            "coins": 160,
+            "crops": {
+              "emberpumpkin": 2
+            },
+            "seconds": 83,
+            "power": 20
+          },
+          {
+            "coins": 210,
+            "crops": {
+              "emberpumpkin": 2
+            },
+            "seconds": 111,
+            "power": 24
+          },
+          {
+            "coins": 280,
+            "crops": {
+              "emberpumpkin": 2
+            },
+            "seconds": 147,
+            "power": 29
+          },
+          {
+            "coins": 370,
+            "crops": {
+              "ashcarrot": 5
+            },
+            "seconds": 196,
+            "power": 34
+          },
+          {
+            "coins": 485,
+            "crops": {
+              "ashcarrot": 7,
+              "emberpumpkin": 2
+            },
+            "seconds": 260,
+            "power": 41
+          },
+          {
+            "coins": 640,
+            "crops": {
+              "ashcarrot": 9,
+              "emberpumpkin": 2
+            },
+            "seconds": 346,
+            "power": 50
+          },
+          {
+            "coins": 850,
+            "crops": {
+              "moonturnip": 2,
+              "ashcarrot": 6
+            },
+            "seconds": 461,
+            "power": 59
+          },
+          {
+            "coins": 1120,
+            "crops": {
+              "moonturnip": 3,
+              "ashcarrot": 8
+            },
+            "seconds": 613,
+            "power": 71
+          },
+          {
+            "coins": 1475,
+            "crops": {
+              "moonturnip": 4,
+              "ashcarrot": 11
+            },
+            "seconds": 815,
+            "power": 86
+          },
+          {
+            "coins": 1950,
+            "crops": {
+              "ironbean": 2,
+              "moonturnip": 3
+            },
+            "seconds": 1084,
+            "power": 103
+          },
+          {
+            "coins": 2575,
+            "crops": {
+              "ironbean": 3,
+              "moonturnip": 3
+            },
+            "seconds": 1441,
+            "power": 123
+          },
+          {
+            "coins": 3400,
+            "crops": {
+              "ironbean": 3,
+              "moonturnip": 5
+            },
+            "seconds": 1917,
+            "power": 148
+          },
+          {
+            "coins": 4485,
+            "crops": {
+              "frostcabbage": 3,
+              "ironbean": 2
+            },
+            "seconds": 2550,
+            "power": 177
+          },
+          {
+            "coins": 5920,
+            "crops": {
+              "frostcabbage": 4,
+              "ironbean": 3
+            },
+            "seconds": 3391,
+            "power": 213
+          },
+          {
+            "coins": 7815,
+            "crops": {
+              "frostcabbage": 6,
+              "ironbean": 4
+            },
+            "seconds": 4510,
+            "power": 256
+          },
+          {
+            "coins": 10315,
+            "crops": {
+              "emberpepper": 6,
+              "frostcabbage": 4
+            },
+            "seconds": 5999,
+            "power": 307
+          },
+          {
+            "coins": 13620,
+            "crops": {
+              "emberpepper": 7,
+              "frostcabbage": 5
+            },
+            "seconds": 7978,
+            "power": 368
+          },
+          {
+            "coins": 17975,
+            "crops": {
+              "emberpepper": 10,
+              "frostcabbage": 7
+            },
+            "seconds": 10611,
+            "power": 442
+          },
+          {
+            "coins": 23730,
+            "crops": {
+              "glowmelon": 6,
+              "emberpepper": 7
+            },
+            "seconds": 14113,
+            "power": 530
+          },
+          {
+            "coins": 31320,
+            "crops": {
+              "glowmelon": 8,
+              "emberpepper": 9
+            },
+            "seconds": 18770,
+            "power": 636
+          },
+          {
+            "coins": 41345,
+            "crops": {
+              "glowmelon": 10,
+              "emberpepper": 12
+            },
+            "seconds": 24964,
+            "power": 763
+          },
+          {
+            "coins": 54575,
+            "crops": {
+              "stormcorn": 6,
+              "glowmelon": 7
+            },
+            "seconds": 33203,
+            "power": 916
+          },
+          {
+            "coins": 72035,
+            "crops": {
+              "stormcorn": 6,
+              "glowmelon": 10
+            },
+            "seconds": 44160,
+            "power": 1099
+          },
+          {
+            "coins": 95090,
+            "crops": {
+              "stormcorn": 6,
+              "glowmelon": 12
+            },
+            "seconds": 58732,
+            "power": 1319
+          },
+          {
+            "coins": 125515,
+            "crops": {
+              "stormcorn": 6,
+              "glowmelon": 12
+            },
+            "seconds": 78114,
+            "power": 1583
+          }
+        ]
+      },
+      {
+        "id": "mill",
+        "name": {
+          "ru": "Мельница",
+          "en": "Mill"
+        },
+        "effect": "sell",
+        "perLevel": 2,
+        "cap": 60,
+        "unlockManor": 1,
+        "startLevel": 1,
+        "levels": [
+          {
+            "coins": 60,
+            "crops": {},
+            "seconds": 25,
+            "power": 10
+          },
+          {
+            "coins": 80,
+            "crops": {},
+            "seconds": 33,
+            "power": 12
+          },
+          {
+            "coins": 105,
+            "crops": {
+              "dustwheat": 3
+            },
+            "seconds": 44,
+            "power": 14
+          },
+          {
+            "coins": 140,
+            "crops": {
+              "dustwheat": 4
+            },
+            "seconds": 59,
+            "power": 17
+          },
+          {
+            "coins": 180,
+            "crops": {
+              "dustwheat": 5
+            },
+            "seconds": 78,
+            "power": 21
+          },
+          {
+            "coins": 240,
+            "crops": {
+              "emberpumpkin": 2
+            },
+            "seconds": 104,
+            "power": 25
+          },
+          {
+            "coins": 315,
+            "crops": {
+              "emberpumpkin": 2
+            },
+            "seconds": 138,
+            "power": 30
+          },
+          {
+            "coins": 420,
+            "crops": {
+              "emberpumpkin": 3
+            },
+            "seconds": 184,
+            "power": 36
+          },
+          {
+            "coins": 555,
+            "crops": {
+              "ashcarrot": 8
+            },
+            "seconds": 245,
+            "power": 43
+          },
+          {
+            "coins": 730,
+            "crops": {
+              "ashcarrot": 10,
+              "emberpumpkin": 3
+            },
+            "seconds": 326,
+            "power": 52
+          },
+          {
+            "coins": 965,
+            "crops": {
+              "ashcarrot": 13,
+              "emberpumpkin": 4
+            },
+            "seconds": 433,
+            "power": 62
+          },
+          {
+            "coins": 1270,
+            "crops": {
+              "moonturnip": 3,
+              "ashcarrot": 9
+            },
+            "seconds": 576,
+            "power": 74
+          },
+          {
+            "coins": 1680,
+            "crops": {
+              "moonturnip": 4,
+              "ashcarrot": 12
+            },
+            "seconds": 766,
+            "power": 89
+          },
+          {
+            "coins": 2215,
+            "crops": {
+              "moonturnip": 6,
+              "ashcarrot": 16
+            },
+            "seconds": 1019,
+            "power": 107
+          },
+          {
+            "coins": 2925,
+            "crops": {
+              "ironbean": 3,
+              "moonturnip": 4
+            },
+            "seconds": 1355,
+            "power": 128
+          },
+          {
+            "coins": 3860,
+            "crops": {
+              "ironbean": 4,
+              "moonturnip": 5
+            },
+            "seconds": 1802,
+            "power": 154
+          },
+          {
+            "coins": 5095,
+            "crops": {
+              "ironbean": 5,
+              "moonturnip": 7
+            },
+            "seconds": 2396,
+            "power": 185
+          },
+          {
+            "coins": 6730,
+            "crops": {
+              "frostcabbage": 5,
+              "ironbean": 4
+            },
+            "seconds": 3187,
+            "power": 222
+          },
+          {
+            "coins": 8880,
+            "crops": {
+              "frostcabbage": 6,
+              "ironbean": 5
+            },
+            "seconds": 4239,
+            "power": 266
+          },
+          {
+            "coins": 11725,
+            "crops": {
+              "frostcabbage": 8,
+              "ironbean": 6
+            },
+            "seconds": 5638,
+            "power": 319
+          },
+          {
+            "coins": 15475,
+            "crops": {
+              "emberpepper": 8,
+              "frostcabbage": 6
+            },
+            "seconds": 7498,
+            "power": 383
+          },
+          {
+            "coins": 20425,
+            "crops": {
+              "emberpepper": 11,
+              "frostcabbage": 8
+            },
+            "seconds": 9973,
+            "power": 460
+          },
+          {
+            "coins": 26965,
+            "crops": {
+              "emberpepper": 14,
+              "frostcabbage": 10
+            },
+            "seconds": 13264,
+            "power": 552
+          },
+          {
+            "coins": 35590,
+            "crops": {
+              "glowmelon": 9,
+              "emberpepper": 10
+            },
+            "seconds": 17641,
+            "power": 662
+          },
+          {
+            "coins": 46980,
+            "crops": {
+              "glowmelon": 12,
+              "emberpepper": 13
+            },
+            "seconds": 23463,
+            "power": 795
+          },
+          {
+            "coins": 62015,
+            "crops": {
+              "glowmelon": 12,
+              "emberpepper": 18
+            },
+            "seconds": 31205,
+            "power": 954
+          },
+          {
+            "coins": 81860,
+            "crops": {
+              "stormcorn": 6,
+              "glowmelon": 11
+            },
+            "seconds": 41503,
+            "power": 1145
+          },
+          {
+            "coins": 108055,
+            "crops": {
+              "stormcorn": 6,
+              "glowmelon": 12
+            },
+            "seconds": 55199,
+            "power": 1374
+          },
+          {
+            "coins": 142635,
+            "crops": {
+              "stormcorn": 6,
+              "glowmelon": 12
+            },
+            "seconds": 73415,
+            "power": 1648
+          },
+          {
+            "coins": 188275,
+            "crops": {
+              "stormcorn": 6,
+              "glowmelon": 12
+            },
+            "seconds": 97642,
+            "power": 1978
+          }
+        ]
+      },
+      {
+        "id": "workshop",
+        "name": {
+          "ru": "Мастерская",
+          "en": "Workshop"
+        },
+        "effect": "build_time",
+        "perLevel": 2,
+        "cap": 50,
+        "unlockManor": 1,
+        "startLevel": 1,
+        "levels": [
+          {
+            "coins": 50,
+            "crops": {},
+            "seconds": 25,
+            "power": 12
+          },
+          {
+            "coins": 65,
+            "crops": {},
+            "seconds": 33,
+            "power": 14
+          },
+          {
+            "coins": 85,
+            "crops": {
+              "dustwheat": 3
+            },
+            "seconds": 44,
+            "power": 17
+          },
+          {
+            "coins": 115,
+            "crops": {
+              "dustwheat": 3
+            },
+            "seconds": 59,
+            "power": 21
+          },
+          {
+            "coins": 150,
+            "crops": {
+              "dustwheat": 4
+            },
+            "seconds": 78,
+            "power": 25
+          },
+          {
+            "coins": 200,
+            "crops": {
+              "emberpumpkin": 2
+            },
+            "seconds": 104,
+            "power": 30
+          },
+          {
+            "coins": 265,
+            "crops": {
+              "emberpumpkin": 2
+            },
+            "seconds": 138,
+            "power": 36
+          },
+          {
+            "coins": 350,
+            "crops": {
+              "emberpumpkin": 2
+            },
+            "seconds": 184,
+            "power": 43
+          },
+          {
+            "coins": 460,
+            "crops": {
+              "ashcarrot": 6
+            },
+            "seconds": 245,
+            "power": 52
+          },
+          {
+            "coins": 610,
+            "crops": {
+              "ashcarrot": 8,
+              "emberpumpkin": 2
+            },
+            "seconds": 326,
+            "power": 62
+          },
+          {
+            "coins": 805,
+            "crops": {
+              "ashcarrot": 11,
+              "emberpumpkin": 3
+            },
+            "seconds": 433,
+            "power": 74
+          },
+          {
+            "coins": 1060,
+            "crops": {
+              "moonturnip": 3,
+              "ashcarrot": 8
+            },
+            "seconds": 576,
+            "power": 89
+          },
+          {
+            "coins": 1400,
+            "crops": {
+              "moonturnip": 4,
+              "ashcarrot": 10
+            },
+            "seconds": 766,
+            "power": 107
+          },
+          {
+            "coins": 1845,
+            "crops": {
+              "moonturnip": 5,
+              "ashcarrot": 13
+            },
+            "seconds": 1019,
+            "power": 128
+          },
+          {
+            "coins": 2440,
+            "crops": {
+              "ironbean": 2,
+              "moonturnip": 3
+            },
+            "seconds": 1355,
+            "power": 154
+          },
+          {
+            "coins": 3220,
+            "crops": {
+              "ironbean": 3,
+              "moonturnip": 4
+            },
+            "seconds": 1802,
+            "power": 185
+          },
+          {
+            "coins": 4250,
+            "crops": {
+              "ironbean": 4,
+              "moonturnip": 6
+            },
+            "seconds": 2396,
+            "power": 222
+          },
+          {
+            "coins": 5605,
+            "crops": {
+              "frostcabbage": 4,
+              "ironbean": 3
+            },
+            "seconds": 3187,
+            "power": 266
+          },
+          {
+            "coins": 7400,
+            "crops": {
+              "frostcabbage": 5,
+              "ironbean": 4
+            },
+            "seconds": 4239,
+            "power": 319
+          },
+          {
+            "coins": 9770,
+            "crops": {
+              "frostcabbage": 7,
+              "ironbean": 5
+            },
+            "seconds": 5638,
+            "power": 383
+          },
+          {
+            "coins": 12895,
+            "crops": {
+              "emberpepper": 7,
+              "frostcabbage": 5
+            },
+            "seconds": 7498,
+            "power": 460
+          },
+          {
+            "coins": 17020,
+            "crops": {
+              "emberpepper": 9,
+              "frostcabbage": 6
+            },
+            "seconds": 9973,
+            "power": 552
+          },
+          {
+            "coins": 22470,
+            "crops": {
+              "emberpepper": 12,
+              "frostcabbage": 9
+            },
+            "seconds": 13264,
+            "power": 662
+          },
+          {
+            "coins": 29660,
+            "crops": {
+              "glowmelon": 7,
+              "emberpepper": 8
+            },
+            "seconds": 17641,
+            "power": 795
+          },
+          {
+            "coins": 39150,
+            "crops": {
+              "glowmelon": 10,
+              "emberpepper": 11
+            },
+            "seconds": 23463,
+            "power": 954
+          },
+          {
+            "coins": 51680,
+            "crops": {
+              "glowmelon": 12,
+              "emberpepper": 15
+            },
+            "seconds": 31205,
+            "power": 1145
+          },
+          {
+            "coins": 68215,
+            "crops": {
+              "stormcorn": 6,
+              "glowmelon": 9
+            },
+            "seconds": 41503,
+            "power": 1374
+          },
+          {
+            "coins": 90045,
+            "crops": {
+              "stormcorn": 6,
+              "glowmelon": 12
+            },
+            "seconds": 55199,
+            "power": 1648
+          },
+          {
+            "coins": 118860,
+            "crops": {
+              "stormcorn": 6,
+              "glowmelon": 12
+            },
+            "seconds": 73415,
+            "power": 1978
+          },
+          {
+            "coins": 156895,
+            "crops": {
+              "stormcorn": 6,
+              "glowmelon": 12
+            },
+            "seconds": 97642,
+            "power": 2374
+          }
+        ]
+      },
+      {
+        "id": "order_board",
+        "name": {
+          "ru": "Доска заказов",
+          "en": "Order board"
+        },
+        "effect": "order_reward",
+        "perLevel": 3,
+        "cap": 90,
+        "unlockManor": 1,
+        "startLevel": 1,
+        "levels": [
+          {
+            "coins": 45,
+            "crops": {},
+            "seconds": 20,
+            "power": 8
+          },
+          {
+            "coins": 60,
+            "crops": {},
+            "seconds": 27,
+            "power": 10
+          },
+          {
+            "coins": 80,
+            "crops": {
+              "dustwheat": 2
+            },
+            "seconds": 35,
+            "power": 12
+          },
+          {
+            "coins": 105,
+            "crops": {
+              "dustwheat": 3
+            },
+            "seconds": 47,
+            "power": 14
+          },
+          {
+            "coins": 135,
+            "crops": {
+              "dustwheat": 4
+            },
+            "seconds": 63,
+            "power": 17
+          },
+          {
+            "coins": 180,
+            "crops": {
+              "emberpumpkin": 2
+            },
+            "seconds": 83,
+            "power": 20
+          },
+          {
+            "coins": 240,
+            "crops": {
+              "emberpumpkin": 2
+            },
+            "seconds": 111,
+            "power": 24
+          },
+          {
+            "coins": 315,
+            "crops": {
+              "emberpumpkin": 2
+            },
+            "seconds": 147,
+            "power": 29
+          },
+          {
+            "coins": 415,
+            "crops": {
+              "ashcarrot": 6
+            },
+            "seconds": 196,
+            "power": 34
+          },
+          {
+            "coins": 545,
+            "crops": {
+              "ashcarrot": 7,
+              "emberpumpkin": 2
+            },
+            "seconds": 260,
+            "power": 41
+          },
+          {
+            "coins": 725,
+            "crops": {
+              "ashcarrot": 10,
+              "emberpumpkin": 3
+            },
+            "seconds": 346,
+            "power": 50
+          },
+          {
+            "coins": 955,
+            "crops": {
+              "moonturnip": 2,
+              "ashcarrot": 7
+            },
+            "seconds": 461,
+            "power": 59
+          },
+          {
+            "coins": 1260,
+            "crops": {
+              "moonturnip": 3,
+              "ashcarrot": 9
+            },
+            "seconds": 613,
+            "power": 71
+          },
+          {
+            "coins": 1660,
+            "crops": {
+              "moonturnip": 4,
+              "ashcarrot": 12
+            },
+            "seconds": 815,
+            "power": 86
+          },
+          {
+            "coins": 2195,
+            "crops": {
+              "ironbean": 2,
+              "moonturnip": 3
+            },
+            "seconds": 1084,
+            "power": 103
+          },
+          {
+            "coins": 2895,
+            "crops": {
+              "ironbean": 3,
+              "moonturnip": 4
+            },
+            "seconds": 1441,
+            "power": 123
+          },
+          {
+            "coins": 3825,
+            "crops": {
+              "ironbean": 4,
+              "moonturnip": 5
+            },
+            "seconds": 1917,
+            "power": 148
+          },
+          {
+            "coins": 5045,
+            "crops": {
+              "frostcabbage": 4,
+              "ironbean": 3
+            },
+            "seconds": 2550,
+            "power": 177
+          },
+          {
+            "coins": 6660,
+            "crops": {
+              "frostcabbage": 5,
+              "ironbean": 4
+            },
+            "seconds": 3391,
+            "power": 213
+          },
+          {
+            "coins": 8795,
+            "crops": {
+              "frostcabbage": 6,
+              "ironbean": 5
+            },
+            "seconds": 4510,
+            "power": 256
+          },
+          {
+            "coins": 11605,
+            "crops": {
+              "emberpepper": 6,
+              "frostcabbage": 4
+            },
+            "seconds": 5999,
+            "power": 307
+          },
+          {
+            "coins": 15320,
+            "crops": {
+              "emberpepper": 8,
+              "frostcabbage": 6
+            },
+            "seconds": 7978,
+            "power": 368
+          },
+          {
+            "coins": 20225,
+            "crops": {
+              "emberpepper": 11,
+              "frostcabbage": 8
+            },
+            "seconds": 10611,
+            "power": 442
+          },
+          {
+            "coins": 26695,
+            "crops": {
+              "glowmelon": 7,
+              "emberpepper": 8
+            },
+            "seconds": 14113,
+            "power": 530
+          },
+          {
+            "coins": 35235,
+            "crops": {
+              "glowmelon": 9,
+              "emberpepper": 10
+            },
+            "seconds": 18770,
+            "power": 636
+          },
+          {
+            "coins": 46510,
+            "crops": {
+              "glowmelon": 12,
+              "emberpepper": 13
+            },
+            "seconds": 24964,
+            "power": 763
+          },
+          {
+            "coins": 61395,
+            "crops": {
+              "stormcorn": 6,
+              "glowmelon": 8
+            },
+            "seconds": 33203,
+            "power": 916
+          },
+          {
+            "coins": 81040,
+            "crops": {
+              "stormcorn": 6,
+              "glowmelon": 11
+            },
+            "seconds": 44160,
+            "power": 1099
+          },
+          {
+            "coins": 106975,
+            "crops": {
+              "stormcorn": 6,
+              "glowmelon": 12
+            },
+            "seconds": 58732,
+            "power": 1319
+          },
+          {
+            "coins": 141205,
+            "crops": {
+              "stormcorn": 6,
+              "glowmelon": 12
+            },
+            "seconds": 78114,
+            "power": 1583
+          }
+        ]
+      },
+      {
+        "id": "forge",
+        "name": {
+          "ru": "Кузница",
+          "en": "Forge"
+        },
+        "effect": "army_power",
+        "perLevel": 2,
+        "cap": 60,
+        "unlockManor": 4,
+        "startLevel": 0,
+        "levels": [
+          {
+            "coins": 120,
+            "crops": {},
+            "seconds": 40,
+            "power": 20
+          },
+          {
+            "coins": 160,
+            "crops": {},
+            "seconds": 53,
+            "power": 24
+          },
+          {
+            "coins": 210,
+            "crops": {
+              "dustwheat": 6
+            },
+            "seconds": 70,
+            "power": 29
+          },
+          {
+            "coins": 275,
+            "crops": {
+              "dustwheat": 8
+            },
+            "seconds": 92,
+            "power": 35
+          },
+          {
+            "coins": 365,
+            "crops": {
+              "dustwheat": 11
+            },
+            "seconds": 121,
+            "power": 41
+          },
+          {
+            "coins": 480,
+            "crops": {
+              "emberpumpkin": 3
+            },
+            "seconds": 160,
+            "power": 50
+          },
+          {
+            "coins": 635,
+            "crops": {
+              "emberpumpkin": 4
+            },
+            "seconds": 212,
+            "power": 60
+          },
+          {
+            "coins": 840,
+            "crops": {
+              "emberpumpkin": 6
+            },
+            "seconds": 279,
+            "power": 72
+          },
+          {
+            "coins": 1105,
+            "crops": {
+              "ashcarrot": 15
+            },
+            "seconds": 369,
+            "power": 86
+          },
+          {
+            "coins": 1460,
+            "crops": {
+              "ashcarrot": 20,
+              "emberpumpkin": 5
+            },
+            "seconds": 487,
+            "power": 103
+          },
+          {
+            "coins": 1925,
+            "crops": {
+              "ashcarrot": 26,
+              "emberpumpkin": 7
+            },
+            "seconds": 642,
+            "power": 124
+          },
+          {
+            "coins": 2545,
+            "crops": {
+              "moonturnip": 6,
+              "ashcarrot": 19
+            },
+            "seconds": 848,
+            "power": 149
+          },
+          {
+            "coins": 3360,
+            "crops": {
+              "moonturnip": 8,
+              "ashcarrot": 24
+            },
+            "seconds": 1119,
+            "power": 178
+          },
+          {
+            "coins": 4430,
+            "crops": {
+              "moonturnip": 11,
+              "ashcarrot": 32
+            },
+            "seconds": 1477,
+            "power": 214
+          },
+          {
+            "coins": 5850,
+            "crops": {
+              "ironbean": 6,
+              "moonturnip": 8
+            },
+            "seconds": 1950,
+            "power": 257
+          },
+          {
+            "coins": 7725,
+            "crops": {
+              "ironbean": 8,
+              "moonturnip": 10
+            },
+            "seconds": 2574,
+            "power": 308
+          },
+          {
+            "coins": 10195,
+            "crops": {
+              "ironbean": 10,
+              "moonturnip": 14
+            },
+            "seconds": 3398,
+            "power": 370
+          },
+          {
+            "coins": 13455,
+            "crops": {
+              "frostcabbage": 10,
+              "ironbean": 7
+            },
+            "seconds": 4486,
+            "power": 444
+          },
+          {
+            "coins": 17765,
+            "crops": {
+              "frostcabbage": 13,
+              "ironbean": 9
+            },
+            "seconds": 5921,
+            "power": 532
+          },
+          {
+            "coins": 23445,
+            "crops": {
+              "frostcabbage": 17,
+              "ironbean": 13
+            },
+            "seconds": 7816,
+            "power": 639
+          },
+          {
+            "coins": 30950,
+            "crops": {
+              "emberpepper": 17,
+              "frostcabbage": 12
+            },
+            "seconds": 10317,
+            "power": 767
+          },
+          {
+            "coins": 40855,
+            "crops": {
+              "emberpepper": 22,
+              "frostcabbage": 16
+            },
+            "seconds": 13618,
+            "power": 920
+          },
+          {
+            "coins": 53925,
+            "crops": {
+              "emberpepper": 29,
+              "frostcabbage": 21
+            },
+            "seconds": 17976,
+            "power": 1104
+          },
+          {
+            "coins": 71185,
+            "crops": {
+              "glowmelon": 12,
+              "emberpepper": 20
+            },
+            "seconds": 23728,
+            "power": 1325
+          },
+          {
+            "coins": 93965,
+            "crops": {
+              "glowmelon": 12,
+              "emberpepper": 27
+            },
+            "seconds": 31321,
+            "power": 1590
+          },
+          {
+            "coins": 124030,
+            "crops": {
+              "glowmelon": 12,
+              "emberpepper": 32
+            },
+            "seconds": 41344,
+            "power": 1908
+          },
+          {
+            "coins": 163720,
+            "crops": {
+              "stormcorn": 6,
+              "glowmelon": 12
+            },
+            "seconds": 54574,
+            "power": 2290
+          },
+          {
+            "coins": 216110,
+            "crops": {
+              "stormcorn": 6,
+              "glowmelon": 12
+            },
+            "seconds": 72037,
+            "power": 2747
+          },
+          {
+            "coins": 285265,
+            "crops": {
+              "stormcorn": 6,
+              "glowmelon": 12
+            },
+            "seconds": 95089,
+            "power": 3297
+          },
+          {
+            "coins": 376550,
+            "crops": {
+              "stormcorn": 6,
+              "glowmelon": 12
+            },
+            "seconds": 125517,
+            "power": 3956
+          }
+        ]
+      },
+      {
+        "id": "watchtower",
+        "name": {
+          "ru": "Дозорная башня",
+          "en": "Watchtower"
+        },
+        "effect": "raid_cooldown",
+        "perLevel": 2,
+        "cap": 50,
+        "unlockManor": 6,
+        "startLevel": 0,
+        "levels": [
+          {
+            "coins": 150,
+            "crops": {},
+            "seconds": 45,
+            "power": 15
+          },
+          {
+            "coins": 200,
+            "crops": {},
+            "seconds": 59,
+            "power": 18
+          },
+          {
+            "coins": 260,
+            "crops": {
+              "dustwheat": 8
+            },
+            "seconds": 78,
+            "power": 22
+          },
+          {
+            "coins": 345,
+            "crops": {
+              "dustwheat": 10
+            },
+            "seconds": 103,
+            "power": 26
+          },
+          {
+            "coins": 455,
+            "crops": {
+              "dustwheat": 14
+            },
+            "seconds": 137,
+            "power": 31
+          },
+          {
+            "coins": 600,
+            "crops": {
+              "emberpumpkin": 4
+            },
+            "seconds": 180,
+            "power": 37
+          },
+          {
+            "coins": 795,
+            "crops": {
+              "emberpumpkin": 5
+            },
+            "seconds": 238,
+            "power": 45
+          },
+          {
+            "coins": 1045,
+            "crops": {
+              "emberpumpkin": 7
+            },
+            "seconds": 314,
+            "power": 54
+          },
+          {
+            "coins": 1385,
+            "crops": {
+              "ashcarrot": 19
+            },
+            "seconds": 415,
+            "power": 64
+          },
+          {
+            "coins": 1825,
+            "crops": {
+              "ashcarrot": 25,
+              "emberpumpkin": 7
+            },
+            "seconds": 547,
+            "power": 77
+          },
+          {
+            "coins": 2410,
+            "crops": {
+              "ashcarrot": 33,
+              "emberpumpkin": 9
+            },
+            "seconds": 723,
+            "power": 93
+          },
+          {
+            "coins": 3180,
+            "crops": {
+              "moonturnip": 8,
+              "ashcarrot": 23
+            },
+            "seconds": 954,
+            "power": 111
+          },
+          {
+            "coins": 4195,
+            "crops": {
+              "moonturnip": 10,
+              "ashcarrot": 31
+            },
+            "seconds": 1259,
+            "power": 134
+          },
+          {
+            "coins": 5540,
+            "crops": {
+              "moonturnip": 14,
+              "ashcarrot": 40
+            },
+            "seconds": 1662,
+            "power": 160
+          },
+          {
+            "coins": 7315,
+            "crops": {
+              "ironbean": 7,
+              "moonturnip": 10
+            },
+            "seconds": 2194,
+            "power": 193
+          },
+          {
+            "coins": 9655,
+            "crops": {
+              "ironbean": 10,
+              "moonturnip": 13
+            },
+            "seconds": 2896,
+            "power": 231
+          },
+          {
+            "coins": 12745,
+            "crops": {
+              "ironbean": 13,
+              "moonturnip": 17
+            },
+            "seconds": 3823,
+            "power": 277
+          },
+          {
+            "coins": 16820,
+            "crops": {
+              "frostcabbage": 12,
+              "ironbean": 9
+            },
+            "seconds": 5046,
+            "power": 333
+          },
+          {
+            "coins": 22205,
+            "crops": {
+              "frostcabbage": 16,
+              "ironbean": 12
+            },
+            "seconds": 6661,
+            "power": 399
+          },
+          {
+            "coins": 29310,
+            "crops": {
+              "frostcabbage": 21,
+              "ironbean": 16
+            },
+            "seconds": 8793,
+            "power": 479
+          },
+          {
+            "coins": 38685,
+            "crops": {
+              "emberpepper": 21,
+              "frostcabbage": 15
+            },
+            "seconds": 11606,
+            "power": 575
+          },
+          {
+            "coins": 51065,
+            "crops": {
+              "emberpepper": 27,
+              "frostcabbage": 19
+            },
+            "seconds": 15320,
+            "power": 690
+          },
+          {
+            "coins": 67410,
+            "crops": {
+              "emberpepper": 32,
+              "frostcabbage": 26
+            },
+            "seconds": 20223,
+            "power": 828
+          },
+          {
+            "coins": 88980,
+            "crops": {
+              "glowmelon": 12,
+              "emberpepper": 25
+            },
+            "seconds": 26694,
+            "power": 994
+          },
+          {
+            "coins": 117455,
+            "crops": {
+              "glowmelon": 12,
+              "emberpepper": 32
+            },
+            "seconds": 35236,
+            "power": 1192
+          },
+          {
+            "coins": 155040,
+            "crops": {
+              "glowmelon": 12,
+              "emberpepper": 32
+            },
+            "seconds": 46512,
+            "power": 1431
+          },
+          {
+            "coins": 204650,
+            "crops": {
+              "stormcorn": 6,
+              "glowmelon": 12
+            },
+            "seconds": 61395,
+            "power": 1717
+          },
+          {
+            "coins": 270140,
+            "crops": {
+              "stormcorn": 6,
+              "glowmelon": 12
+            },
+            "seconds": 81042,
+            "power": 2061
+          },
+          {
+            "coins": 356585,
+            "crops": {
+              "stormcorn": 6,
+              "glowmelon": 12
+            },
+            "seconds": 106975,
+            "power": 2473
+          },
+          {
+            "coins": 470690,
+            "crops": {
+              "stormcorn": 6,
+              "glowmelon": 12
+            },
+            "seconds": 141207,
+            "power": 2967
+          }
+        ]
+      }
+    ]
+  },
+  "obstacles": {
+    "rock": {
+      "coins": 15,
+      "xp": 2
+    },
+    "dead_tree": {
+      "coins": 30,
+      "xp": 4
+    }
+  },
+  "quests": {
+    "active": 3,
+    "list": [
+      {
+        "id": "first_harvest",
+        "goal": "harvest:dustwheat",
+        "count": 3,
+        "coins": 20,
+        "xp": 5
+      },
+      {
+        "id": "till_soil",
+        "goal": "till",
+        "count": 2,
+        "coins": 20,
+        "xp": 5
+      },
+      {
+        "id": "plant_more",
+        "goal": "plant",
+        "count": 6,
+        "coins": 25,
+        "xp": 5
+      },
+      {
+        "id": "first_sale",
+        "goal": "sell",
+        "count": 5,
+        "coins": 25,
+        "xp": 5
+      },
+      {
+        "id": "pumpkins",
+        "goal": "harvest:emberpumpkin",
+        "count": 3,
+        "coins": 30,
+        "xp": 6
+      },
+      {
+        "id": "first_scarecrow",
+        "goal": "build",
+        "count": 1,
+        "coins": 30,
+        "xp": 6,
+        "items": {
+          "speed_recruit_15m": 1
+        }
+      },
+      {
+        "id": "first_raid",
+        "goal": "raid_win:dust_rats",
+        "count": 1,
+        "coins": 40,
+        "xp": 8,
+        "items": {
+          "chest_wood": 1
+        }
+      },
+      {
+        "id": "clear_rock",
+        "goal": "clear",
+        "count": 1,
+        "coins": 30,
+        "xp": 6
+      },
+      {
+        "id": "first_order",
+        "goal": "order",
+        "count": 1,
+        "coins": 40,
+        "xp": 8
+      },
+      {
+        "id": "reach_lv3",
+        "goal": "level",
+        "count": 3,
+        "coins": 50,
+        "xp": 0,
+        "items": {
+          "chest_wood": 1
+        }
+      },
+      {
+        "id": "turnips",
+        "goal": "harvest:moonturnip",
+        "count": 4,
+        "unlockLevel": 2,
+        "coins": 40,
+        "xp": 8
+      },
+      {
+        "id": "carrots",
+        "goal": "harvest:ashcarrot",
+        "count": 5,
+        "unlockLevel": 2,
+        "coins": 50,
+        "xp": 10
+      },
+      {
+        "id": "buy_plot",
+        "goal": "plots",
+        "count": 1,
+        "unlockLevel": 2,
+        "coins": 60,
+        "xp": 10
+      },
+      {
+        "id": "bandits",
+        "goal": "raid_win:rust_bandits",
+        "count": 1,
+        "unlockLevel": 2,
+        "coins": 60,
+        "xp": 12,
+        "items": {
+          "chest_wood": 1
+        }
+      },
+      {
+        "id": "manor2",
+        "goal": "manor",
+        "count": 2,
+        "unlockLevel": 2,
+        "coins": 80,
+        "xp": 12,
+        "items": {
+          "speed_build_15m": 1
+        }
+      },
+      {
+        "id": "workshop",
+        "goal": "building:workshop",
+        "count": 1,
+        "unlockLevel": 2,
+        "coins": 60,
+        "xp": 10
+      },
+      {
+        "id": "army3",
+        "goal": "army",
+        "count": 3,
+        "unlockLevel": 3,
+        "coins": 60,
+        "xp": 10
+      },
+      {
+        "id": "suncrowns",
+        "goal": "harvest:suncrown",
+        "count": 4,
+        "unlockLevel": 3,
+        "coins": 70,
+        "xp": 12
+      },
+      {
+        "id": "golem",
+        "goal": "raid_win:scrap_golem",
+        "count": 1,
+        "unlockLevel": 3,
+        "coins": 90,
+        "xp": 15,
+        "items": {
+          "chest_wood": 1
+        }
+      },
+      {
+        "id": "orders5",
+        "goal": "order",
+        "count": 5,
+        "unlockLevel": 3,
+        "coins": 100,
+        "xp": 15
+      },
+      {
+        "id": "well",
+        "goal": "building:well",
+        "count": 1,
+        "unlockLevel": 3,
+        "coins": 80,
+        "xp": 12
+      },
+      {
+        "id": "harvest50",
+        "goal": "harvest",
+        "count": 50,
+        "unlockLevel": 4,
+        "coins": 120,
+        "xp": 20,
+        "items": {
+          "chest_wood": 1
+        }
+      },
+      {
+        "id": "berries",
+        "goal": "harvest:bloodberry",
+        "count": 6,
+        "unlockLevel": 4,
+        "coins": 90,
+        "xp": 15
+      },
+      {
+        "id": "wolves",
+        "goal": "raid_win:thorn_wolves",
+        "count": 1,
+        "unlockLevel": 4,
+        "coins": 120,
+        "xp": 20,
+        "items": {
+          "chest_iron": 1
+        }
+      },
+      {
+        "id": "clear5",
+        "goal": "clear",
+        "count": 5,
+        "unlockLevel": 4,
+        "coins": 100,
+        "xp": 15
+      },
+      {
+        "id": "reach_lv5",
+        "goal": "level",
+        "count": 5,
+        "unlockLevel": 4,
+        "coins": 150,
+        "xp": 0,
+        "items": {
+          "chest_iron": 1
+        }
+      },
+      {
+        "id": "beans",
+        "goal": "harvest:ironbean",
+        "count": 6,
+        "unlockLevel": 5,
+        "coins": 110,
+        "xp": 18
+      },
+      {
+        "id": "wraiths",
+        "goal": "raid_win:sand_wraiths",
+        "count": 1,
+        "unlockLevel": 5,
+        "coins": 150,
+        "xp": 22,
+        "items": {
+          "chest_wood": 1
+        }
+      },
+      {
+        "id": "manor3",
+        "goal": "manor",
+        "count": 3,
+        "unlockLevel": 5,
+        "coins": 200,
+        "xp": 25,
+        "items": {
+          "speed_build_1h": 1
+        }
+      },
+      {
+        "id": "plots3",
+        "goal": "plots",
+        "count": 3,
+        "unlockLevel": 5,
+        "coins": 200,
+        "xp": 25
+      },
+      {
+        "id": "build10",
+        "goal": "build",
+        "count": 10,
+        "unlockLevel": 6,
+        "coins": 150,
+        "xp": 22
+      },
+      {
+        "id": "cabbage",
+        "goal": "harvest:frostcabbage",
+        "count": 6,
+        "unlockLevel": 6,
+        "coins": 140,
+        "xp": 20
+      },
+      {
+        "id": "locusts",
+        "goal": "raid_win:locust_swarm",
+        "count": 1,
+        "unlockLevel": 6,
+        "coins": 180,
+        "xp": 28,
+        "items": {
+          "chest_iron": 1
+        }
+      },
+      {
+        "id": "forge",
+        "goal": "building:forge",
+        "count": 1,
+        "unlockLevel": 6,
+        "coins": 150,
+        "xp": 22
+      },
+      {
+        "id": "peppers",
+        "goal": "harvest:emberpepper",
+        "count": 8,
+        "unlockLevel": 7,
+        "coins": 160,
+        "xp": 25
+      },
+      {
+        "id": "raiders",
+        "goal": "raid_win:iron_raiders",
+        "count": 1,
+        "unlockLevel": 7,
+        "coins": 220,
+        "xp": 32,
+        "items": {
+          "chest_iron": 1
+        }
+      },
+      {
+        "id": "orders20",
+        "goal": "order",
+        "count": 20,
+        "unlockLevel": 7,
+        "coins": 250,
+        "xp": 35,
+        "items": {
+          "chest_wood": 1
+        }
+      },
+      {
+        "id": "cotton",
+        "goal": "harvest:cottonpuff",
+        "count": 8,
+        "unlockLevel": 8,
+        "coins": 180,
+        "xp": 28
+      },
+      {
+        "id": "hag",
+        "goal": "raid_win:mire_hag",
+        "count": 1,
+        "unlockLevel": 8,
+        "coins": 260,
+        "xp": 38,
+        "items": {
+          "chest_iron": 1
+        }
+      },
+      {
+        "id": "sell500",
+        "goal": "sell",
+        "count": 500,
+        "unlockLevel": 8,
+        "coins": 300,
+        "xp": 40
+      },
+      {
+        "id": "melons",
+        "goal": "harvest:glowmelon",
+        "count": 6,
+        "unlockLevel": 9,
+        "coins": 220,
+        "xp": 32
+      },
+      {
+        "id": "raids25",
+        "goal": "raid_win",
+        "count": 25,
+        "unlockLevel": 9,
+        "coins": 300,
+        "xp": 45,
+        "items": {
+          "chest_iron": 1
+        }
+      },
+      {
+        "id": "corn",
+        "goal": "harvest:stormcorn",
+        "count": 6,
+        "unlockLevel": 10,
+        "coins": 250,
+        "xp": 38
+      },
+      {
+        "id": "dust_king",
+        "goal": "raid_win:dust_king",
+        "count": 1,
+        "unlockLevel": 10,
+        "coins": 500,
+        "xp": 80,
+        "items": {
+          "chest_gold": 1
+        }
+      },
+      {
+        "id": "reach_lv12",
+        "goal": "level",
+        "count": 12,
+        "unlockLevel": 10,
+        "coins": 600,
+        "xp": 0,
+        "items": {
+          "chest_gold": 1
+        }
+      }
+    ]
+  }
 }

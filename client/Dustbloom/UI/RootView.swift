@@ -5,6 +5,7 @@ import SwiftUI
 struct RootView: View {
     @EnvironmentObject private var store: FarmStore
     @State private var loaded = false
+    @State private var connected = false
 
     var body: some View {
         ZStack {
@@ -12,13 +13,16 @@ struct RootView: View {
                 GameView()
                     .transition(.opacity)
             } else {
-                LoadingView {
-                    withAnimation(.easeInOut(duration: 0.5)) { loaded = true }
+                IntroView(ready: connected) {
+                    withAnimation(.easeInOut(duration: 0.6)) { loaded = true }
                 }
                 .transition(.opacity)
             }
         }
-        .task { await store.connect() }
+        .task {
+            await store.connect()
+            connected = true
+        }
     }
 }
 
@@ -39,6 +43,28 @@ struct GameView: View {
     }
 }
 
+/// The animated splash (Scenes/IntroScene.swift) shown while the farm loads.
+struct IntroView: View {
+    var ready: Bool
+    var onDone: () -> Void
+    @State private var scene: IntroScene = IntroScene(size: CGSize(width: 390, height: 844))
+    @State private var readyBox = ReadyBox()
+
+    final class ReadyBox { var value = false }
+
+    var body: some View {
+        SpriteView(scene: scene, preferredFramesPerSecond: 60)
+            .ignoresSafeArea()
+            .onAppear {
+                let box = readyBox
+                scene.isReady = { box.value }
+                scene.onDone = onDone
+            }
+            .onChange(of: ready, initial: true) { _, now in readyBox.value = now }
+    }
+}
+
+/// Old static loading screen, kept for previews.
 struct LoadingView: View {
     var onDone: () -> Void
     @State private var progress: CGFloat = 0
