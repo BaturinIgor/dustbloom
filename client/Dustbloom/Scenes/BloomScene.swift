@@ -975,6 +975,11 @@ final class BloomScene: SKScene {
     // MARK: - demo autopilot (video capture without touching the screen)
 
     private var demoPause: TimeInterval = 0
+    private var demoCheckAt: TimeInterval = 0
+    private var demoCheckPos = CGPoint.zero
+    private var demoDetour = CGVector.zero
+    private var demoDetourUntil: TimeInterval = 0
+    private var demoDetourSign: CGFloat = 1
     private func autopilot() {
         if game.panel != nil { stickVec = .zero; return }
         if now < demoPause { stickVec = .zero; return }
@@ -1004,7 +1009,7 @@ final class BloomScene: SKScene {
             let id = game.owned.contains(b.a) ? b.b : b.a
             if game.coins >= game.island(id).price {
                 goal = s.position
-                if hypot(s.position.x - heroPos.x, s.position.y - heroPos.y) < 14 {
+                if hypot(s.position.x - heroPos.x, s.position.y - heroPos.y) < 26 {  // same reach as the context button
                     game.buy(id); demoPause = now + 2.5; return
                 }
                 break
@@ -1017,9 +1022,21 @@ final class BloomScene: SKScene {
             }?.node.position
         }
         guard let g = goal else { stickVec = .zero; return }
+        // straight-line walking can pin the hero against a building: sidestep when stuck
+        if now < demoDetourUntil { stickVec = demoDetour; return }
         let d = CGVector(dx: g.x - heroPos.x, dy: g.y - heroPos.y)
         let l = hypot(d.dx, d.dy)
         stickVec = l < 8 ? .zero : CGVector(dx: d.dx / l, dy: d.dy / l)
+        if now - demoCheckAt > 0.5 {
+            let moved = hypot(heroPos.x - demoCheckPos.x, heroPos.y - demoCheckPos.y)
+            if stickVec != .zero, moved < 3 {
+                demoDetourSign = -demoDetourSign
+                demoDetour = CGVector(dx: -stickVec.dy * demoDetourSign, dy: stickVec.dx * demoDetourSign)
+                demoDetourUntil = now + 0.7
+            }
+            demoCheckAt = now
+            demoCheckPos = heroPos
+        }
     }
 }
 
