@@ -251,6 +251,8 @@ def hd_sprites(old):
     for k, v in crops().items():
         s[k] = I.crop_fit(v)
     s.update(props(old))
+    from . import iso_objects
+    s.update(iso_objects.sprites())
     out = {}
     for name, im in old.items():
         if name in s:

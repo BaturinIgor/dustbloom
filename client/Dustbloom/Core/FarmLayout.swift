@@ -16,9 +16,9 @@ struct FarmLayout {
 
     /// Building footprints relative to the start patch: id, dx, dy, width, height.
     static let buildingSpots: [(String, Int, Int, Int, Int)] = [
-        ("well", 4, -1, 1, 1),
-        ("workshop", 4, 2, 2, 2),
-        ("forge", 4, 4, 2, 2),
+        ("well", 4, -2, 1, 1),
+        ("workshop", 5, -3, 2, 2),   // right of the field on screen (iso: +x lower right, +y lower left)
+        ("forge", 6, 1, 2, 2),
         ("order_board", -2, 3, 1, 1),
         ("watchtower", -2, -4, 1, 1),
     ]
