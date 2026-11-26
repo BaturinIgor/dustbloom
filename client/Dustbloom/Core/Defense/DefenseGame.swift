@@ -45,6 +45,20 @@ final class DefenseGame: ObservableObject {
            let saved = try? JSONDecoder().decode(DefenseProgress.self, from: data) {
             p = saved
         }
+        // test hook: "-defenseDemo N" starts at wave N with a squad strong enough for it
+        let args = ProcessInfo.processInfo.arguments
+        if let i = args.firstIndex(of: "-defenseDemo"), i + 1 < args.count, let w = Int(args[i + 1]) {
+            p = DefenseProgress()
+            p.wave = w
+            p.maxWave = w - 1
+            p.coins = 1e4
+            p.seeds = 1e4
+            var lvl = 1
+            while balance.heroBaseDps * 4.5 * balance.levelMult(lvl) < balance.requiredDPS(w) * 0.9 { lvl += 1 }
+            p.heroLevels = DefenseContent.heroes.map { w + 1 >= $0.unlockWave ? lvl : 0 }
+            p.cropLevels = DefenseContent.crops.map { w + 1 >= $0.unlockWave ? lvl : 0 }
+            p.lastSeen = Date().addingTimeInterval(-3 * 3600)
+        }
         progress = p
         battle = Battle(balance: balance, wave: p.wave)
         battle.setSquad(heroLevels: p.heroLevels, cropLevels: p.cropLevels)
