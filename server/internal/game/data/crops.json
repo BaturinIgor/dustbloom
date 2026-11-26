@@ -1,5 +1,5 @@
 {
-  "version": 3,
+  "version": 5,
   "farm": {
     "width": 16,
     "height": 16,
@@ -78,6 +78,114 @@
       "sellPrice": 60,
       "xp": 10,
       "unlockLevel": 1
+    },
+    {
+      "id": "ashcarrot",
+      "name": {
+        "en": "Ash Carrot",
+        "ru": "Пепельная морковь"
+      },
+      "growSeconds": 60,
+      "seedCost": 4,
+      "sellPrice": 11,
+      "xp": 2,
+      "unlockLevel": 2
+    },
+    {
+      "id": "suncrown",
+      "name": {
+        "en": "Suncrown",
+        "ru": "Солнцевенец"
+      },
+      "growSeconds": 600,
+      "seedCost": 30,
+      "sellPrice": 85,
+      "xp": 14,
+      "unlockLevel": 3
+    },
+    {
+      "id": "bloodberry",
+      "name": {
+        "en": "Bloodberry",
+        "ru": "Кровяника"
+      },
+      "growSeconds": 900,
+      "seedCost": 40,
+      "sellPrice": 120,
+      "xp": 18,
+      "unlockLevel": 4
+    },
+    {
+      "id": "ironbean",
+      "name": {
+        "en": "Iron Bean",
+        "ru": "Железный боб"
+      },
+      "growSeconds": 1200,
+      "seedCost": 50,
+      "sellPrice": 150,
+      "xp": 22,
+      "unlockLevel": 5
+    },
+    {
+      "id": "frostcabbage",
+      "name": {
+        "en": "Frost Cabbage",
+        "ru": "Морозная капуста"
+      },
+      "growSeconds": 1800,
+      "seedCost": 70,
+      "sellPrice": 210,
+      "xp": 30,
+      "unlockLevel": 6
+    },
+    {
+      "id": "emberpepper",
+      "name": {
+        "en": "Ember Pepper",
+        "ru": "Угольный перец"
+      },
+      "growSeconds": 2700,
+      "seedCost": 90,
+      "sellPrice": 280,
+      "xp": 38,
+      "unlockLevel": 7
+    },
+    {
+      "id": "cottonpuff",
+      "name": {
+        "en": "Cottonpuff",
+        "ru": "Пушной хлопок"
+      },
+      "growSeconds": 3600,
+      "seedCost": 110,
+      "sellPrice": 350,
+      "xp": 45,
+      "unlockLevel": 8
+    },
+    {
+      "id": "glowmelon",
+      "name": {
+        "en": "Glowmelon",
+        "ru": "Светодыня"
+      },
+      "growSeconds": 7200,
+      "seedCost": 180,
+      "sellPrice": 600,
+      "xp": 70,
+      "unlockLevel": 9
+    },
+    {
+      "id": "stormcorn",
+      "name": {
+        "en": "Storm Corn",
+        "ru": "Грозовая кукуруза"
+      },
+      "growSeconds": 14400,
+      "seedCost": 300,
+      "sellPrice": 1050,
+      "xp": 120,
+      "unlockLevel": 10
     }
   ],
   "army": {
@@ -207,5 +315,14 @@
       "cooldownSeconds": 1800,
       "unlockLevel": 3
     }
-  ]
+  ],
+  "orders": {
+    "slots": 3,
+    "rewardFactor": 1.6,
+    "xpPerCoin": 0.12,
+    "skipSeconds": 600,
+    "maxItemTypes": 2,
+    "baseCount": 4,
+    "countPerLevel": 0.15
+  }
 }

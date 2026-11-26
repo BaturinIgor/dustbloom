@@ -145,6 +145,23 @@ func TestArmyAndRaidFlow(t *testing.T) {
 	}
 }
 
+func TestOrdersEndpoints(t *testing.T) {
+	e := newEnv(t)
+	e.login("device-orders-1")
+	var fr farmResponse
+	if code := e.do("GET", "/v1/farm", nil, &fr); code != 200 || len(fr.Farm.Orders) != 3 {
+		t.Fatalf("farm = %d, orders %d", code, len(fr.Farm.Orders))
+	}
+	var er errorResponse
+	if code := e.do("POST", "/v1/orders/deliver", orderReq{Index: 0}, &er); code != 409 || er.Error != "not_enough_crops" {
+		t.Fatalf("deliver = %d %q", code, er.Error)
+	}
+	fr = farmResponse{}
+	if code := e.do("POST", "/v1/orders/skip", orderReq{Index: 0}, &fr); code != 200 || fr.Farm.Orders[0].ReadyAt == nil {
+		t.Fatalf("skip = %d", code)
+	}
+}
+
 func TestGuestLoginIsStablePerDevice(t *testing.T) {
 	e := newEnv(t)
 	e.login("device-same-1")

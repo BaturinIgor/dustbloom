@@ -9,6 +9,7 @@ struct APIClient {
         var harvest: HarvestResult?
         var sold: Int?
         var raid: RaidResult?
+        var order: OrderResult?
     }
 
     enum APIError: Error {
@@ -65,6 +66,14 @@ struct APIClient {
 
     func buyPlot(px: Int, py: Int) async throws -> FarmResponse {
         try await send("POST", "/v1/farm/plot", body: TileBody(x: px, y: py, crop: nil))
+    }
+
+    func deliverOrder(_ index: Int) async throws -> FarmResponse {
+        try await send("POST", "/v1/orders/deliver", body: ["index": index])
+    }
+
+    func skipOrder(_ index: Int) async throws -> FarmResponse {
+        try await send("POST", "/v1/orders/skip", body: ["index": index])
     }
 
     func build(scarecrow: String) async throws -> FarmResponse {

@@ -995,6 +995,8 @@ def build_sprites():
     from units_art import land_sprites, stage1_sprites  # needs this module's helpers
     s.update(stage1_sprites())
     s.update(land_sprites())
+    from crops_art import crop_sprites
+    s.update(crop_sprites())
     return s
 
 

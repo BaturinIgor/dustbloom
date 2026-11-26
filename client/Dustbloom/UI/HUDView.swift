@@ -33,7 +33,7 @@ struct HUDView: View {
 
             Spacer()
 
-            // action row: three equal 56 pt buttons, centred over the crop bar
+            // action row: four equal 56 pt buttons, centred over the crop bar
             HStack(spacing: 16) {
                 ForEach(ArmyTab.allCases) { t in
                     Button {
@@ -54,16 +54,31 @@ struct HUDView: View {
             .padding(.bottom, 4)
 
             PixelPanel(padding: 12) {
-                HStack(spacing: 10) {
-                    ForEach(store.config.crops) { crop in
-                        CropButton(crop: crop, selected: store.selectedCrop == crop.id) {
-                            withAnimation(.spring(response: 0.25, dampingFraction: 0.5)) {
-                                store.selectedCrop = crop.id
+                // 12 crops: scrolls sideways, locked ones show the level they open at
+                ScrollViewReader { proxy in
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 10) {
+                            ForEach(store.config.crops) { crop in
+                                let locked = store.farm.level < crop.unlockLevel
+                                CropButton(crop: crop, selected: store.selectedCrop == crop.id, locked: locked) {
+                                    guard !locked else {
+                                        Sfx.play(.error, volume: 0.6)
+                                        UINotificationFeedbackGenerator().notificationOccurred(.warning)
+                                        return
+                                    }
+                                    withAnimation(.spring(response: 0.25, dampingFraction: 0.5)) {
+                                        store.selectedCrop = crop.id
+                                    }
+                                    UISelectionFeedbackGenerator().selectionChanged()
+                                    Sfx.play(.select, volume: 0.6)
+                                }
+                                .id(crop.id)
                             }
-                            UISelectionFeedbackGenerator().selectionChanged()
-                            Sfx.play(.select, volume: 0.6)
                         }
+                        .padding(.top, 4)
                     }
+                    .frame(width: 84 * 3 + 10 * 2 + 40)
+                    .onAppear { proxy.scrollTo(store.selectedCrop, anchor: .center) }
                 }
             }
             .padding(.bottom, 12)
@@ -85,6 +100,7 @@ struct HUDView: View {
         let show: Bool = {
             switch t {
             case .barn: return !store.farm.barn.isEmpty
+            case .orders: return store.farm.orders.indices.contains { store.farm.canDeliver($0) }
             case .workshop: return false
             case .raids: return !store.farm.army.isEmpty
             }
@@ -141,6 +157,7 @@ struct PixelText: View {
 private struct CropButton: View {
     let crop: GameConfig.Crop
     let selected: Bool
+    var locked = false
     let action: () -> Void
 
     var body: some View {
@@ -151,11 +168,17 @@ private struct CropButton: View {
                     .resizable()
                     .frame(width: 48, height: 72)
                     .padding(.top, -14)  // sprite has empty space above short crops
-                HStack(spacing: 4) {
-                    Image("ui_coin").interpolation(.none).resizable().frame(width: 16, height: 16)
-                    PixelText(text: "\(crop.seedCost)", scale: 2)
+                if locked {
+                    PixelText(text: "LV\(crop.unlockLevel)", scale: 2)
+                } else {
+                    HStack(spacing: 4) {
+                        Image("ui_coin").interpolation(.none).resizable().frame(width: 16, height: 16)
+                        PixelText(text: "\(crop.seedCost)", scale: 2)
+                    }
                 }
             }
+            .saturation(locked ? 0 : 1)
+            .opacity(locked ? 0.6 : 1)
             .frame(width: 84, height: 92)
             .background(
                 Image(selected ? "ui_slot_selected" : "ui_slot")
