@@ -199,7 +199,8 @@ def crops():
     s["moonturnip_1"] = O.sprout(6)
     s["moonturnip_2"] = O.moon_turnip(2)
     s["moonturnip_3"] = O.moon_turnip(3)
-    s["frostcabbage_3"] = O.frost_cabbage()
+    from .crops_hd import sprites as more_crops
+    s.update(more_crops(seed_mound))
     return {k: _crop_canvas(v) for k, v in s.items()}
 
 
