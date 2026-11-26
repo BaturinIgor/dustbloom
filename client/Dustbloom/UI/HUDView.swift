@@ -2,17 +2,25 @@ import StoreKit
 import SwiftUI
 import UIKit
 
-/// Minimal pixel HUD: coins and level on top, crop picker at the bottom.
+/// Minimal pixel HUD: profile (avatar, nickname, power) and coins on top,
+/// crop picker at the bottom.
 /// Rule from the concept: the farm is the main screen, not the buttons.
 struct HUDView: View {
     @EnvironmentObject private var store: FarmStore
     @State private var sheet: ArmyTab?
     @State private var showSettings = false
+    @State private var showProfile = false
     @Environment(\.requestReview) private var requestReview
 
     var body: some View {
         VStack {
             HStack(spacing: 8) {
+                // who you are and how strong your farm is; tap for the profile
+                ProfileBadge {
+                    showProfile = true
+                    Sfx.play(.select, volume: 0.6)
+                }
+                Spacer()
                 PixelPanel {
                     HStack(spacing: 6) {
                         Image("ui_coin").interpolation(.none).resizable().frame(width: 28, height: 28)
@@ -22,10 +30,6 @@ struct HUDView: View {
                     }
                     .animation(.spring(response: 0.25, dampingFraction: 0.5), value: store.farm.coins)
                 }
-                PixelPanel {
-                    PixelText(text: "LV\(store.farm.level)", scale: 3)
-                }
-                Spacer()
                 Button {
                     showSettings = true
                     Sfx.play(.select, volume: 0.6)
@@ -99,6 +103,9 @@ struct HUDView: View {
             .padding(.bottom, 12)
         }
         .sheet(item: $sheet) { t in ArmySheet(tab: t).environmentObject(store) }
+        .sheet(isPresented: $showProfile) {
+            ProfileSheet().environmentObject(store).presentationDetents([.large])
+        }
         .sheet(isPresented: $showSettings) {
             SettingsSheet().environmentObject(store).presentationDetents([.medium, .large])
         }

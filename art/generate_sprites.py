@@ -1266,7 +1266,7 @@ def main():
     light, vig = light_textures()
     frames["fx_light"], frames["fx_vignette"] = light, vig
 
-    keep = set(s) | {"edge_fence_x", "edge_fence_y"} | set(frames) | {"logo_wordmark"} | INTRO_NAMES
+    keep = set(s) | {"edge_fence_x", "edge_fence_y", "ui_power"} | {"avatar_%d" % i for i in range(12)} | set(frames) | {"logo_wordmark"} | INTRO_NAMES
     for d in os.listdir(ASSETS):
         if d.endswith(".imageset") and d[:-9] not in keep:
             for f in os.listdir(os.path.join(ASSETS, d)):
@@ -1282,6 +1282,10 @@ def main():
             save_imageset(name, im)
     for name in set(hd) - set(s):  # new iso-only sprites
         save_imageset(name, hd[name], 2)
+    from hd.avatars import sprites as avatar_sprites  # profile avatars and the power icon
+    avatars = avatar_sprites()
+    for name, im in avatars.items():
+        save_imageset(name, im)
     for name in ("ui_panel", "ui_slot", "ui_slot_selected"):
         # pre-scaled x3 so SwiftUI nine-slice cap insets are 12 pt
         im = frames[name]
