@@ -9,10 +9,21 @@ from PIL import Image, ImageChops, ImageFilter
 
 TW, TH = 40, 20
 
+# calmer daylight: less saturated greens, earthier roof and soil
+SOFT = {
+    "grass": ["#22382a", "#2c4a31", "#3a5e38", "#4b7240", "#5f8548", "#7a9a56", "#9cb46a"],
+    "dust": ["#5a4434", "#725640", "#8a6a4c", "#a07e5a", "#b49268", "#c6a67a", "#d6ba90"],
+    "roof": ["#2e1c1e", "#4a2624", "#66342c", "#844436", "#a05842", "#b87054", "#cc8e6e"],
+    "leaf": ["#1c3424", "#264a2c", "#335e34", "#47743c", "#5e8a46", "#7ca054", "#a0b86a"],
+    "wall": ["#4a3428", "#6e5038", "#927050", "#b49068", "#cfae82", "#e2c89e"],
+}
+
 
 def main():
     from . import game as G
     G.setup()
+    from . import palette as P
+    P.RAMPS.update(SOFT)
     from . import frame as F
     from . import objects as O
     from . import props as Pr
@@ -53,6 +64,23 @@ def main():
             ok, u, v = in_diamond(x + 0.5, y + 0.5, 0, 0, cols, rows, 0.12)
             if ok:
                 put(im, x, y, ramp_d("soil", 0.16 + fbm(x, y, 7, 6, 2) * 0.1, x, y))
+    wdr = R["wood"]
+    band = set()
+    for y in range(OY - 24, OY + (cols + rows) * TH // 2 + 24):
+        for x in range(OX - rows * TW // 2 - 24, OX + cols * TW // 2 + 24):
+            ok_out, u, v = in_diamond(x + 0.5, y + 0.5, 0, 0, cols, rows, 0.26)
+            ok_in, _, _ = in_diamond(x + 0.5, y + 0.5, 0, 0, cols, rows, 0.12)
+            if ok_out and not ok_in:
+                band.add((x, y))
+    for (x, y) in band:  # plank tops, lit on the back edges
+        back = (x, y + 1) in band or (x, y + 2) in band
+        put(im, x, y - 3, wdr[5] if not back and (x + y) % 9 else wdr[4])
+    for (x, y) in band:  # front faces under the front edges
+        if (x, y + 1) not in band:
+            ok_in, u, v = in_diamond(x + 0.5, y - 4.5, 0, 0, cols, rows, 0.12)
+            if not ok_in:
+                for k in range(-2, 2):
+                    put(im, x, y + k, wdr[2] if k < 0 else wdr[1])
     for r in range(rows):
         for c in range(cols):
             for y in range(OY - 4, OY + (cols + rows) * TH // 2 + 4):
@@ -201,15 +229,15 @@ def main():
     fz = iso_fence(7)
     add(fz, 142, 214, shadow=False, ao=0)
 
-    add(O.blossom_tree(), 150, 166, ao=28)
-    add(O.scarecrow(), 192, 362, ao=14)
+    add(O.blossom_tree(), 140, 172, ao=28)
+    add(O.scarecrow(), 194, 386, ao=14)
     add(O.farmer(1), 16, 312, ao=14)
     for (x, y, f, fl) in ((150, 398, 0, False), (172, 410, 1, True), (132, 418, 1, False)):
         add(O.hen(f, fl), x, y, ao=10)
     add(Pr.barrel(), 22, 236, ao=12)
     add(Pr.crate(), 34, 244, ao=16)
     add(Pr.mailbox(), 132, 238, ao=8)
-    add(Pr.hay_bale(), 216, 388, ao=18)
+    add(Pr.hay_bale(), 6, 276, ao=18)
     add(Pr.log_pile(), 200, 238, ao=20)
     add(Pr.dog(0), 112, 412, ao=16)
     add(Pr.bush(30, 20, 3), 2, 430, ao=22)
@@ -267,9 +295,9 @@ def main():
     canvas = Image.new("RGBA", (390 * F.K, 844 * F.K))
     canvas.alpha_composite(screen, (0, (844 * F.K - screen.height) // 2))
     base = canvas.convert("RGB")
-    base = ImageChops.add(base, Image.new("RGB", base.size, (14, 10, 0)))
-    bright = base.point(lambda v: max(0, v - 225) * 2)
-    base = ImageChops.add(base, bright.filter(ImageFilter.GaussianBlur(8)).point(lambda v: int(v * 0.4)))
+    from PIL import ImageEnhance
+    base = ImageEnhance.Color(base).enhance(0.9)
+    base = ImageEnhance.Brightness(base).enhance(0.96)
     canvas = base.convert("RGBA")
     F.hud_parts(canvas)
     out = canvas.convert("RGB")
