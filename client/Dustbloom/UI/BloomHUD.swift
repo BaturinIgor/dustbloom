@@ -45,6 +45,8 @@ struct BloomView: View {
                 }
             }
             if ProcessInfo.processInfo.arguments.contains("-bloomTour") { tour() }
+            // consent form and tracking prompt once the farm is on screen, then the first video loads
+            RewardedAds.start()
             #if DEBUG
             // App Store screenshots: -bloomPanel build|talents|shop|album opens one panel
             if let name = UserDefaults.standard.string(forKey: "bloomPanel") {

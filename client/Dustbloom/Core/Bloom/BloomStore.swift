@@ -121,23 +121,3 @@ final class BloomStore: ObservableObject {
         await t.finish()
     }
 }
-
-/// Rewarded video. AdMob goes in here; until then debug builds reward right away.
-@MainActor
-enum RewardedAds {
-    static var isAvailable: Bool {
-        #if DEBUG
-        return true
-        #else
-        return false
-        #endif
-    }
-
-    static func show(_ done: @escaping (Bool) -> Void) {
-        #if DEBUG
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { done(true) }
-        #else
-        done(false)
-        #endif
-    }
-}

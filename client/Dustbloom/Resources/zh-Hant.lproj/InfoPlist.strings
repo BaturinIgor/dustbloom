@@ -1,2 +1,3 @@
 "CFBundleDisplayName" = "DUSTBLOOM";
 "CFBundleName" = "DUSTBLOOM";
+"NSUserTrackingUsageDescription" = "你的資料將用於顯示更相關的廣告。廣告讓 DUSTBLOOM 保持免費。";
