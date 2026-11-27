@@ -51,8 +51,14 @@ struct BloomIntroView: View {
                     .position(x: geo.size.width / 2, y: geo.safeAreaInsets.top + 20 + 31 * k * 0.6 + 40)
                     VStack(spacing: 14) {
                         if done {
-                            OutlinedText(text: "Нажми, чтобы играть", size: 22, color: BUI.gold)
-                                .scaleEffect(1 + 0.05 * sin(t * 5))
+                            // one big, obvious call to action
+                            Button { finish() } label: {
+                                OutlinedText(text: "ИГРАТЬ", size: 26)
+                                    .frame(width: 200, height: 40)
+                            }
+                            .buttonStyle(BloomButtonStyle(color: BUI.orange, edge: BUI.orangeEdge))
+                            .scaleEffect(1 + 0.04 * sin(t * 5))
+                            .transition(.scale.combined(with: .opacity))
                         }
                         vine(progress, width: min(300, geo.size.width - 90), t: t)
                         OutlinedText(text: done ? "Всё готово!" : "\(tips[Int(t / 2.2) % tips.count])  \(Int(progress * 100))%",
