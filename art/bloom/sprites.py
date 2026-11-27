@@ -678,32 +678,287 @@ def fx():
     sprite('bloom_fx_fly', cv)
 
 
+# ---------------------------------------------------------------- 1.0 content: new islands' props, items, buildings
+C.update(
+    sand="#f2d48a", sand_l="#fff0c2", sand_d="#c9a45a",
+    glass="#bdf0ff", glass_d="#74c6e0",
+    fish="#ff9f5a", fish_l="#ffd0a0", fish_d="#c8643a",
+    mush="#e8463f", mush_l="#ff8f86", stem="#fff1dc", stem_d="#e0cdb0",
+    honey="#ffb526", honey_l="#ffe27a", honey_d="#c97a12",
+    obs="#3a2f55", obs_l="#6d5aa0", obs_d="#211a33", lava="#ff6a2a",
+    star="#fff6b0", star_d="#ffd23f", night="#5a4aa8",
+    potion="#c25cff", potion_l="#efb8ff",
+)
+
+
+def dune():
+    cv = Canvas(18, 12)
+    x, y = 9, 12 - BASE - 1
+    cv.disc(x, y - 3, 8, 3.6, 'sand_d'); cv.disc(x - 1, y - 4, 6.4, 2.8, 'sand'); cv.disc(x - 3, y - 5, 3, 1.4, 'sand_l')
+    cv.put(x + 3, y - 3, 'sand_l'); cv.put(x + 5, y - 2, 'sand_l')
+    cv.put(x - 2, y - 7, 'l2'); cv.put(x - 1, y - 8, 'l3'); cv.put(x - 3, y - 8, 'l3')
+    cv.outline('d1')
+    sprite('bloom_dune', cv)
+
+
+def palm():
+    cv = Canvas(22, 30)
+    x, y = 11, 30 - BASE - 1
+    for k in range(16):  # leaning trunk
+        cx = x + int(k * 0.25)
+        cv.put(cx, y - k, 't1'); cv.put(cx + 1, y - k, 't0' if k % 3 else 't2')
+    tx, ty = x + 4, y - 17
+    for dx, dy, ln in ((-1, 0, 8), (1, 0, 8), (-1, -1, 6), (1, -1, 6), (0, -1, 4), (-1, 1, 5), (1, 1, 5)):
+        for k in range(ln):
+            px, py = tx + dx * k, ty + dy * (k // 2) + (k * k) // 14
+            cv.put(px, py, 'l2'); cv.put(px, py - 1, 'l3' if k % 2 else 'l1')
+    cv.disc(tx, ty + 2, 1.6, 1.4, 't0'); cv.put(tx - 1, ty + 1, 'd2'); cv.put(tx + 1, ty + 2, 'd2')
+    cv.outline('l0')
+    sprite('bloom_palm', cv)
+
+
+def pond():
+    cv = Canvas(20, 12)
+    x, y = 10, 12 - BASE - 1
+    cv.disc(x, y - 3, 9, 3.6, 'r1'); cv.disc(x, y - 3, 8, 3, 'water_d'); cv.disc(x - 1, y - 4, 6, 2, 'water')
+    cv.rect(x - 4, y - 4, x - 2, y - 4, 'water_l'); cv.rect(x + 2, y - 3, x + 4, y - 3, 'water_l')
+    cv.put(x + 2, y - 5, 'fish'); cv.put(x + 3, y - 5, 'fish_l'); cv.put(x + 1, y - 4, 'fish_d')  # a fish fin
+    cv.rect(x - 8, y - 7, x - 8, y - 3, 'l1'); cv.put(x - 8, y - 8, 'd1'); cv.rect(x + 8, y - 6, x + 8, y - 3, 'l1'); cv.put(x + 8, y - 7, 'd1')
+    cv.outline('gline')
+    sprite('bloom_pond', cv)
+
+
+def mushroom():
+    cv = Canvas(16, 14)
+    x, y = 8, 14 - BASE - 1
+    for (ox, h, r) in ((-3, 4, 3.2), (3, 6, 4), (0, 2, 2.2)):
+        cv.rect(x + ox - 1, y - h, x + ox, y, 'stem'); cv.put(x + ox, y - h + 1, 'stem_d')
+        cv.disc(x + ox, y - h - 1, r, r * 0.65, 'mush'); cv.put(x + ox - 1, y - h - 2, 'white'); cv.put(x + ox + 1, y - h - 1, 'mush_l')
+    cv.outline('ink')
+    sprite('bloom_mushroom', cv)
+
+
+def hive():
+    cv = Canvas(16, 18)
+    x, y = 8, 18 - BASE - 1
+    cv.rect(x - 1, y - 4, x, y, 't1')
+    for k, w in enumerate((3, 5, 6, 6, 5, 4, 2)):
+        yy = y - 5 - k * 1.6
+        cv.rect(x - w, int(yy) - 1, x + w - 1, int(yy), 'honey' if k % 2 else 'honey_d')
+    cv.rect(x - 1, y - 9, x, y - 8, 'ink')
+    cv.put(x + 5, y - 15, 'ink'); cv.put(x + 6, y - 15, 'gold_l'); cv.put(x - 6, y - 12, 'ink'); cv.put(x - 7, y - 12, 'gold_l')
+    cv.outline('d0')
+    sprite('bloom_hive', cv)
+
+
+def obsidian():
+    cv = Canvas(18, 16)
+    x, y = 9, 16 - BASE - 1
+    cv.disc(x, y - 5, 7.5, 5.6, 'obs'); cv.disc(x - 1, y - 6, 5, 3.6, 'obs_l')
+    cv.put(x - 3, y - 9, 'white'); cv.put(x - 2, y - 9, 'obs_l')
+    for (a, b) in ((3, -3), (4, -4), (5, -4), (-4, -2), (1, -1)):
+        cv.put(x + a, y + b, 'lava')
+    cv.rect(x - 6, y - 1, x + 6, y - 1, 'obs_d')
+    cv.outline('obs_d')
+    sprite('bloom_obsidian', cv)
+
+
+def starstone():
+    cv = Canvas(16, 20)
+    x, y = 8, 20 - BASE - 1
+    cv.disc(x, y - 4, 6, 3.6, 'night'); cv.disc(x - 1, y - 5, 4, 2.4, 'obs_l')
+    sx, sy = x, y - 12
+    for dx, dy in ((0, -4), (0, -3), (0, 3), (0, 4), (-4, 0), (-3, 0), (3, 0), (4, 0)):
+        cv.put(sx + dx, sy + dy, 'star_d')
+    cv.disc(sx, sy, 2.2, 2.2, 'star'); cv.put(sx - 1, sy - 1, 'white')
+    cv.put(x - 5, y - 8, 'star'); cv.put(x + 5, y - 14, 'star')
+    cv.outline('ink')
+    sprite('bloom_starstone', cv)
+
+
+def stump_palm():
+    cv = Canvas(14, 10)
+    x, y = 7, 10 - BASE - 1
+    cv.rect(x - 2, y - 3, x + 2, y, 't1'); cv.rect(x + 1, y - 3, x + 2, y, 't0'); cv.rect(x - 2, y - 4, x + 2, y - 4, 'd3')
+    cv.put(x - 3, y, 'sand_d'); cv.put(x + 3, y, 'sand_d')
+    cv.outline('t0')
+    sprite('bloom_stump_palm', cv)
+
+
+def item2(name):
+    cv = Canvas(12, 12)
+    if name == 'sand':
+        cv.disc(6, 7.5, 5, 3.2, 'sand_d'); cv.disc(5.5, 7, 3.8, 2.4, 'sand'); cv.put(4, 6, 'sand_l'); cv.put(7, 8, 'sand_l')
+    elif name == 'glass':
+        cv.rect(3, 2, 8, 10, 'glass'); cv.rect(3, 2, 3, 10, 'glass_d'); cv.rect(4, 1, 7, 1, 'glass_d'); cv.rect(5, 3, 5, 7, 'white')
+    elif name == 'fish':
+        cv.disc(5.5, 6, 4, 2.6, 'fish'); cv.disc(5, 5, 2.6, 1.2, 'fish_l')
+        cv.put(10, 4, 'fish_d'); cv.put(10, 8, 'fish_d'); cv.rect(9, 5, 9, 7, 'fish_d'); cv.put(3, 5, 'ink')
+    elif name == 'smoked_fish':
+        cv.disc(5.5, 6, 4, 2.6, 'brick_d'); cv.disc(5, 5, 2.6, 1.2, 'brick')
+        cv.put(10, 4, 't0'); cv.put(10, 8, 't0'); cv.rect(9, 5, 9, 7, 't0'); cv.put(3, 5, 'ink')
+        cv.put(6, 1, 'u3'); cv.put(7, 0, 'u3')
+    elif name == 'mushroom':
+        cv.rect(5, 6, 6, 10, 'stem'); cv.disc(5.5, 5, 4.4, 2.8, 'mush'); cv.put(4, 4, 'white'); cv.put(7, 3, 'white')
+    elif name == 'honey':
+        cv.rect(3, 4, 8, 10, 'honey'); cv.rect(3, 4, 8, 4, 'honey_l'); cv.rect(2, 2, 9, 3, 'canvas_r'); cv.put(4, 6, 'honey_l')
+    elif name == 'jam':
+        cv.rect(3, 4, 8, 10, 'berry'); cv.rect(3, 4, 8, 4, 'berry_l'); cv.rect(2, 2, 9, 3, 'canvas_w'); cv.put(4, 6, 'berry_l')
+    elif name == 'elixir':
+        cv.rect(5, 1, 6, 3, 'glass_d'); cv.disc(5.5, 7.5, 4, 3.4, 'potion'); cv.disc(5, 7, 2.2, 1.6, 'potion_l'); cv.put(4, 6, 'white')
+    elif name == 'obsidian':
+        for dy in range(8):
+            w = 3.4 if dy < 5 else 3.4 * (8 - dy) / 3
+            for dx in range(-int(w), int(w) + 1):
+                cv.put(6 + dx, 10 - dy, 'obs_l' if dx < 0 else 'obs')
+        cv.put(5, 5, 'white')
+    elif name == 'stardust':
+        for (a, b) in ((6, 2), (3, 6), (8, 7), (5, 9), (9, 3)):
+            cv.put(a, b, 'star'); cv.put(a + 1, b, 'star_d'); cv.put(a, b + 1, 'star_d')
+        cv.disc(6, 6, 1.6, 1.6, 'star')
+    elif name == 'lantern':
+        cv.rect(3, 3, 8, 10, 'glass_d'); cv.rect(4, 4, 7, 9, 'star'); cv.rect(5, 5, 6, 8, 'white')
+        cv.rect(3, 2, 8, 2, 'gold_d'); cv.rect(5, 0, 6, 1, 'gold'); cv.rect(3, 11, 8, 11, 'gold_d')
+    cv.outline('ink')
+    sprite('bloom_item_' + name, cv)
+
+
+def pick2(tier):
+    """Tier 4: crystal pickaxe, tier 5: obsidian pickaxe with a star."""
+    cv = Canvas(13, 14)
+    for k in range(10):
+        cv.put(6, 12 - k, 'd3' if tier == 4 else 'obs_l')
+    cv.put(6, 12, 't0')
+    a, b = ('cloth', 'water_l') if tier == 4 else ('obs', 'obs_l')
+    cv.rect(2, 1, 10, 3, a); cv.rect(3, 1, 9, 1, b)
+    cv.put(1, 3, a); cv.put(1, 4, a); cv.put(11, 3, a); cv.put(11, 4, a); cv.put(0, 5, a); cv.put(12, 5, a)
+    cv.put(6, 2, 'white' if tier == 4 else 'star')
+    cv.outline('ink')
+    sprite('bloom_pick_%d' % tier, cv)
+
+
+def smokehouse():
+    cv = Canvas(20, 24)
+    x, y = 10, 24 - BASE - 1
+    cv.rect(x - 7, y - 10, x + 7, y, 't1')
+    for k in range(-7, 8, 3):
+        cv.rect(x + k, y - 10, x + k, y, 't0')
+    for k in range(6):  # roof
+        cv.rect(x - 8 + k, y - 11 - k, x + 8 - k, y - 11 - k, 'brick' if k % 2 else 'brick_d')
+    cv.rect(x - 2, y - 6, x + 2, y, 'ink'); cv.rect(x - 1, y - 2, x + 1, y - 1, 'fire1')
+    cv.rect(x + 4, y - 19, x + 5, y - 14, 'r1'); cv.put(x + 5, y - 21, 'u3'); cv.put(x + 6, y - 22, 'u3'); cv.put(x + 4, y - 22, 'u2')
+    cv.outline('ink')
+    sprite('bloom_smokehouse', cv)
+
+
+def cauldron():
+    cv = Canvas(18, 16)
+    x, y = 9, 16 - BASE - 1
+    cv.put(x - 5, y, 'r0'); cv.put(x + 5, y, 'r0')
+    cv.disc(x, y - 4, 6.4, 4.4, 'obs'); cv.disc(x - 1, y - 5, 4.6, 3, 'obs_l')
+    cv.rect(x - 6, y - 8, x + 6, y - 8, 'r1'); cv.rect(x - 5, y - 9, x + 5, y - 9, 'potion')
+    cv.put(x - 2, y - 11, 'potion_l'); cv.put(x + 2, y - 12, 'potion_l'); cv.put(x, y - 13, 'white')
+    cv.put(x - 2, y, 'fire1'); cv.put(x + 1, y, 'fire0'); cv.put(x, y - 1, 'fire2')
+    cv.outline('ink')
+    sprite('bloom_cauldron', cv)
+
+
+def observatory():
+    cv = Canvas(22, 30)
+    x, y = 11, 30 - BASE - 1
+    cv.rect(x - 6, y - 14, x + 6, y, 'r1'); cv.rect(x - 6, y - 14, x - 5, y, 'r2'); cv.rect(x + 5, y - 14, x + 6, y, 'r0')
+    cv.rect(x - 2, y - 5, x + 2, y, 'ink'); cv.disc(x, y - 6, 2, 1.4, 'ink')
+    cv.disc(x, y - 17, 7, 5, 'night'); cv.disc(x - 2, y - 19, 4, 2.6, 'obs_l'); cv.rect(x - 7, y - 15, x + 7, y - 14, 'gold_d')
+    for k in range(6):  # telescope
+        cv.put(x + 3 + k, y - 20 - k, 'gold'); cv.put(x + 4 + k, y - 20 - k, 'gold_d')
+    cv.put(x - 8, y - 26, 'star'); cv.put(x + 1, y - 27, 'star'); cv.put(x - 3, y - 24, 'star_d')
+    cv.outline('ink')
+    sprite('bloom_observatory', cv)
+
+
+FINDS2 = ['pearl', 'starfish', 'coral', 'bottle', 'seahorse', 'meteor', 'comet', 'moonstone', 'feather', 'crown']
+
+
+def find2(name):
+    cv = Canvas(12, 12)
+    if name == 'pearl':
+        cv.disc(6, 7, 4.4, 3.4, 'r2'); cv.disc(6, 5, 4.4, 2.4, 'r3'); cv.disc(6, 7, 2, 2, 'white'); cv.put(5, 6, 'gem_l')
+    elif name == 'starfish':
+        for dx, dy in ((0, -4), (0, -3), (-4, -1), (-3, -1), (4, -1), (3, -1), (-3, 3), (-2, 2), (3, 3), (2, 2)):
+            cv.put(6 + dx, 6 + dy, 'fish')
+        cv.disc(6, 6, 2, 2, 'fish'); cv.put(5, 5, 'fish_l')
+    elif name == 'coral':
+        for (a, b, h) in ((6, 10, 8), (3, 10, 5), (9, 10, 6)):
+            cv.rect(a, b - h, a, b, 'berry_l'); cv.put(a - 1, b - h + 1, 'berry_l'); cv.put(a + 1, b - h + 2, 'berry')
+    elif name == 'bottle':
+        cv.rect(2, 5, 9, 9, 'glass'); cv.rect(10, 6, 11, 8, 'glass_d'); cv.rect(4, 6, 7, 8, 'canvas_w'); cv.put(2, 5, 'white')
+    elif name == 'seahorse':
+        cv.disc(6, 3, 2, 1.6, 'gold'); cv.rect(6, 4, 7, 8, 'gold'); cv.put(5, 9, 'gold'); cv.put(4, 10, 'gold_d'); cv.put(8, 3, 'gold_d'); cv.put(5, 2, 'ink')
+    elif name == 'meteor':
+        cv.disc(7, 7, 3.4, 3, 'obs'); cv.put(6, 6, 'lava'); cv.put(8, 8, 'lava')
+        for k in range(4):
+            cv.put(3 - k // 2, 3 - k // 2 + k % 2, 'fire1')
+    elif name == 'comet':
+        cv.disc(8, 4, 2.4, 2.4, 'star'); cv.put(7, 3, 'white')
+        for k in range(6):
+            cv.put(6 - k, 6 + k // 2, 'gem_l' if k % 2 else 'glass')
+    elif name == 'moonstone':
+        cv.disc(6, 6, 4.4, 4.4, 'r3'); cv.disc(7.5, 5, 3.4, 3.4, 'glass'); cv.put(4, 5, 'white')
+    elif name == 'feather':
+        for k in range(9):
+            cv.put(3 + k // 2 + 1, 10 - k, 'white'); cv.put(2 + k // 2 + 1, 10 - k, 'gem_l' if k > 1 else 'r1')
+    elif name == 'crown':
+        cv.rect(2, 6, 9, 9, 'gold'); cv.rect(2, 9, 9, 9, 'gold_d')
+        for a in (2, 5, 6, 9):
+            cv.put(a, 4 if a in (2, 9) else 3, 'gold'); cv.put(a, 5, 'gold')
+        cv.put(5, 7, 'berry'); cv.put(3, 7, 'gem'); cv.put(8, 7, 'gem')
+    cv.outline('ink')
+    sprite('bloom_find_' + name, cv)
+
+
+def content2():
+    dune(); palm(); pond(); mushroom(); hive(); obsidian(); starstone(); stump_palm()
+    for n in ('sand', 'glass', 'fish', 'smoked_fish', 'mushroom', 'honey', 'jam', 'elixir', 'obsidian', 'stardust', 'lantern'):
+        item2(n)
+    pick2(4); pick2(5)
+    smokehouse(); cauldron(); observatory()
+    for n in FINDS2:
+        find2(n)
+
+
 # ---------------------------------------------------------------- world
 # World map, one char per 16 px tile, top row = north. Digits are islands,
 # '|' and '=' are bridge spots (one water tile between two islands).
 MAP = """
-......1111111.................
-....111111111.....5555........
-...1111111111...5555555.......
-...11111111111=555555555......
-....1111111111..55555555......
-.....11111111....555555.......
-.......|..........|...........
-......00000.......222.........
-......0000000...22222.........
-..4...0000000...222222........
-.444..0000000=2222222.........
-44444=0000000...222222........
-44444.0000000...222222........
-.4444.00000000..222222........
-..444..000000...22222.........
-...44...0000.....222..........
-........|.....................
-.....33333333.................
-...333333333333...............
-...3333333333333..............
-....33333333333...............
-......333333..................
+......1111111.................................
+....111111111.....5555.....7777777............
+...1111111111...5555555...777777777...........
+...11111111111=555555555=77777777777..........
+....1111111111..55555555..777777777...........
+.....11111111....555555....7777777............
+.......|..........|...........................
+......00000.......222................aaaaa....
+......0000000...22222...6666666....aaaaaaaaa..
+..4...0000000...222222.666666666...aaaaaaaaa..
+.444..0000000=2222222..6666666666=aaaaaaaaaaa.
+44444=0000000...222222.666666666...aaaaaaaaa..
+44444.0000000...222222=66666666....aaaaaaaaa..
+.4444.00000000..222222...............aaaaa....
+..444..000000...22222..................|......
+...44...0000.....222...................b......
+........|..........................bbbbbbbbb..
+.....33333333.....................bbbbbbbbbbb.
+...333333333333...................bbbbbbbbbbb.
+...3333333333333...................bbbbbbbbb..
+....33333333333...............................
+......333333..................................
+........|.....................................
+.......88888......9999999.....................
+.....888888888...999999999....................
+....88888888888=99999999999...................
+.....888888888...999999999....................
+.......88888......9999999.....................
+..............................................
 """
 
 ISLANDS = [
@@ -719,6 +974,18 @@ ISLANDS = [
          spawn={'rock': 3, 'rock_iron': 3, 'rock_gold': 4}, cap=9),
     dict(id=5, name='Хрустальный холм', price=500,
          spawn={'crystal': 4, 'rock_gold': 2, 'pine': 2, 'rock_iron': 2}, cap=13),
+    dict(id=6, name='Песчаная коса', price=800,
+         spawn={'dune': 5, 'palm': 4, 'rock': 2}, cap=14),
+    dict(id=7, name='Тихая заводь', price=1200,
+         spawn={'pond': 4, 'palm': 3, 'bush_berry': 3, 'tree': 2}, cap=15),
+    dict(id=8, name='Грибная чаща', price=1800,
+         spawn={'mushroom': 6, 'pine': 4, 'bush_cotton': 2}, cap=15),
+    dict(id=9, name='Медовый луг', price=2600,
+         spawn={'hive': 4, 'tree': 3, 'bush_berry': 3, 'bush_cotton': 2}, cap=15),
+    dict(id=10, name='Огненная гора', price=3800,
+         spawn={'obsidian': 5, 'rock_gold': 3, 'rock_iron': 3, 'crystal': 1}, cap=15),
+    dict(id=11, name='Звёздный пик', price=5500,
+         spawn={'starstone': 4, 'crystal': 3, 'obsidian': 2, 'pine': 2}, cap=13),
 ]
 # per-island grass tint so every island reads differently
 TINTS = {
@@ -727,7 +994,17 @@ TINTS = {
     3: dict(g0='#62b444', g1='#86d353', g1b='#8cd858', g2='#a2e264', g3='#d6f79a'),
     4: dict(g0='#8aa83c', g1='#a9c95a', g1b='#aecd60', g2='#c2dc72', g3='#e6f3a4', gline='#5b6b2a'),
     5: dict(g0='#3f9e7a', g1='#5cc59a', g1b='#62ca9f', g2='#7fd8b0', g3='#bff2da', gline='#245f52'),
+    6: dict(g0='#b89a52', g1='#e2c77a', g1b='#e6cc80', g2='#f0da95', g3='#fbedc0', gline='#7a5e2c'),
+    7: dict(g0='#3e9a5e', g1='#5abf78', g1b='#60c47e', g2='#7ed494', g3='#b8f0c4', gline='#22603e'),
+    8: dict(g0='#5a8a3a', g1='#77a84c', g1b='#7dad52', g2='#93c062', g3='#c4e292', gline='#33522a'),
+    9: dict(g0='#8aa93a', g1='#b2cf4e', g1b='#b8d454', g2='#cde06a', g3='#eef5a4', gline='#5a6a24'),
+    10: dict(g0='#6a5a4a', g1='#8a7660', g1b='#8f7b64', g2='#a68f74', g3='#cdb89a', gline='#3a2e28',
+             d0='#3a2a2a', d1='#5a3a30', d2='#7a4a34'),
+    11: dict(g0='#5a5aa0', g1='#7a7ac4', g1b='#8080c8', g2='#9a9ad8', g3='#cacaf2', gline='#33336a'),
 }
+
+
+ISLE_CH = '0123456789ab'
 
 
 def _parse():
@@ -738,12 +1015,12 @@ def _parse():
     for r, row in enumerate(rows):
         for x, ch in enumerate(row):
             y = h - 1 - r
-            if ch.isdigit():
-                cells.setdefault(int(ch), set()).add((x, y))
+            if ch in ISLE_CH:
+                cells.setdefault(ISLE_CH.index(ch), set()).add((x, y))
     def at(x, y):
         r = h - 1 - y
-        if 0 <= r < h and 0 <= x < len(rows[r]) and rows[r][x].isdigit():
-            return int(rows[r][x])
+        if 0 <= r < h and 0 <= x < len(rows[r]) and rows[r][x] in ISLE_CH:
+            return ISLE_CH.index(rows[r][x])
         return None
     for r, row in enumerate(rows):
         for x, ch in enumerate(row):
@@ -918,6 +1195,7 @@ def build_all():
     for n in FINDS:
         find(n)
     ui_icons()
+    content2()
     world = dict(tile=T, islands=[], bridges=[])
     for isl in ISLANDS:
         for dust in (False, True):

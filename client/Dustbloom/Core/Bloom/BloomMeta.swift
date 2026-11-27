@@ -50,6 +50,13 @@ enum BloomMeta {
         DailyKind(key: "sold", title: "Заработай на рынке %@ монет", icon: "bloom_item_coin", base: 150, needs: { $0.isBuilt(.market) }),
         DailyKind(key: "chest", title: "Открой сундуков: %@", icon: "bloom_chest_closed", base: 2, needs: { _ in true }),
         DailyKind(key: "finds", title: "Найди находок для альбома: %@", icon: "bloom_ui_book", base: 2, needs: { _ in true }),
+        DailyKind(key: "item.sand", title: "Набери %@ песка", icon: "bloom_item_sand", base: 10, needs: { $0.owned.contains(6) }),
+        DailyKind(key: "craft.glass", title: "Выплавь %@ стёкол", icon: "bloom_item_glass", base: 4, needs: { $0.isBuilt(.furnace) && $0.owned.contains(6) }),
+        DailyKind(key: "gather.pond", title: "Порыбачь в прудах: %@", icon: "bloom_pond", base: 5, needs: { $0.owned.contains(7) }),
+        DailyKind(key: "item.mushroom", title: "Собери %@ грибов", icon: "bloom_item_mushroom", base: 6, needs: { $0.owned.contains(8) }),
+        DailyKind(key: "item.honey", title: "Собери %@ мёда", icon: "bloom_item_honey", base: 5, needs: { $0.owned.contains(9) }),
+        DailyKind(key: "craft.jam", title: "Свари %@ варенья", icon: "bloom_item_jam", base: 2, needs: { $0.isBuilt(.cauldron) }),
+        DailyKind(key: "item.stardust", title: "Добудь %@ звёздной пыли", icon: "bloom_item_stardust", base: 4, needs: { $0.owned.contains(11) }),
     ]
 
     static let login: [LoginReward] = [
@@ -188,7 +195,8 @@ extension BloomGame {
         let scale = 1 + 0.35 * Double(max(0, s.owned.count - 1))
         s.dailies = kinds.map { k in
             let t = max(1, Int((Double(k.base) * scale).rounded()))
-            return DailyQuest(key: k.key, target: k.key == "chest" || k.key == "finds" ? k.base : t, base: s.life[k.key] ?? 0)
+            let flat = ["chest", "finds", "item.sand", "craft.glass", "gather.pond", "item.mushroom", "item.honey", "craft.jam", "item.stardust"]
+            return DailyQuest(key: k.key, target: flat.contains(k.key) ? k.base : t, base: s.life[k.key] ?? 0)
         }
         s.dailyDate = today
         s.dailyBonus = false

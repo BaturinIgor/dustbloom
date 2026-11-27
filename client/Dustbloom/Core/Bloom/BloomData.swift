@@ -3,6 +3,7 @@ import Foundation
 /// Static content of the Bloom slice: items, gatherables, buildings, recipes.
 enum BItem: String, CaseIterable, Codable, Identifiable {
     case wood, stone, berry, cotton, flower, iron_ore, gold_ore, crystal, brick, iron_bar, gold_bar, cloth
+    case sand, glass, fish, smoked_fish, mushroom, honey, jam, elixir, obsidian, stardust, lantern
 
     var id: String { rawValue }
     var sprite: String { "bloom_item_" + rawValue }
@@ -21,6 +22,17 @@ enum BItem: String, CaseIterable, Codable, Identifiable {
         case .iron_bar: return tr("Железный слиток")
         case .gold_bar: return tr("Золотой слиток")
         case .cloth: return tr("Ткань")
+        case .sand: return tr("Песок")
+        case .glass: return tr("Стекло")
+        case .fish: return tr("Рыба")
+        case .smoked_fish: return tr("Копчёная рыба")
+        case .mushroom: return tr("Гриб")
+        case .honey: return tr("Мёд")
+        case .jam: return tr("Варенье")
+        case .elixir: return tr("Эликсир")
+        case .obsidian: return tr("Обсидиан")
+        case .stardust: return tr("Звёздная пыль")
+        case .lantern: return tr("Звёздный фонарь")
         }
     }
 
@@ -37,14 +49,18 @@ struct Drop {
 
 enum GatherKind: String, CaseIterable, Codable {
     case tree, pine, rock, rock_iron, rock_gold, bush_berry, bush_cotton, crystal
+    case dune, palm, pond, mushroom, hive, obsidian, starstone
 
     var sprite: String { "bloom_" + rawValue }
     var hp: Int { BloomBalance.shared.gather[self]?.hp ?? 1 }
     var xp: Int { BloomBalance.shared.gather[self]?.xp ?? 1 }
     var drops: [Drop] { BloomBalance.shared.gather[self]?.drops ?? [] }
     /// Stone-like things spray chips, plants spray leaves.
-    var isStone: Bool { [.rock, .rock_iron, .rock_gold, .crystal].contains(self) }
-    var isSoft: Bool { self == .bush_berry || self == .bush_cotton }
+    var isStone: Bool { [.rock, .rock_iron, .rock_gold, .crystal, .dune, .obsidian, .starstone].contains(self) }
+    var isSoft: Bool { [.bush_berry, .bush_cotton, .mushroom, .pond, .hive].contains(self) }
+    /// Trees fall and leave a stump.
+    var isTree: Bool { self == .tree || self == .pine || self == .palm }
+    var stump: String { self == .pine ? "bloom_stump_pine" : self == .palm ? "bloom_stump_palm" : "bloom_stump" }
 }
 
 typealias Cost = [(BItem, Int)]
@@ -57,7 +73,7 @@ struct Recipe: Identifiable {
 }
 
 enum BuildKind: String, CaseIterable, Codable, Identifiable {
-    case furnace, market, anvil, loom, nursery
+    case furnace, market, anvil, loom, nursery, smokehouse, cauldron, observatory
 
     var id: String { rawValue }
     var title: String {
@@ -67,6 +83,9 @@ enum BuildKind: String, CaseIterable, Codable, Identifiable {
         case .anvil: return tr("Наковальня")
         case .loom: return tr("Ткацкий станок")
         case .nursery: return tr("Питомник")
+        case .smokehouse: return tr("Коптильня")
+        case .cauldron: return tr("Котёл")
+        case .observatory: return tr("Обсерватория")
         }
     }
     var blurb: String {
@@ -76,13 +95,16 @@ enum BuildKind: String, CaseIterable, Codable, Identifiable {
         case .anvil: return tr("Куёт кирки, иногда удачно")
         case .loom: return tr("Ткёт ткань из хлопка")
         case .nursery: return tr("Выращивает блумлингов-помощников")
+        case .smokehouse: return tr("Коптит рыбу, она дорого стоит")
+        case .cauldron: return tr("Варит варенье и эликсиры")
+        case .observatory: return tr("Собирает звёздные фонари")
         }
     }
     var sprite: String { self == .furnace ? "bloom_furnace_0" : "bloom_" + rawValue }
     var cost: Cost { BloomBalance.shared.buildings[self]?.cost ?? [] }
     var unlockLevel: Int { BloomBalance.shared.buildings[self]?.level ?? 1 }
     var recipes: [Recipe] {
-        let order = ["brick", "iron_bar", "gold_bar", "cloth"]
+        let order = ["brick", "iron_bar", "gold_bar", "glass", "cloth", "smoked_fish", "jam", "elixir", "lantern"]
         return order.compactMap { id in
             guard let r = BloomBalance.shared.recipes[id], r.at == rawValue, let out = BItem(rawValue: id) else { return nil }
             return Recipe(id: id, output: out, cost: r.cost, seconds: r.seconds)
@@ -97,7 +119,8 @@ struct PickTier {
 }
 
 enum BloomContent {
-    static let pickTitles = [tr("Деревянная кирка"), tr("Каменная кирка"), tr("Железная кирка"), tr("Золотая кирка")]
+    static let pickTitles = [tr("Деревянная кирка"), tr("Каменная кирка"), tr("Железная кирка"), tr("Золотая кирка"),
+                                     tr("Хрустальная кирка"), tr("Обсидиановая кирка")]
     static let picks: [PickTier] = BloomBalance.shared.picks.enumerated().map { i, p in
         PickTier(title: i < pickTitles.count ? pickTitles[i] : tr("Кирка %@", i), damage: p.damage, cost: p.cost)
     }
@@ -108,6 +131,9 @@ enum BloomContent {
         3: tr("Открыта наковальня"),
         4: tr("Открыт питомник помощников"),
         5: tr("Открыт ткацкий станок"),
+        8: tr("Открыта коптильня"),
+        10: tr("Открыт котёл"),
+        13: tr("Открыта обсерватория"),
     ]
 
     static func xpToNext(_ level: Int) -> Int {

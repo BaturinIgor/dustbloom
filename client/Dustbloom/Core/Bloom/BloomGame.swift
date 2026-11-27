@@ -429,9 +429,10 @@ final class BloomGame: ObservableObject {
         if s.jarTick % 25 == 0 { s.jar = min(BloomGame.jarCap, s.jar + 1) }
         let key: String
         switch k {
-        case .tree, .pine: key = "gather.tree"
-        case .rock, .rock_iron, .rock_gold, .crystal: key = "gather.rock"
-        case .bush_berry, .bush_cotton: key = "gather.bush"
+        case .tree, .pine, .palm: key = "gather.tree"
+        case .rock, .rock_iron, .rock_gold, .crystal, .dune, .obsidian, .starstone: key = "gather.rock"
+        case .bush_berry, .bush_cotton, .mushroom, .hive: key = "gather.bush"
+        case .pond: key = "gather.pond"
         }
         bump(key)
     }
@@ -478,9 +479,15 @@ final class BloomGame: ObservableObject {
         if s.owned.contains(2) { pool += [.iron_ore, .brick] }
         if s.owned.contains(4) { pool += [.gold_ore, .iron_bar] }
         if s.owned.contains(5) { pool.append(.crystal) }
+        if s.owned.contains(6) { pool += [.sand, .glass] }
+        if s.owned.contains(7) { pool.append(.fish) }
+        if s.owned.contains(8) { pool.append(.mushroom) }
+        if s.owned.contains(9) { pool += [.honey, .jam] }
+        if s.owned.contains(10) { pool.append(.obsidian) }
+        if s.owned.contains(11) { pool.append(.stardust) }
         var items: [(BItem, Int)] = []
         for i in pool.shuffled().prefix(3) {
-            let n = [.crystal, .gold_ore, .iron_bar].contains(i) ? Int.random(in: 1...2) : Int.random(in: 3...6)
+            let n = [.crystal, .gold_ore, .iron_bar, .glass, .jam, .obsidian, .stardust].contains(i) ? Int.random(in: 1...2) : Int.random(in: 3...6)
             items.append((i, n))
         }
         gainXP(6 + tier * 2)
@@ -539,10 +546,10 @@ final class BloomGame: ObservableObject {
     func secs(_ r: Recipe) -> Double { r.seconds * (hasT("c1") ? 0.75 : 1) * (hasT("c5") ? 0.7 : 1) / eternalMult("craft") }
     /// What the market pays for `n` of an item (market rate, Торговец talent).
     func sellValue(_ i: BItem, _ n: Int) -> Int {
-        Int(Double(n * i.price) * BloomBalance.shared.sellRate * (hasT("t1") ? 1.25 : 1) * eternalMult("coins"))
+        Int(Double(n * i.price) * BloomBalance.shared.sellRate * (hasT("t1") ? 1.25 : 1) * eternalMult("coins") * (pageDone(3) ? 1.2 : 1))
     }
     /// Price of one, for display (at least 1 when a stack would pay something).
-    func sellPrice(_ i: BItem) -> Double { Double(i.price) * BloomBalance.shared.sellRate * (hasT("t1") ? 1.25 : 1) * eternalMult("coins") }
+    func sellPrice(_ i: BItem) -> Double { Double(i.price) * BloomBalance.shared.sellRate * (hasT("t1") ? 1.25 : 1) * eternalMult("coins") * (pageDone(3) ? 1.2 : 1) }
     func islandPrice(_ id: Int) -> Int {
         let pr = BloomBalance.shared.islandPrices
         let p = id < pr.count ? pr[id] : island(id).price
@@ -556,6 +563,7 @@ final class BloomGame: ObservableObject {
         if s.founder { iv /= 1 + b.shop.founderRegrow }
         if fertActive { iv /= b.shop.fertilizerMult }
         iv /= eternalMult("regrow")
+        if pageDone(4) { iv /= 1.2 }
         return iv
     }
     var flowerFactor: Int { hasT("b1") ? 2 : 1 }

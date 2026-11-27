@@ -22,7 +22,7 @@ SWING = 0.33           # seconds between hero hits
 HELPER_HIT = 0.9       # seconds between helper hits
 HELPER_WALK = 1.6      # helper walk overhead per node
 SESSION = 15 * 60      # a typical play session (for ad cooldowns)
-STONES = {"rock", "rock_iron", "rock_gold", "crystal"}
+STONES = {"rock", "rock_iron", "rock_gold", "crystal", "dune", "obsidian", "starstone"}
 ISLAND_ITEMS = {1: "cotton", 2: "iron_ore", 4: "gold_ore", 5: "crystal"}
 
 # What the bots learn first: the talents a real player would pick for speed.
@@ -237,8 +237,11 @@ class Sim:
         if 2 in self.owned: pool += ["iron_ore", "brick"]
         if 4 in self.owned: pool += ["gold_ore", "iron_bar"]
         if 5 in self.owned: pool.append("crystal")
+        for isl, its in ((6, ["sand", "glass"]), (7, ["fish"]), (8, ["mushroom"]), (9, ["honey", "jam"]),
+                         (10, ["obsidian"]), (11, ["stardust"])):
+            if isl in self.owned: pool += its
         for i in self.rng.sample(pool, 3):
-            n = self.rng.randint(1, 2) if i in ("crystal", "gold_ore", "iron_bar") else self.rng.randint(3, 6)
+            n = self.rng.randint(1, 2) if i in ("crystal", "gold_ore", "iron_bar", "glass", "jam", "obsidian", "stardust") else self.rng.randint(3, 6)
             self.add(i, n)
 
     # ---------- what does the bot want ----------
@@ -289,8 +292,9 @@ class Sim:
     def destroy(self, k, isl, mult, hero=True):
         d = BAL["gather"][k]
         self.nodes[isl][k] -= 1
-        gk = {"pine": "tree", "rock_iron": "rock", "rock_gold": "rock", "crystal": "rock",
-              "bush_berry": "bush", "bush_cotton": "bush"}.get(k, k)  # same groups as BloomGame.gathered
+        gk = {"pine": "tree", "palm": "tree", "rock_iron": "rock", "rock_gold": "rock", "crystal": "rock",
+              "dune": "rock", "obsidian": "rock", "starstone": "rock",
+              "bush_berry": "bush", "bush_cotton": "bush", "mushroom": "bush", "hive": "bush"}.get(k, k)  # same groups as BloomGame.gathered
         self.stats["gather." + gk] = self.stats.get("gather." + gk, 0) + 1
         g = 2 if self.golden else 1
         for it, lo, hi, ch in d["drops"]:
@@ -398,7 +402,7 @@ class Sim:
     def done(self):
         return self.goal >= len(BAL["goals"]) and len(self.owned) >= len(self.prices)
 
-    def run(self, limit_h=40):
+    def run(self, limit_h=300):
         marks = {}
         lv_marks = {}
         last_hour = 0
@@ -438,10 +442,11 @@ def main():
         lv = {L: med([r["levels"][L] for r in res if L in r["levels"]]) for L in (5, 10, 15, 20)}
         rows.append((p, med([r["total"] for r in res]), isl, lv, med([r["level"] for r in res]),
                      sum(r["done"] for r in res)))
-    head = "| Игрок | Пройти всё | Остров 2 | Остров 3 | Остров 4 | Остров 5 | Остров 6 | Ур. 5 | Ур. 10 | Ур. 15 | Финальный ур. |"
-    out = [head, "|" + "---|" * 11]
+    shown = [3, 5, 6, 8, 10, 11]
+    head = "| Игрок | Пройти всё | " + " | ".join(f"Остров {i + 1}" for i in shown) + " | Ур. 5 | Ур. 10 | Ур. 15 | Финальный ур. |"
+    out = [head, "|" + "---|" * (len(shown) + 6)]
     for p, tot, isl, lv, L, ok in rows:
-        out.append(f"| {p.label} | {fmt(tot)} | " + " | ".join(fmt(isl[i]) for i in range(1, 6)) +
+        out.append(f"| {p.label} | {fmt(tot)} | " + " | ".join(fmt(isl.get(i)) for i in shown) +
                    f" | {fmt(lv[5])} | {fmt(lv[10])} | {fmt(lv[15])} | {L:.0f} |")
     print("\n".join(out))
     if a.md: open(a.md, "w").write("\n".join(out) + "\n")

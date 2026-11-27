@@ -82,6 +82,12 @@ enum BloomAlbum {
         AlbumPage(title: tr("Самоцветы"), bonus: tr("+1 к удару"), finds: [
             ("ruby", tr("Рубин")), ("sapphire", tr("Сапфир")), ("emerald", tr("Изумруд")),
             ("topaz", tr("Топаз")), ("amethyst", tr("Аметист"))]),
+        AlbumPage(title: tr("Море"), bonus: tr("+20% монет на рынке"), finds: [
+            ("pearl", tr("Жемчужина")), ("starfish", tr("Морская звезда")), ("coral", tr("Коралл")),
+            ("bottle", tr("Письмо в бутылке")), ("seahorse", tr("Морской конёк"))]),
+        AlbumPage(title: tr("Небо"), bonus: tr("Всё отрастает на 20% быстрее"), finds: [
+            ("meteor", tr("Метеорит")), ("comet", tr("Хвост кометы")), ("moonstone", tr("Лунный камень")),
+            ("feather", tr("Перо феникса")), ("crown", tr("Корона звездочёта"))]),
     ]
 
     /// Which page a gatherable can drop a find from.
@@ -90,6 +96,8 @@ enum BloomAlbum {
         case .tree, .pine, .bush_berry, .bush_cotton: return 0
         case .rock: return 1
         case .rock_iron, .rock_gold, .crystal: return 2
+        case .dune, .palm, .pond: return 3
+        case .mushroom, .hive, .obsidian, .starstone: return 4
         }
     }
 

@@ -389,11 +389,11 @@ final class BloomScene: SKScene {
         let sh = SKSpriteNode(texture: tex("bloom_shadow"))
         sh.position = CGPoint(x: p.x, y: p.y - 0.5)
         sh.zPosition = -800
-        sh.xScale = k == .pine || k == .tree ? 0.9 : 1
+        sh.xScale = k.isTree ? 0.9 : 1
         world.addChild(sh)
         world.addChild(n)
         res[c] = Res(kind: k, cell: c, island: island, node: n, shadow: sh)
-        if k == .tree || k == .pine || k.isSoft {
+        if k.isTree || (k.isSoft && k != .pond) {
             let a: CGFloat = k.isSoft ? 0.03 : 0.022
             let d = Double.random(in: 1.4...1.9)
             n.zRotation = -a
@@ -957,8 +957,8 @@ final class BloomScene: SKScene {
         r.shadow.run(.sequence([.fadeOut(withDuration: 0.15), .removeFromParent()]))
         puff(at: p, n: 9)
         shake(1.2)
-        if r.kind == .tree || r.kind == .pine {
-            let st = SKSpriteNode(texture: tex(r.kind == .pine ? "bloom_stump_pine" : "bloom_stump"))
+        if r.kind.isTree {
+            let st = SKSpriteNode(texture: tex(r.kind.stump))
             st.anchorPoint = CGPoint(x: 0.5, y: 2 / 10)
             st.position = p
             st.zPosition = 500 - p.y - 0.5
@@ -1295,7 +1295,7 @@ final class BloomScene: SKScene {
     private func guideTarget() -> CGPoint? {
         guard let g = game.goal, !game.goalDone else { return nil }
         let kinds: [GatherKind]
-        if g.key == "gather.tree" { kinds = [.tree, .pine] }
+        if g.key == "gather.tree" { kinds = [.tree, .pine, .palm] }
         else if g.key == "gather.rock" { kinds = [.rock, .rock_iron, .rock_gold] }
         else if g.key.hasPrefix("item."), let it = BItem(rawValue: String(g.key.dropFirst(5))) {
             kinds = GatherKind.allCases.filter { $0.drops.contains { $0.item == it } }

@@ -119,6 +119,102 @@
      1.0
     ]
    ]
+  },
+  "dune": {
+   "hp": 30,
+   "xp": 9,
+   "drops": [
+    [
+     "sand",
+     2,
+     3,
+     1.0
+    ]
+   ]
+  },
+  "palm": {
+   "hp": 36,
+   "xp": 10,
+   "drops": [
+    [
+     "wood",
+     3,
+     4,
+     1.0
+    ],
+    [
+     "berry",
+     1,
+     2,
+     0.3
+    ]
+   ]
+  },
+  "pond": {
+   "hp": 40,
+   "xp": 12,
+   "drops": [
+    [
+     "fish",
+     1,
+     2,
+     1.0
+    ]
+   ]
+  },
+  "mushroom": {
+   "hp": 36,
+   "xp": 12,
+   "drops": [
+    [
+     "mushroom",
+     1,
+     2,
+     1.0
+    ]
+   ]
+  },
+  "hive": {
+   "hp": 50,
+   "xp": 15,
+   "drops": [
+    [
+     "honey",
+     1,
+     2,
+     1.0
+    ]
+   ]
+  },
+  "obsidian": {
+   "hp": 90,
+   "xp": 24,
+   "drops": [
+    [
+     "obsidian",
+     1,
+     1,
+     1.0
+    ],
+    [
+     "stone",
+     1,
+     2,
+     1.0
+    ]
+   ]
+  },
+  "starstone": {
+   "hp": 140,
+   "xp": 34,
+   "drops": [
+    [
+     "stardust",
+     1,
+     2,
+     1.0
+    ]
+   ]
   }
  },
  "prices": {
@@ -133,7 +229,18 @@
   "brick": 4,
   "iron_bar": 7,
   "gold_bar": 14,
-  "cloth": 8
+  "cloth": 8,
+  "sand": 3,
+  "glass": 14,
+  "fish": 8,
+  "smoked_fish": 26,
+  "mushroom": 9,
+  "honey": 12,
+  "jam": 40,
+  "elixir": 95,
+  "obsidian": 45,
+  "stardust": 70,
+  "lantern": 420
  },
  "coinChance": 0.18,
  "respawnPerIsland": 0.2,
@@ -143,7 +250,13 @@
   1000,
   3500,
   9000,
-  20000
+  20000,
+  40000,
+  70000,
+  110000,
+  170000,
+  260000,
+  400000
  ],
  "picks": [
   {
@@ -186,6 +299,32 @@
     [
      "iron_bar",
      12
+    ]
+   ]
+  },
+  {
+   "damage": 6,
+   "cost": [
+    [
+     "crystal",
+     12
+    ],
+    [
+     "gold_bar",
+     20
+    ]
+   ]
+  },
+  {
+   "damage": 9,
+   "cost": [
+    [
+     "obsidian",
+     30
+    ],
+    [
+     "stardust",
+     15
     ]
    ]
   }
@@ -259,6 +398,57 @@
      5
     ]
    ]
+  },
+  "smokehouse": {
+   "level": 8,
+   "cost": [
+    [
+     "wood",
+     120
+    ],
+    [
+     "brick",
+     40
+    ],
+    [
+     "glass",
+     10
+    ]
+   ]
+  },
+  "cauldron": {
+   "level": 10,
+   "cost": [
+    [
+     "iron_bar",
+     30
+    ],
+    [
+     "glass",
+     20
+    ],
+    [
+     "brick",
+     30
+    ]
+   ]
+  },
+  "observatory": {
+   "level": 13,
+   "cost": [
+    [
+     "glass",
+     40
+    ],
+    [
+     "obsidian",
+     20
+    ],
+    [
+     "gold_bar",
+     15
+    ]
+   ]
   }
  },
  "recipes": {
@@ -309,6 +499,80 @@
     ]
    ],
    "seconds": 8
+  },
+  "glass": {
+   "at": "furnace",
+   "cost": [
+    [
+     "sand",
+     3
+    ]
+   ],
+   "seconds": 10
+  },
+  "smoked_fish": {
+   "at": "smokehouse",
+   "cost": [
+    [
+     "fish",
+     2
+    ],
+    [
+     "wood",
+     2
+    ]
+   ],
+   "seconds": 12
+  },
+  "jam": {
+   "at": "cauldron",
+   "cost": [
+    [
+     "berry",
+     5
+    ],
+    [
+     "honey",
+     2
+    ]
+   ],
+   "seconds": 14
+  },
+  "elixir": {
+   "at": "cauldron",
+   "cost": [
+    [
+     "mushroom",
+     3
+    ],
+    [
+     "honey",
+     2
+    ],
+    [
+     "crystal",
+     1
+    ]
+   ],
+   "seconds": 20
+  },
+  "lantern": {
+   "at": "observatory",
+   "cost": [
+    [
+     "glass",
+     2
+    ],
+    [
+     "stardust",
+     3
+    ],
+    [
+     "gold_bar",
+     1
+    ]
+   ],
+   "seconds": 30
   }
  },
  "helperCost": {
@@ -524,7 +788,7 @@
    "xp": 50
   },
   {
-   "title": "Открой все острова",
+   "title": "Владей 6 островами",
    "icon": "bloom_sign",
    "key": "islands",
    "target": 6,
@@ -538,6 +802,158 @@
    "target": 10,
    "coins": 200,
    "xp": 80
+  },
+  {
+   "title": "Набери 30 песка",
+   "icon": "bloom_item_sand",
+   "key": "item.sand",
+   "target": 30,
+   "coins": 300,
+   "xp": 90
+  },
+  {
+   "title": "Выплавь 15 стёкол",
+   "icon": "bloom_item_glass",
+   "key": "craft.glass",
+   "target": 15,
+   "coins": 350,
+   "xp": 100
+  },
+  {
+   "title": "Владей 7 островами",
+   "icon": "bloom_sign",
+   "key": "islands",
+   "target": 7,
+   "coins": 400,
+   "xp": 110
+  },
+  {
+   "title": "Поймай 20 рыб",
+   "icon": "bloom_item_fish",
+   "key": "item.fish",
+   "target": 20,
+   "coins": 450,
+   "xp": 120
+  },
+  {
+   "title": "Построй коптильню",
+   "icon": "bloom_smokehouse",
+   "key": "build.smokehouse",
+   "target": 1,
+   "coins": 500,
+   "xp": 130
+  },
+  {
+   "title": "Закопти 10 рыб",
+   "icon": "bloom_item_smoked_fish",
+   "key": "craft.smoked_fish",
+   "target": 10,
+   "coins": 600,
+   "xp": 150
+  },
+  {
+   "title": "Владей 8 островами",
+   "icon": "bloom_sign",
+   "key": "islands",
+   "target": 8,
+   "coins": 700,
+   "xp": 160
+  },
+  {
+   "title": "Собери 25 грибов",
+   "icon": "bloom_item_mushroom",
+   "key": "item.mushroom",
+   "target": 25,
+   "coins": 800,
+   "xp": 170
+  },
+  {
+   "title": "Выкуй хрустальную кирку",
+   "icon": "bloom_pick_4",
+   "key": "pick",
+   "target": 4,
+   "coins": 900,
+   "xp": 180
+  },
+  {
+   "title": "Владей 9 островами",
+   "icon": "bloom_sign",
+   "key": "islands",
+   "target": 9,
+   "coins": 1000,
+   "xp": 200
+  },
+  {
+   "title": "Построй котёл",
+   "icon": "bloom_cauldron",
+   "key": "build.cauldron",
+   "target": 1,
+   "coins": 1100,
+   "xp": 210
+  },
+  {
+   "title": "Свари 10 варений",
+   "icon": "bloom_item_jam",
+   "key": "craft.jam",
+   "target": 10,
+   "coins": 1300,
+   "xp": 230
+  },
+  {
+   "title": "Свари 5 эликсиров",
+   "icon": "bloom_item_elixir",
+   "key": "craft.elixir",
+   "target": 5,
+   "coins": 1500,
+   "xp": 250
+  },
+  {
+   "title": "Владей 10 островами",
+   "icon": "bloom_sign",
+   "key": "islands",
+   "target": 10,
+   "coins": 1800,
+   "xp": 270
+  },
+  {
+   "title": "Добудь 20 обсидиана",
+   "icon": "bloom_item_obsidian",
+   "key": "item.obsidian",
+   "target": 20,
+   "coins": 2000,
+   "xp": 290
+  },
+  {
+   "title": "Построй обсерваторию",
+   "icon": "bloom_observatory",
+   "key": "build.observatory",
+   "target": 1,
+   "coins": 2400,
+   "xp": 310
+  },
+  {
+   "title": "Открой все острова",
+   "icon": "bloom_sign",
+   "key": "islands",
+   "target": 12,
+   "coins": 3000,
+   "xp": 340
+  },
+  {
+   "title": "Выкуй обсидиановую кирку",
+   "icon": "bloom_pick_5",
+   "key": "pick",
+   "target": 5,
+   "coins": 3500,
+   "xp": 360
+  },
+  {
+   "title": "Собери 5 звёздных фонарей",
+   "icon": "bloom_item_lantern",
+   "key": "craft.lantern",
+   "target": 5,
+   "coins": 5000,
+   "xp": 400
   }
  ],
  "chest": {
