@@ -1757,6 +1757,7 @@ final class BloomScene: SKScene {
     private var demoBestDist: CGFloat = .infinity
     private var demoBestAt: TimeInterval = 0
     private var demoSkip: [Int: TimeInterval] = [:]  // signs it couldn't reach, ignored until the time
+    private var demoMarketAt: TimeInterval = 0
     private func autopilot() {
         if game.panel != nil { stickVec = .zero; return }
         if now < demoPause { stickVec = .zero; return }
@@ -1778,7 +1779,8 @@ final class BloomScene: SKScene {
         let keepWood = saving && !game.isBuilt(.nursery) ? 28 : 8
         let keepBerry = saving ? 12 + game.helpers.count * 10 + 10 : 0
         let keepFlower = saving ? 4 + game.helpers.count * 4 : 0
-        if game.isBuilt(.market), game.count(.wood) - keepWood + game.count(.berry) - keepBerry > 16 {
+        if game.isBuilt(.market), now > demoMarketAt, game.count(.wood) - keepWood + game.count(.berry) - keepBerry > 16 {
+            demoMarketAt = now + 20
             game.panel = .building(.market)
             demoPause = now + 1.6
             run(.sequence([.wait(forDuration: 0.7), .run { [weak self] in
@@ -1815,6 +1817,17 @@ final class BloomScene: SKScene {
             else if now - demoBestAt > 4 { demoSkip[i] = now + 25; demoSign = nil; return }
         }
         if goal == nil, let ch = chest { goal = ch.node.position }
+        // show off fishing: walk to a pond nearby and stand next to it
+        if goal == nil, now > fishCooldown {
+            let hc = heroCell
+            if let pond = res.values.filter({ $0.kind == .pond && abs($0.cell.x - hc.x) + abs($0.cell.y - hc.y) <= 8 })
+                .min(by: { hypot($0.node.position.x - heroPos.x, $0.node.position.y - heroPos.y)
+                    < hypot($1.node.position.x - heroPos.x, $1.node.position.y - heroPos.y) }) {
+                let d = hypot(pond.node.position.x - heroPos.x, pond.node.position.y - heroPos.y)
+                if d < 14 { stickVec = .zero; startFishing(pond); return }
+                goal = pond.node.position
+            }
+        }
         if goal == nil, target() == nil {
             let hc = heroCell
             goal = res.values.min { a, b in

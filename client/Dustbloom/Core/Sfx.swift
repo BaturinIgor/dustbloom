@@ -35,7 +35,10 @@ enum Sfx {
         if UserDefaults.standard.object(forKey: "dustbloom.volume") != nil {
             master = Float(UserDefaults.standard.double(forKey: "dustbloom.volume"))
         }
-        try? AVAudioSession.sharedInstance().setCategory(.ambient, options: [.mixWithOthers])
+        // session setup can block for a moment: keep it off the main thread
+        DispatchQueue.global(qos: .userInitiated).async {
+            try? AVAudioSession.sharedInstance().setCategory(.ambient, options: [.mixWithOthers])
+        }
         for s in Sound.allCases {
             guard let url = Bundle.main.url(forResource: s.rawValue, withExtension: "wav") else { continue }
             // a few voices per sound so quick taps overlap instead of cutting off

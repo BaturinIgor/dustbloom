@@ -66,7 +66,6 @@ struct BloomIntroView: View {
                     }
                     .position(x: geo.size.width / 2, y: geo.size.height - geo.safeAreaInsets.bottom - 110)
                 }
-                .onChange(of: done && t >= minTime + autoGo) { _, go in if go { finish() } }
             }
         }
         .ignoresSafeArea()
@@ -74,6 +73,14 @@ struct BloomIntroView: View {
         .contentShape(Rectangle())
         .onTapGesture {
             if ready && Date().timeIntervalSince(start) >= minTime { finish() }
+        }
+        // moves on by itself: a plain timer, because TimelineView may stop redrawing
+        // (and an onChange inside it then never fires) while the scene loads
+        .task(id: ready) {
+            guard ready else { return }
+            let wait = max(0, start.addingTimeInterval(minTime + autoGo).timeIntervalSinceNow)
+            try? await Task.sleep(for: .seconds(wait))
+            if !Task.isCancelled { finish() }
         }
         .onAppear {
             Sfx.prepare()
