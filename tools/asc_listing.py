@@ -57,6 +57,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--no-media", action="store_true")
+    ap.add_argument("--only-age", action="store_true")
     a = ap.parse_args()
     bad = listing.check()
     if bad:
@@ -110,10 +111,32 @@ def main():
                 new[k] = k in yes
             elif isinstance(val, str) or val is None:
                 new[k] = "NONE"
-        print("  ", new)
-        soft(c, "PATCH", f"/v1/ageRatingDeclarations/{ar_id}", {"data": {"type": "ageRatingDeclarations", "id": ar_id, "attributes": new}})
+        new.pop("gracRatingClassificationNumber", None)
+        # the schema keeps changing: fix types the server rejects and try again
+        import json as _json
+        for _ in range(4):
+            try:
+                c.req("PATCH", f"/v1/ageRatingDeclarations/{ar_id}", {"data": {"type": "ageRatingDeclarations", "id": ar_id, "attributes": new}})
+                print("   saved:", new)
+                break
+            except SystemExit as e:
+                txt = str(e)
+                body = txt[txt.index("{"):] if "{" in txt else "{}"
+                try:
+                    errs = _json.loads(body).get("errors", [])
+                except ValueError:
+                    print("  ! age rating:", txt[:600]); break
+                for er in errs:
+                    k = er.get("source", {}).get("pointer", "").split("/")[-1]
+                    if "Expected a BOOLEAN" in er.get("detail", ""):
+                        new[k] = k in yes
+                    elif k in new:
+                        new.pop(k)
+                print("   retry, fixed:", [er.get("source", {}).get("pointer") for er in errs])
         print("   loot box answer left as is:", cur.get("lootBox"))
 
+    if a.only_age:
+        return
     print("\napp info localizations")
     have_info = {l["attributes"]["locale"]: l for l in c.all(f"/v1/appInfos/{iid}/appInfoLocalizations")}
     for lang, loc in listing.ASC_LOCALE.items():
