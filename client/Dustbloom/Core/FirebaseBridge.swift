@@ -33,18 +33,19 @@ enum FirebaseBridge {
         #endif
     }
 
-    /// Stores one player message in Firestore (collection "feedback").
+    /// Stores one player message in Firestore (collection "dustbloom_feedback").
     static func sendFeedback(_ text: String, mood: String, extra: [String: Any]) async -> Bool {
         #if canImport(FirebaseCore)
         guard isOn else { return false }
         var doc: [String: Any] = extra
         doc["text"] = String(text.prefix(2000))
         doc["mood"] = mood
+        doc["game"] = "dustbloom"
         doc["at"] = FieldValue.serverTimestamp()
         doc["app"] = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
         doc["lang"] = Locale.current.language.languageCode?.identifier ?? "en"
         do {
-            _ = try await Firestore.firestore().collection("feedback").addDocument(data: doc)
+            _ = try await Firestore.firestore().collection("dustbloom_feedback").addDocument(data: doc)
             return true
         } catch {
             return false
