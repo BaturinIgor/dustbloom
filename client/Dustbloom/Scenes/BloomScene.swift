@@ -870,7 +870,7 @@ final class BloomScene: SKScene {
 
     private func critFX(_ r: Res) {
         let p = CGPoint(x: r.node.position.x, y: r.node.position.y + r.node.size.height * 0.6)
-        let l = label("КРИТ!", size: 7, color: UIColor(red: 1, green: 0.85, blue: 0.2, alpha: 1))
+        let l = label(tr("КРИТ!"), size: 7, color: UIColor(red: 1, green: 0.85, blue: 0.2, alpha: 1))
         l.position = CGPoint(x: p.x, y: p.y + 6)
         l.zPosition = 3200
         world.addChild(l)
@@ -1188,7 +1188,7 @@ final class BloomScene: SKScene {
                 for _ in 0..<24 { self.spark(at: CGPoint(x: p.x, y: p.y + 10), spread: 30, gold: true) }
                 self.shake(3)
                 self.heavy.impactOccurred()
-                self.floatText("Сундук!", at: CGPoint(x: p.x, y: p.y + 22), color: UIColor(red: 1, green: 0.85, blue: 0.3, alpha: 1), size: 7, rise: 14)
+                self.floatText(tr("Сундук!"), at: CGPoint(x: p.x, y: p.y + 22), color: UIColor(red: 1, green: 0.85, blue: 0.3, alpha: 1), size: 7, rise: 14)
             },
             .scale(to: 1, duration: 0.12),
             .wait(forDuration: 2.5), .fadeOut(withDuration: 0.4), .removeFromParent(),
@@ -1217,7 +1217,7 @@ final class BloomScene: SKScene {
             .group([.move(to: CGPoint(x: heroPos.x, y: heroPos.y + 10), duration: 0.3), .scale(to: 0.4, duration: 0.3)]),
             .removeFromParent(),
         ]))
-        floatText(isNew ? "НАХОДКА!" : "+\(BloomAlbum.duplicateCoins)", at: CGPoint(x: p.x, y: p.y + 34),
+        floatText(isNew ? tr("НАХОДКА!") : "+\(BloomAlbum.duplicateCoins)", at: CGPoint(x: p.x, y: p.y + 34),
                   color: isNew ? UIColor(red: 0.85, green: 0.65, blue: 1, alpha: 1) : UIColor(red: 1, green: 0.85, blue: 0.3, alpha: 1), size: 6.5, rise: 10)
         for _ in 0..<16 { spark(at: CGPoint(x: p.x, y: p.y + 20), spread: 24) }
         heavy.impactOccurred()
@@ -1432,7 +1432,7 @@ final class BloomScene: SKScene {
                 var dmg = game.helperDamage * (golden ? 2 : 1)
                 if game.hasT("h5"), Double.random(in: 0..<1) < 0.12 {
                     dmg *= 2
-                    floatText("крит", at: CGPoint(x: t.node.position.x, y: t.node.position.y + 16), color: UIColor(red: 1, green: 0.85, blue: 0.3, alpha: 1), size: 4.5, rise: 8)
+                    floatText(tr("крит"), at: CGPoint(x: t.node.position.x, y: t.node.position.y + 16), color: UIColor(red: 1, green: 0.85, blue: 0.3, alpha: 1), size: 4.5, rise: 8)
                 }
                 applyHit(t, dmg: dmg, mult: 1, dir: h.node.xScale)
             }

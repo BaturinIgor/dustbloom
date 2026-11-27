@@ -248,7 +248,7 @@ final class BloomGame: ObservableObject {
         }
         if let l = up {
             Analytics.shared.track("bloom_level", ["level": l, "minutes": playMinutes])
-            showToast(BloomToast(title: "Уровень \(l)!", subtitle: BloomContent.levelUnlockText[l] ?? "Новое очко таланта"))
+            showToast(BloomToast(title: tr("Уровень %@!", l), subtitle: BloomContent.levelUnlockText[l] ?? tr("Новое очко таланта")))
             Sfx.play(.levelUp)
         }
         return up
@@ -339,8 +339,8 @@ final class BloomGame: ObservableObject {
         s.pick += 1
         s.lucky = Double.random(in: 0..<1) < luckyChance
         onCrafted?(.anvil, .iron_bar, s.lucky)
-        showToast(BloomToast(title: s.lucky ? "Удачная ковка!" : p.title,
-                           subtitle: s.lucky ? "\(p.title) +1 к удару" : "Удар: \(damage)"))
+        showToast(BloomToast(title: s.lucky ? tr("Удачная ковка!") : p.title,
+                           subtitle: s.lucky ? tr("%@ +1 к удару", p.title) : tr("Удар: %@", damage)))
         Sfx.play(s.lucky ? .victory : .chest)
         save()
     }
@@ -373,7 +373,7 @@ final class BloomGame: ObservableObject {
         panel = nil
         nearby = nil
         onIslandBought?(id)
-        showToast(BloomToast(title: isl.name, subtitle: "Остров расцвёл!"))
+        showToast(BloomToast(title: tr(isl.name), subtitle: tr("Остров расцвёл!")))
         save()
     }
 
@@ -416,7 +416,7 @@ final class BloomGame: ObservableObject {
         s.coins += g.coins
         Sfx.play(.victory)
         onGoalClaimed?()
-        showToast(BloomToast(title: "Цель выполнена!", subtitle: "+\(g.coins) монет" + (g.xp > 0 ? ", +\(g.xp) опыта" : "")))
+        showToast(BloomToast(title: tr("Цель выполнена!"), subtitle: tr("+%@ монет", g.coins) + (g.xp > 0 ? tr(", +%@ опыта", g.xp) : "")))
         if g.xp > 0 { gainXP(g.xp) }
         save()
     }
@@ -461,7 +461,7 @@ final class BloomGame: ObservableObject {
         let c = free.randomElement() ?? "pink"
         s.helpers.append(c)
         onHelperAdded?(c)
-        showToast(BloomToast(title: "Новый помощник!", subtitle: (BloomContent.helperNames[c] ?? "Блумлинг") + " будет добывать с тобой"))
+        showToast(BloomToast(title: tr("Новый помощник!"), subtitle: (BloomContent.helperNames[c] ?? tr("Блумлинг")) + tr(" будет добывать с тобой")))
         Sfx.play(.levelUp)
         panel = nil
         save()
@@ -553,17 +553,17 @@ final class BloomGame: ObservableObject {
             s.founder = true
             s.gems += BloomBalance.shared.shop.founderGems
             onFounder?()
-            showToast(BloomToast(title: "Набор основателя", subtitle: "Золотой блумлинг уже бежит к тебе!"))
+            showToast(BloomToast(title: tr("Набор основателя"), subtitle: tr("Золотой блумлинг уже бежит к тебе!")))
         case .pass:
             s.passUntil = max(Date(), s.passUntil ?? Date()).addingTimeInterval(28 * 86400)
-            showToast(BloomToast(title: "Пропуск цветения", subtitle: "+25% добычи и опыта на 28 дней"))
+            showToast(BloomToast(title: tr("Пропуск цветения"), subtitle: tr("+25% добычи и опыта на 28 дней")))
         case .jar:
             s.gems += s.jar
-            showToast(BloomToast(title: "Банка росы", subtitle: "+\(s.jar) росинок"))
+            showToast(BloomToast(title: tr("Банка росы"), subtitle: tr("+%@ росинок", s.jar)))
             s.jar = 0
         default:
             s.gems += p.gems
-            showToast(BloomToast(title: "+\(p.gems) росинок", subtitle: "Спасибо, что поддерживаешь игру!"))
+            showToast(BloomToast(title: tr("+%@ росинок", p.gems), subtitle: tr("Спасибо, что поддерживаешь игру!")))
         }
         Sfx.play(.victory)
         save()
@@ -586,7 +586,7 @@ final class BloomGame: ObservableObject {
         let sh = BloomBalance.shared.shop
         guard spend(sh.fertilizerGems) else { return }
         s.fertUntil = max(Date(), s.fertUntil ?? Date()).addingTimeInterval(sh.fertilizerMinutes * 60)
-        showToast(BloomToast(title: "Удобрение", subtitle: "Всё растёт вдвое быстрее"))
+        showToast(BloomToast(title: tr("Удобрение"), subtitle: tr("Всё растёт вдвое быстрее")))
         Sfx.play(.harvest)
         save()
     }
@@ -596,7 +596,7 @@ final class BloomGame: ObservableObject {
         guard spend(BloomGame.coinSackGems) else { return }
         s.coins += n
         Sfx.play(.coin)
-        showToast(BloomToast(title: "Мешок монет", subtitle: "+\(n) монет"))
+        showToast(BloomToast(title: tr("Мешок монет"), subtitle: tr("+%@ монет", n)))
         save()
     }
 
@@ -625,10 +625,10 @@ final class BloomGame: ObservableObject {
         if isNew {
             let got = BloomAlbum.pages[page].finds.filter { (s.finds[$0.id] ?? 0) > 0 }.count
             if pageDone(page) {
-                showToast(BloomToast(title: "Страница «\(BloomAlbum.pages[page].title)» собрана!", subtitle: BloomAlbum.pages[page].bonus))
+                showToast(BloomToast(title: tr("Страница «%@» собрана!", BloomAlbum.pages[page].title), subtitle: BloomAlbum.pages[page].bonus))
                 Sfx.play(.victory)
             } else {
-                showToast(BloomToast(title: "Находка: \(BloomAlbum.title(f))", subtitle: "\(BloomAlbum.pages[page].title): \(got)/5"))
+                showToast(BloomToast(title: tr("Находка: %@", BloomAlbum.title(f)), subtitle: "\(BloomAlbum.pages[page].title): \(got)/5"))
             }
         } else {
             s.coins += BloomAlbum.duplicateCoins

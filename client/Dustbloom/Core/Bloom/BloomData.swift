@@ -9,18 +9,18 @@ enum BItem: String, CaseIterable, Codable, Identifiable {
 
     var title: String {
         switch self {
-        case .wood: return "Дерево"
-        case .stone: return "Камень"
-        case .berry: return "Ягоды"
-        case .cotton: return "Хлопок"
-        case .flower: return "Цветок"
-        case .iron_ore: return "Железная руда"
-        case .gold_ore: return "Золотая руда"
-        case .crystal: return "Кристалл"
-        case .brick: return "Кирпич"
-        case .iron_bar: return "Железный слиток"
-        case .gold_bar: return "Золотой слиток"
-        case .cloth: return "Ткань"
+        case .wood: return tr("Дерево")
+        case .stone: return tr("Камень")
+        case .berry: return tr("Ягоды")
+        case .cotton: return tr("Хлопок")
+        case .flower: return tr("Цветок")
+        case .iron_ore: return tr("Железная руда")
+        case .gold_ore: return tr("Золотая руда")
+        case .crystal: return tr("Кристалл")
+        case .brick: return tr("Кирпич")
+        case .iron_bar: return tr("Железный слиток")
+        case .gold_bar: return tr("Золотой слиток")
+        case .cloth: return tr("Ткань")
         }
     }
 
@@ -62,20 +62,20 @@ enum BuildKind: String, CaseIterable, Codable, Identifiable {
     var id: String { rawValue }
     var title: String {
         switch self {
-        case .furnace: return "Печь"
-        case .market: return "Рынок"
-        case .anvil: return "Наковальня"
-        case .loom: return "Ткацкий станок"
-        case .nursery: return "Питомник"
+        case .furnace: return tr("Печь")
+        case .market: return tr("Рынок")
+        case .anvil: return tr("Наковальня")
+        case .loom: return tr("Ткацкий станок")
+        case .nursery: return tr("Питомник")
         }
     }
     var blurb: String {
         switch self {
-        case .furnace: return "Плавит руду и обжигает кирпич"
-        case .market: return "Продаёт ресурсы за монеты"
-        case .anvil: return "Куёт кирки, иногда удачно"
-        case .loom: return "Ткёт ткань из хлопка"
-        case .nursery: return "Выращивает блумлингов-помощников"
+        case .furnace: return tr("Плавит руду и обжигает кирпич")
+        case .market: return tr("Продаёт ресурсы за монеты")
+        case .anvil: return tr("Куёт кирки, иногда удачно")
+        case .loom: return tr("Ткёт ткань из хлопка")
+        case .nursery: return tr("Выращивает блумлингов-помощников")
         }
     }
     var sprite: String { self == .furnace ? "bloom_furnace_0" : "bloom_" + rawValue }
@@ -97,17 +97,17 @@ struct PickTier {
 }
 
 enum BloomContent {
-    static let pickTitles = ["Деревянная кирка", "Каменная кирка", "Железная кирка", "Золотая кирка"]
+    static let pickTitles = [tr("Деревянная кирка"), tr("Каменная кирка"), tr("Железная кирка"), tr("Золотая кирка")]
     static let picks: [PickTier] = BloomBalance.shared.picks.enumerated().map { i, p in
-        PickTier(title: i < pickTitles.count ? pickTitles[i] : "Кирка \(i)", damage: p.damage, cost: p.cost)
+        PickTier(title: i < pickTitles.count ? pickTitles[i] : tr("Кирка %@", i), damage: p.damage, cost: p.cost)
     }
     /// Chance that the anvil makes a "lucky" pick (+1 damage on top).
     static let luckyChance = 0.25
     static let levelUnlockText: [Int: String] = [
-        2: "Открыт рынок",
-        3: "Открыта наковальня",
-        4: "Открыт питомник помощников",
-        5: "Открыт ткацкий станок",
+        2: tr("Открыт рынок"),
+        3: tr("Открыта наковальня"),
+        4: tr("Открыт питомник помощников"),
+        5: tr("Открыт ткацкий станок"),
     ]
 
     static func xpToNext(_ level: Int) -> Int {
@@ -126,7 +126,7 @@ enum BloomContent {
 
     // helpers
     static let helperColors = ["pink", "sun", "sky", "plum"]
-    static let helperNames = ["pink": "Розочка", "sun": "Солнышко", "sky": "Капелька", "plum": "Сливка"]
+    static let helperNames = ["pink": tr("Розочка"), "sun": tr("Солнышко"), "sky": tr("Капелька"), "plum": tr("Сливка")]
     static var maxHelpers: Int { BloomBalance.shared.maxHelpers }
     static func helperCost(_ owned: Int) -> Cost {
         BloomBalance.shared.helperCost.map { ($0.0, $0.1 + owned * $0.2) }

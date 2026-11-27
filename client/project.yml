@@ -2,6 +2,7 @@
 #   brew install xcodegen && cd client && xcodegen generate
 name: Dustbloom
 options:
+  developmentLanguage: en
   bundleIdPrefix: game.dustbloom
   deploymentTarget:
     iOS: "17.0"
@@ -39,6 +40,9 @@ targets:
       path: Dustbloom/Info.plist
       properties:
         CFBundleDisplayName: DUSTBLOOM
+        CFBundleDevelopmentRegion: en
+        CFBundleAllowMixedLocalizations: true
+        CFBundleLocalizations: [en, ru, de, fr, es, it, pt-BR, nl, pl, tr, uk, ja, ko, zh-Hans, zh-Hant, ar, th, vi, id, sv]
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         UILaunchScreen:

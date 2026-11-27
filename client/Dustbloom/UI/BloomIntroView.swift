@@ -13,8 +13,8 @@ struct BloomIntroView: View {
     private let artW: CGFloat = 66, artH: CGFloat = 142
     private let minTime: TimeInterval = 2.2
     private let autoGo: TimeInterval = 4.5
-    private let tips = ["Острова просыпаются…", "Бей по камням в ритм: комбо даёт больше",
-                        "Золотой час удваивает всю добычу", "Блумлинги помогают добывать"]
+    private let tips = [tr("Острова просыпаются…"), tr("Бей по камням в ритм: комбо даёт больше"),
+                        tr("Золотой час удваивает всю добычу"), tr("Блумлинги помогают добывать")]
 
     var body: some View {
         GeometryReader { geo in
@@ -45,7 +45,7 @@ struct BloomIntroView: View {
                         pixel("bloom_logo", 43 * k * 1.15, 31 * k * 1.15)
                             .scaleEffect(logoIn ? 1 + 0.02 * sin(t * 2) : 0.4)
                             .opacity(logoIn ? 1 : 0)
-                        OutlinedText(text: "Преврати пыль в цветущие острова", size: 16)
+                        OutlinedText(text: tr("Преврати пыль в цветущие острова"), size: 16)
                             .opacity(logoIn ? 1 : 0)
                     }
                     .position(x: geo.size.width / 2, y: geo.safeAreaInsets.top + 20 + 31 * k * 0.6 + 40)
@@ -53,7 +53,7 @@ struct BloomIntroView: View {
                         if done {
                             // one big, obvious call to action
                             Button { finish() } label: {
-                                OutlinedText(text: "ИГРАТЬ", size: 26)
+                                OutlinedText(text: tr("ИГРАТЬ"), size: 26)
                                     .frame(width: 200, height: 40)
                             }
                             .buttonStyle(BloomButtonStyle(color: BUI.orange, edge: BUI.orangeEdge))
@@ -61,7 +61,7 @@ struct BloomIntroView: View {
                             .transition(.scale.combined(with: .opacity))
                         }
                         vine(progress, width: min(300, geo.size.width - 90), t: t)
-                        OutlinedText(text: done ? "Всё готово!" : "\(tips[Int(t / 2.2) % tips.count])  \(Int(progress * 100))%",
+                        OutlinedText(text: done ? tr("Всё готово!") : "\(tips[Int(t / 2.2) % tips.count])  \(Int(progress * 100))%",
                                      size: 13, color: BUI.cream)
                     }
                     .position(x: geo.size.width / 2, y: geo.size.height - geo.safeAreaInsets.bottom - 110)

@@ -37,8 +37,8 @@ enum ShopProduct: String, CaseIterable, Identifiable {
     }
     var badge: String? {
         switch self {
-        case .gemsM: return "Хит"
-        case .gemsXL: return "Выгодно"
+        case .gemsM: return tr("Хит")
+        case .gemsXL: return tr("Выгодно")
         default: return nil
         }
     }
@@ -80,7 +80,7 @@ final class BloomStore: ObservableObject {
             try? await Task.sleep(nanoseconds: 400_000_000)
             game?.grant(p)
             #else
-            game?.showToast(BloomToast(title: "Магазин скоро откроется", subtitle: "Покупки пока недоступны"))
+            game?.showToast(BloomToast(title: tr("Магазин скоро откроется"), subtitle: tr("Покупки пока недоступны")))
             #endif
             return
         }

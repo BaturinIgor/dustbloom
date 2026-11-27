@@ -222,7 +222,7 @@ struct BloomHUD: View {
                 Circle().fill(BUI.ink).frame(width: 78, height: 78)
                 Circle().fill(BUI.orange).frame(width: 68, height: 68)
                 Circle().fill(Color.white.opacity(0.25)).frame(width: 52, height: 28).offset(y: -16)
-                OutlinedText(text: "Строить", size: 12.5)
+                OutlinedText(text: tr("Строить"), size: 12.5)
             }
         }
         .buttonStyle(.plain)
@@ -242,7 +242,7 @@ struct BloomHUD: View {
             let isl = game.island(id)
             Button { game.panel = .buy(id); Sfx.play(.select) } label: {
                 HStack(spacing: 6) {
-                    OutlinedText(text: "Остров", size: 14)
+                    OutlinedText(text: tr("Остров"), size: 14)
                     PixelIcon(name: "bloom_item_coin", size: 20)
                     OutlinedText(text: "\(game.islandPrice(id))", size: 14, color: game.coins >= game.islandPrice(id) ? BUI.cream : BUI.red)
                 }
@@ -255,7 +255,7 @@ struct BloomHUD: View {
         let items = Array(game.hotbar.prefix(7)).map { $0.0 }
         return HStack(spacing: 6) {
             if items.isEmpty {
-                OutlinedText(text: "Подойди к дереву или камню", size: 13)
+                OutlinedText(text: tr("Подойди к дереву или камню"), size: 13)
                     .frame(height: 50)
             }
             ForEach(items) { item in
@@ -332,14 +332,14 @@ struct PanelHost: View {
 
     private var title: String {
         switch panel {
-        case .build: return "Постройки"
+        case .build: return tr("Постройки")
         case .building(let k): return k.title
-        case .buy(let id): return game.island(id).name
-        case .inventory: return "Рюкзак"
-        case .talents: return "Древо цветения"
-        case .album: return "Альбом находок"
-        case .shop: return "Лавка"
-        case .feedback: return "Написать нам"
+        case .buy(let id): return tr(game.island(id).name)
+        case .inventory: return tr("Рюкзак")
+        case .talents: return tr("Древо цветения")
+        case .album: return tr("Альбом находок")
+        case .shop: return tr("Лавка")
+        case .feedback: return tr("Написать нам")
         }
     }
 
@@ -409,11 +409,11 @@ struct BuildList: View {
                     } else if game.level < k.unlockLevel {
                         VStack(spacing: 0) {
                             OutlinedText(text: "🔒", size: 16)
-                            OutlinedText(text: "Ур. \(k.unlockLevel)", size: 11)
+                            OutlinedText(text: tr("Ур. %@", k.unlockLevel), size: 11)
                         }
                         .frame(width: 74)
                     } else {
-                        Button { game.build(k) } label: { OutlinedText(text: "Строить", size: 12.5) }
+                        Button { game.build(k) } label: { OutlinedText(text: tr("Строить"), size: 12.5) }
                             .buttonStyle(BloomButtonStyle(enabled: game.canBuild(k)))
                             .frame(width: 84)
                     }
@@ -433,7 +433,7 @@ struct CraftList: View {
                 HStack(spacing: 10) {
                     PixelIcon(name: r.output.sprite, size: 34)
                     VStack(alignment: .leading, spacing: 5) {
-                        OutlinedText(text: "В работе: \(q.left)", size: 13)
+                        OutlinedText(text: tr("В работе: %@", q.left), size: 13)
                         TimelineView(.animation) { _ in
                             let p = min(1, (game.progress[kind.rawValue] ?? 0) / game.secs(r))
                             ZStack(alignment: .leading) {
@@ -456,7 +456,7 @@ struct CraftList: View {
                     VStack(alignment: .leading, spacing: 4) {
                         OutlinedText(text: r.output.title, size: 14)
                         CostRow(cost: r.cost)
-                        Text(String(format: "%.0f с за штуку", game.secs(r).rounded(.up)))
+                        Text(String(format: tr("%.0f с за штуку"), game.secs(r).rounded(.up)))
                             .font(DText.font(10)).foregroundStyle(BUI.cream.opacity(0.7))
                     }
                     Spacer(minLength: 0)
@@ -478,7 +478,7 @@ struct MarketList: View {
     var body: some View {
         let items = BItem.allCases.filter { game.count($0) > 0 }
         if items.isEmpty {
-            OutlinedText(text: "Пока нечего продать", size: 14).padding(20)
+            OutlinedText(text: tr("Пока нечего продать"), size: 14).padding(20)
         }
         ForEach(items) { i in
             Card {
@@ -486,13 +486,13 @@ struct MarketList: View {
                     PixelIcon(name: i.sprite, size: 32)
                     VStack(alignment: .leading, spacing: 2) {
                         OutlinedText(text: i.title, size: 13)
-                        OutlinedText(text: "\(game.count(i)) шт", size: 11, color: BUI.muted)
+                        OutlinedText(text: tr("%@ шт", game.count(i)), size: 11, color: BUI.muted)
                     }
                     Spacer(minLength: 0)
                     let value = game.sellValue(i, game.count(i))
                     Button { game.sell(i, all: true) } label: {
                         HStack(spacing: 4) {
-                            OutlinedText(text: value > 0 ? "+\(value)" : "мало", size: 13)
+                            OutlinedText(text: value > 0 ? "+\(value)" : tr("мало"), size: 13)
                             if value > 0 { PixelIcon(name: "bloom_item_coin", size: 16) }
                         }
                         .frame(minWidth: 64)
@@ -514,7 +514,7 @@ struct AnvilView: View {
                 VStack(alignment: .leading, spacing: 3) {
                     OutlinedText(text: BloomContent.picks[game.pickTier].title + (game.pickLucky ? " ★" : ""), size: 14,
                                  color: game.pickLucky ? BUI.gold : BUI.cream)
-                    OutlinedText(text: "Удар: \(game.damage)", size: 12)
+                    OutlinedText(text: tr("Удар: %@", game.damage), size: 12)
                 }
                 Spacer(minLength: 0)
             }
@@ -526,19 +526,19 @@ struct AnvilView: View {
                         PixelIcon(name: "bloom_pick_\(game.pickTier + 1)", size: 44)
                         VStack(alignment: .leading, spacing: 4) {
                             OutlinedText(text: next.title, size: 14)
-                            OutlinedText(text: "Удар: \(next.damage)", size: 12)
+                            OutlinedText(text: tr("Удар: %@", next.damage), size: 12)
                             CostRow(cost: next.cost)
                         }
                         Spacer(minLength: 0)
                     }
-                    Text("Шанс \(Int(BloomContent.luckyChance * 100))% на удачную ковку: +1 к удару")
+                    Text(tr("Шанс %@% на удачную ковку: +1 к удару", Int(BloomContent.luckyChance * 100)))
                         .font(DText.font(10.5)).foregroundStyle(BUI.gold.opacity(0.9))
-                    Button { game.forgePick() } label: { OutlinedText(text: "Выковать", size: 15).frame(maxWidth: .infinity) }
+                    Button { game.forgePick() } label: { OutlinedText(text: tr("Выковать"), size: 15).frame(maxWidth: .infinity) }
                         .buttonStyle(BloomButtonStyle(color: BUI.orange, edge: BUI.orangeEdge, enabled: game.has(next.cost)))
                 }
             }
         } else {
-            OutlinedText(text: "Лучшая кирка уже у тебя", size: 14).padding(12)
+            OutlinedText(text: tr("Лучшая кирка уже у тебя"), size: 14).padding(12)
         }
     }
 }
@@ -550,19 +550,19 @@ struct BuyView: View {
         let isl = game.island(id)
         Card {
             VStack(spacing: 10) {
-                OutlinedText(text: "Здесь растёт:", size: 13)
+                OutlinedText(text: tr("Здесь растёт:"), size: 13)
                 HStack(spacing: 10) {
                     ForEach(isl.spawn.keys.sorted(), id: \.self) { k in
                         PixelIcon(name: "bloom_" + k, size: 34)
                     }
                 }
-                Text("Купи остров, и пыль сменится цветами")
+                Text(tr("Купи остров, и пыль сменится цветами"))
                     .font(DText.font(11)).foregroundStyle(BUI.cream.opacity(0.75))
             }
         }
         Button { game.buy(id) } label: {
             HStack(spacing: 6) {
-                OutlinedText(text: "Купить за", size: 16)
+                OutlinedText(text: tr("Купить за"), size: 16)
                 PixelIcon(name: "bloom_item_coin", size: 22)
                 OutlinedText(text: game.islandPrice(id).short, size: 16)
             }
@@ -570,7 +570,7 @@ struct BuyView: View {
         }
         .buttonStyle(BloomButtonStyle(enabled: game.coins >= game.islandPrice(id)))
         if game.coins < game.islandPrice(id) {
-            OutlinedText(text: "Не хватает \((game.islandPrice(id) - game.coins).short). Продай ресурсы на рынке", size: 11, color: BUI.red, fixed: false, lines: 2)
+            OutlinedText(text: tr("Не хватает %@. Продай ресурсы на рынке", (game.islandPrice(id) - game.coins).short), size: 11, color: BUI.red, fixed: false, lines: 2)
         }
     }
 }
@@ -611,7 +611,7 @@ struct GoalCard: View {
                     VStack(alignment: .leading, spacing: 3) {
                         OutlinedText(text: g.title, size: 12)
                         if done {
-                            OutlinedText(text: "Забрать награду!", size: 11, color: BUI.gold)
+                            OutlinedText(text: tr("Забрать награду!"), size: 11, color: BUI.gold)
                         } else {
                             ZStack(alignment: .leading) {
                                 Capsule().fill(BUI.ink).frame(width: 110, height: 9)
@@ -639,7 +639,7 @@ struct NurseryView: View {
     var body: some View {
         Card {
             VStack(spacing: 8) {
-                OutlinedText(text: "Твои помощники: \(game.helpers.count)/\(game.maxHelpers)", size: 13)
+                OutlinedText(text: tr("Твои помощники: %@/%@", game.helpers.count, game.maxHelpers), size: 13)
                 HStack(spacing: 14) {
                     ForEach(0..<game.maxHelpers, id: \.self) { i in
                         if i < game.helpers.count {
@@ -654,7 +654,7 @@ struct NurseryView: View {
                         }
                     }
                 }
-                Text("Блумлинги сами бегут к ближайшему дереву или камню и добывают для тебя")
+                Text(tr("Блумлинги сами бегут к ближайшему дереву или камню и добывают для тебя"))
                     .font(DText.font(10.5)).foregroundStyle(BUI.cream.opacity(0.75)).multilineTextAlignment(.center)
             }
         }
@@ -663,7 +663,7 @@ struct NurseryView: View {
                 VStack(spacing: 8) {
                     CostRow(cost: game.helperCost)
                     Button { game.growHelper() } label: {
-                        OutlinedText(text: "Вырастить блумлинга", size: 15).frame(maxWidth: .infinity)
+                        OutlinedText(text: tr("Вырастить блумлинга"), size: 15).frame(maxWidth: .infinity)
                     }
                     .buttonStyle(BloomButtonStyle(enabled: game.canGrowHelper))
                 }
@@ -726,7 +726,7 @@ struct GoldenBanner: View {
                 let left = max(0, Int(until.timeIntervalSince(ctx.date).rounded(.up)))
                 HStack(spacing: 8) {
                     PixelIcon(name: "bloom_item_coin", size: 22)
-                    OutlinedText(text: "ЗОЛОТОЙ ЧАС  ×2", size: 16, color: BUI.gold)
+                    OutlinedText(text: tr("ЗОЛОТОЙ ЧАС  ×2"), size: 16, color: BUI.gold)
                     OutlinedText(text: "\(left / 60):\(String(format: "%02d", left % 60))", size: 14)
                 }
                 .padding(.horizontal, 14)
@@ -800,8 +800,8 @@ struct TalentTreeView: View {
     private var header: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                OutlinedText(text: "Древо цветения", size: 22, color: BUI.gold)
-                OutlinedText(text: "Очко таланта за каждый уровень", size: 11, color: BUI.cream.opacity(0.8))
+                OutlinedText(text: tr("Древо цветения"), size: 22, color: BUI.gold)
+                OutlinedText(text: tr("Очко таланта за каждый уровень"), size: 11, color: BUI.cream.opacity(0.8))
             }
             Spacer()
             HStack(spacing: 6) {
@@ -910,14 +910,14 @@ struct TalentTreeView: View {
             }
             Spacer(minLength: 0)
             if st == 2 {
-                OutlinedText(text: "Изучено", size: 13, color: BUI.green).frame(width: 96)
+                OutlinedText(text: tr("Изучено"), size: 13, color: BUI.green).frame(width: 96)
             } else if st == 0 {
-                OutlinedText(text: "Сначала нижний талант", size: 11, color: BUI.cream.opacity(0.7), fixed: false, lines: 2).frame(width: 96)
+                OutlinedText(text: tr("Сначала нижний талант"), size: 11, color: BUI.cream.opacity(0.7), fixed: false, lines: 2).frame(width: 96)
             } else {
                 Button { game.learn(t) } label: {
                     VStack(spacing: 0) {
-                        OutlinedText(text: "Изучить", size: 14)
-                        OutlinedText(text: "\(t.cost) очк.", size: 10, color: BUI.gold)
+                        OutlinedText(text: tr("Изучить"), size: 14)
+                        OutlinedText(text: tr("%@ очк.", t.cost), size: 10, color: BUI.gold)
                     }
                 }
                 .buttonStyle(BloomButtonStyle(color: BUI.orange, edge: BUI.orangeEdge, enabled: game.canLearn(t)))
@@ -967,7 +967,7 @@ struct AlbumView: View {
                 }
             }
         }
-        OutlinedText(text: "Находки иногда выпадают из деревьев, кустов и камней", size: 11, color: BUI.cream.opacity(0.7), fixed: false, lines: 2)
+        OutlinedText(text: tr("Находки иногда выпадают из деревьев, кустов и камней"), size: 11, color: BUI.cream.opacity(0.7), fixed: false, lines: 2)
             .padding(.top, 4)
     }
 }
@@ -985,7 +985,7 @@ struct FeedbackView: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            OutlinedText(text: "Как тебе игра? Каждое сообщение читаем сами", size: 13, color: BUI.muted, fixed: false, lines: 2)
+            OutlinedText(text: tr("Как тебе игра? Каждое сообщение читаем сами"), size: 13, color: BUI.muted, fixed: false, lines: 2)
             HStack(spacing: 14) {
                 ForEach(moods, id: \.0) { m in
                     Button { mood = m.0; Sfx.play(.select) } label: {
@@ -1000,7 +1000,7 @@ struct FeedbackView: View {
             ZStack(alignment: .topLeading) {
                 RoundedRectangle(cornerRadius: 14).fill(BUI.ink.opacity(0.7))
                 if text.isEmpty {
-                    Text("Что понравилось, что мешает, чего хочется…")
+                    Text(tr("Что понравилось, что мешает, чего хочется…"))
                         .font(DText.font(13)).foregroundStyle(BUI.muted.opacity(0.7))
                         .padding(12)
                 }
@@ -1019,8 +1019,8 @@ struct FeedbackView: View {
                 Group {
                     switch state {
                     case 1: ProgressView().tint(.white)
-                    case 2: OutlinedText(text: "Спасибо! Отправлено", size: 15)
-                    default: OutlinedText(text: "Отправить", size: 15)
+                    case 2: OutlinedText(text: tr("Спасибо! Отправлено"), size: 15)
+                    default: OutlinedText(text: tr("Отправить"), size: 15)
                     }
                 }
                 .frame(maxWidth: .infinity, minHeight: 24)
@@ -1028,7 +1028,7 @@ struct FeedbackView: View {
             .buttonStyle(BloomButtonStyle(color: state == 2 ? BUI.green : BUI.orange, edge: state == 2 ? BUI.greenEdge : BUI.orangeEdge))
             .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || state == 1 || state == 2)
             if state == 3 {
-                OutlinedText(text: "Нет связи. Попробуй чуть позже", size: 12, color: BUI.red)
+                OutlinedText(text: tr("Нет связи. Попробуй чуть позже"), size: 12, color: BUI.red)
             }
             Button {
                 Analytics.shared.track("review_manual")
@@ -1036,7 +1036,7 @@ struct FeedbackView: View {
             } label: {
                 HStack(spacing: 6) {
                     Text("⭐️").font(.system(size: 16))
-                    OutlinedText(text: "Оценить в App Store", size: 14)
+                    OutlinedText(text: tr("Оценить в App Store"), size: 14)
                 }
                 .frame(maxWidth: .infinity, minHeight: 24)
             }

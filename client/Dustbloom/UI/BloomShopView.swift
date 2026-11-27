@@ -11,23 +11,23 @@ struct ShopView: View {
             balance
             if !game.isFounder { founderCard }
             adCard
-            section("Росинки")
+            section(tr("Росинки"))
             LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], spacing: 8) {
                 ForEach(ShopProduct.gemPacks) { gemPack($0) }
             }
-            section("Потратить росинки")
-            SpendRow(icon: "bloom_item_coin", title: "Золотой час сейчас", text: "Вся добыча ×2 на 3 минуты",
+            section(tr("Потратить росинки"))
+            SpendRow(icon: "bloom_item_coin", title: tr("Золотой час сейчас"), text: tr("Вся добыча ×2 на 3 минуты"),
                      gems: BloomGame.goldenNowGems, active: nil) { game.buyGoldenNow() }
-            SpendRow(icon: "bloom_ui_fert", title: "Удобрение", text: "Всё растёт вдвое быстрее, 10 минут",
+            SpendRow(icon: "bloom_ui_fert", title: tr("Удобрение"), text: tr("Всё растёт вдвое быстрее, 10 минут"),
                      gems: BloomBalance.shared.shop.fertilizerGems, active: game.fertUntil) { game.buyFertilizer() }
-            SpendRow(icon: "bloom_item_coin", title: "Мешок монет", text: "+\(game.coinSack.short) монет",
+            SpendRow(icon: "bloom_item_coin", title: tr("Мешок монет"), text: tr("+%@ монет", game.coinSack.short),
                      gems: BloomGame.coinSackGems, active: nil) { game.buyCoinSack() }
-            section("Пропуск цветения")
+            section(tr("Пропуск цветения"))
             passCard
-            section("Банка росы")
+            section(tr("Банка росы"))
             jarCard
             Button { Task { await store.restore() } } label: {
-                OutlinedText(text: "Восстановить покупки", size: 11, color: BUI.muted)
+                OutlinedText(text: tr("Восстановить покупки"), size: 11, color: BUI.muted)
             }
             .buttonStyle(.plain)
             .padding(.top, 4)
@@ -39,7 +39,7 @@ struct ShopView: View {
         HStack(spacing: 6) {
             PixelIcon(name: "bloom_item_gem", size: 24)
             OutlinedText(text: "\(game.gems)", size: 18)
-            OutlinedText(text: "росинок", size: 13, color: BUI.muted)
+            OutlinedText(text: tr("росинок"), size: 13, color: BUI.muted)
         }
         .padding(.horizontal, 14)
         .frame(height: 34)
@@ -64,8 +64,8 @@ struct ShopView: View {
                     PixelIcon(name: "bloom_helper_gold_idle_0", size: 46)
                 }
                 VStack(alignment: .leading, spacing: 3) {
-                    OutlinedText(text: "Набор основателя", size: 17, color: BUI.gold, fixed: false)
-                    OutlinedText(text: "Один раз и навсегда", size: 11, color: BUI.muted)
+                    OutlinedText(text: tr("Набор основателя"), size: 17, color: BUI.gold, fixed: false)
+                    OutlinedText(text: tr("Один раз и навсегда"), size: 11, color: BUI.muted)
                 }
                 Spacer(minLength: 0)
                 ZStack {
@@ -75,9 +75,9 @@ struct ShopView: View {
                 .rotationEffect(.degrees(8))
             }
             VStack(alignment: .leading, spacing: 5) {
-                perk("bloom_helper_gold_idle_0", "Золотой блумлинг: бьёт вдвое сильнее, не занимает место")
-                perk("bloom_ui_fert", "Острова отрастают на 30% быстрее, навсегда")
-                perk("bloom_item_gem", "\(BloomBalance.shared.shop.founderGems) росинок сразу")
+                perk("bloom_helper_gold_idle_0", tr("Золотой блумлинг: бьёт вдвое сильнее, не занимает место"))
+                perk("bloom_ui_fert", tr("Острова отрастают на 30% быстрее, навсегда"))
+                perk("bloom_item_gem", tr("%@ росинок сразу", BloomBalance.shared.shop.founderGems))
             }
             BuyButton(product: .founder, wide: true)
         }
@@ -106,8 +106,8 @@ struct ShopView: View {
                 HStack(spacing: 10) {
                     PixelIcon(name: "bloom_ui_ad", size: 34)
                     VStack(alignment: .leading, spacing: 2) {
-                        OutlinedText(text: "Бесплатно", size: 14, color: BUI.green)
-                        OutlinedText(text: "Золотой час 3 мин за короткое видео", size: 11, color: BUI.muted, fixed: false, lines: 2)
+                        OutlinedText(text: tr("Бесплатно"), size: 14, color: BUI.green)
+                        OutlinedText(text: tr("Золотой час 3 мин за короткое видео"), size: 11, color: BUI.muted, fixed: false, lines: 2)
                     }
                     Spacer(minLength: 0)
                     if left > 0 {
@@ -116,7 +116,7 @@ struct ShopView: View {
                         Button {
                             RewardedAds.show { ok in if ok { game.rewardAd() } }
                         } label: {
-                            OutlinedText(text: "Смотреть", size: 13).frame(minWidth: 70)
+                            OutlinedText(text: tr("Смотреть"), size: 13).frame(minWidth: 70)
                         }
                         .buttonStyle(BloomButtonStyle(color: BUI.green, edge: BUI.greenEdge))
                         .disabled(!RewardedAds.isAvailable)
@@ -162,16 +162,16 @@ struct ShopView: View {
                 HStack(spacing: 10) {
                     PixelIcon(name: "bloom_ui_pass", size: 38)
                     VStack(alignment: .leading, spacing: 2) {
-                        OutlinedText(text: "+25% добычи и опыта", size: 13)
-                        OutlinedText(text: "28 дней, без автопродления", size: 11, color: BUI.muted, fixed: false)
+                        OutlinedText(text: tr("+25% добычи и опыта"), size: 13)
+                        OutlinedText(text: tr("28 дней, без автопродления"), size: 11, color: BUI.muted, fixed: false)
                     }
                     Spacer(minLength: 0)
                 }
                 if let until = game.passUntil {
                     let days = max(1, Int(until.timeIntervalSinceNow / 86400) + 1)
-                    OutlinedText(text: "Активен ещё \(days) дн.", size: 12, color: BUI.green)
+                    OutlinedText(text: tr("Активен ещё %@ дн.", days), size: 12, color: BUI.green)
                 }
-                BuyButton(product: .pass, wide: true, title: game.passActive ? "Продлить" : nil)
+                BuyButton(product: .pass, wide: true, title: game.passActive ? tr("Продлить") : nil)
             }
         }
     }
@@ -182,7 +182,7 @@ struct ShopView: View {
                 HStack(spacing: 10) {
                     PixelIcon(name: "bloom_ui_jar", size: 38)
                     VStack(alignment: .leading, spacing: 4) {
-                        OutlinedText(text: "Копится, пока ты играешь", size: 12, fixed: false)
+                        OutlinedText(text: tr("Копится, пока ты играешь"), size: 12, fixed: false)
                         ZStack(alignment: .leading) {
                             Capsule().fill(BUI.ink).frame(height: 14)
                             Capsule().fill(Color(red: 0.28, green: 0.71, blue: 1))
@@ -196,9 +196,9 @@ struct ShopView: View {
                     Spacer(minLength: 0)
                 }
                 if game.jar >= 60 {
-                    BuyButton(product: .jar, wide: true, title: "Разбить банку: +\(game.jar)")
+                    BuyButton(product: .jar, wide: true, title: tr("Разбить банку: +%@", game.jar))
                 } else {
-                    OutlinedText(text: "Откроется от 60 росинок", size: 11, color: BUI.muted)
+                    OutlinedText(text: tr("Откроется от 60 росинок"), size: 11, color: BUI.muted)
                 }
             }
         }
@@ -226,7 +226,7 @@ struct BuyButton: View {
                 if store.busy == product {
                     ProgressView().tint(.white)
                 } else if owned {
-                    OutlinedText(text: "Куплено", size: 14)
+                    OutlinedText(text: tr("Куплено"), size: 14)
                 } else if let t = title {
                     OutlinedText(text: "\(t) · \(store.price(product))", size: 14)
                 } else {
@@ -260,7 +260,7 @@ struct SpendRow: View {
                     if let a = active {
                         TimelineView(.periodic(from: .now, by: 1)) { ctx in
                             let s = max(0, Int(a.timeIntervalSince(ctx.date)))
-                            OutlinedText(text: "Действует ещё \(s / 60):\(String(format: "%02d", s % 60))", size: 11, color: BUI.green)
+                            OutlinedText(text: tr("Действует ещё %@:%@", s / 60, String(format: "%02d", s % 60)), size: 11, color: BUI.green)
                         }
                     } else {
                         OutlinedText(text: text, size: 11, color: BUI.muted, fixed: false, lines: 2)
@@ -272,7 +272,7 @@ struct SpendRow: View {
                 } label: {
                     HStack(spacing: 3) {
                         if armed {
-                            OutlinedText(text: "Точно?", size: 13)
+                            OutlinedText(text: tr("Точно?"), size: 13)
                         } else {
                             OutlinedText(text: "\(gems)", size: 14)
                             PixelIcon(name: "bloom_item_gem", size: 16)

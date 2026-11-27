@@ -13,6 +13,9 @@ import argparse, json, os, sys, time
 import jwt
 import requests
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from iap_locales import table as locale_table  # noqa: E402
+
 API = "https://api.appstoreconnect.apple.com"
 BUNDLE_ID = "game.dustbloom.app"
 
@@ -85,6 +88,8 @@ def main():
     app_id = apps[0]["id"]
     print("app", apps[0]["attributes"]["name"], app_id)
 
+    global LOCALES
+    LOCALES = locale_table()
     existing = {p["attributes"]["productId"]: p for p in c.all(f"/v1/apps/{app_id}/inAppPurchasesV2")}
     territories = [t["id"] for t in c.all("/v1/territories")]
 
@@ -106,7 +111,7 @@ def main():
         have = set()
         if iap_id != "DRY":
             have = {l["attributes"]["locale"] for l in c.all(f"/v2/inAppPurchases/{iap_id}/inAppPurchaseLocalizations")}
-        for locale, (name, desc) in (("ru", ru), ("en-US", en)):
+        for locale, name, desc in LOCALES[pid]:
             if locale in have:
                 continue
             c.req("POST", "/v1/inAppPurchaseLocalizations", {"data": {

@@ -98,7 +98,7 @@ struct BloomBalance {
         }
         helperCost.sort { $0.0.rawValue < $1.0.rawValue }
         goals = ((j["goals"] as? [[String: Any]]) ?? []).map {
-            Goal(title: $0["title"] as? String ?? "", icon: $0["icon"] as? String ?? "", key: $0["key"] as? String ?? "",
+            Goal(title: tr($0["title"] as? String ?? ""), icon: $0["icon"] as? String ?? "", key: $0["key"] as? String ?? "",
                  target: i($0["target"]) ?? 1, coins: i($0["coins"]) ?? 0, xp: i($0["xp"]) ?? 0)
         }
         if let s = j["shop"] as? [String: Any] {

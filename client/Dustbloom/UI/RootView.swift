@@ -20,6 +20,8 @@ struct RootView: View {
                 .transition(.opacity)
             }
         }
+        // layouts are drawn symmetric by hand; keep them left-to-right even in Arabic
+        .environment(\.layoutDirection, .leftToRight)
         .task {
             await store.connect()
             connected = true
