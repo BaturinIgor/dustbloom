@@ -324,7 +324,9 @@ struct PanelHost: View {
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
             ScrollView(showsIndicators: false) {
+                // explicit width: without it long translated lines made rows wider than the panel
                 VStack(spacing: 10) { content }
+                    .frame(width: 350 - 28)
                     .padding(.horizontal, 14)
                     .padding(.bottom, 16)
             }
@@ -408,6 +410,7 @@ struct BuildList: View {
                     VStack(alignment: .leading, spacing: 4) {
                         OutlinedText(text: k.title, size: 15)
                         Text(k.blurb).font(DText.font(10.5)).foregroundStyle(BUI.cream.opacity(0.75))
+                            .lineLimit(2).fixedSize(horizontal: false, vertical: true)
                         CostRow(cost: game.cost(k))
                     }
                     Spacer(minLength: 0)
