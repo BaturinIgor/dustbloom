@@ -17,6 +17,11 @@ struct BloomView: View {
             SpriteView(scene: scene, preferredFramesPerSecond: 60,
                        debugOptions: ProcessInfo.processInfo.arguments.contains("-showFPS") ? [.showsFPS, .showsNodeCount, .showsDrawCount] : [])
                 .ignoresSafeArea()
+            // soft vignette pulls the eye to the hero
+            RadialGradient(colors: [.clear, .clear, Color(red: 0.05, green: 0.12, blue: 0.25).opacity(0.28)],
+                           center: .center, startRadius: 120, endRadius: 520)
+                .ignoresSafeArea()
+                .allowsHitTesting(false)
             BloomHUD()
         }
         .environmentObject(game)
@@ -84,7 +89,7 @@ struct BloomHUD: View {
                         .id(t.id)
                         .task(id: t.id) {
                             try? await Task.sleep(nanoseconds: 2_300_000_000)
-                            if game.toast?.id == t.id { game.toast = nil }
+                            if game.toast?.id == t.id { game.nextToast() }
                         }
                 }
                 Spacer()

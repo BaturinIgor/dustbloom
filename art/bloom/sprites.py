@@ -29,7 +29,7 @@ C = dict(
     g0="#5aae3c", g1="#7ccc4a", g1b="#83d24e", g2="#94dc58", g3="#c8f383", gline="#2f6e3a",
     d0="#7a4a2e", d1="#a8653a", d2="#cf8a4c", d3="#eab071",
     # dust (locked land): warm grey-lilac
-    u0="#6e6577", u1="#9a8f9e", u1b="#a1969f", u2="#b3a8b0", u3="#cfc5c6", uline="#4c4456",
+    u0="#7d7078", u1="#a59a98", u1b="#a99e9b", u2="#b5aaa4", u3="#d3c8bf", uline="#4c4456",
     ud0="#5e5462", ud1="#7a6e7c", ud2="#968a95", ud3="#b0a4ad",
     t0="#6b3f2a", t1="#9c6238", t2="#c4834c",
     l0="#1f6b45", l1="#2f9a4e", l2="#4cbf55", l3="#7fdc5e", l4="#c4f58a",
@@ -239,6 +239,41 @@ def crystal():
     cv.rect(x - 5, y, x + 5, y, 'r1')
     cv.outline('cloth_d')
     sprite('bloom_crystal', cv)
+
+
+def cracks():
+    for stage, lines in ((1, [((9, 6), (8, 8), (9, 9), (7, 11))]),
+                         (2, [((9, 6), (8, 8), (9, 9), (7, 11)), ((4, 8), (6, 9), (5, 11)), ((12, 7), (13, 9), (12, 11), (13, 12))])):
+        cv = Canvas(18, 16)
+        for pts in lines:
+            for (x0, y0), (x1, y1) in zip(pts, pts[1:]):
+                n = max(abs(x1 - x0), abs(y1 - y0))
+                for k in range(n + 1):
+                    cv.put(round(x0 + (x1 - x0) * k / n), round(y0 + (y1 - y0) * k / n), 'rline')
+        sprite('bloom_crack_%d' % stage, cv)
+
+
+def cloud_shadow():
+    cv = Canvas(72, 34)
+    for (cx, cy, rx, ry) in ((24, 18, 20, 12), (44, 14, 22, 12), (56, 20, 14, 9)):
+        for y in range(34):
+            for x in range(72):
+                d = ((x + 0.5 - cx) / rx) ** 2 + ((y + 0.5 - cy) / ry) ** 2
+                if d <= 1 and (d < 0.75 or (x + y) % 2 == 0):
+                    cv.px[x, y] = (20, 40, 70, 255)
+    sprite('bloom_cloud', cv)
+
+
+def stump(kind):
+    cv = Canvas(14, 10)
+    x, y = 7, 10 - BASE - 1
+    cv.rect(x - 3, y - 3, x + 3, y, 't1'); cv.rect(x + 2, y - 3, x + 3, y, 't0')
+    cv.rect(x - 3, y - 4, x + 3, y - 4, 't2'); cv.put(x, y - 4, 'd3'); cv.put(x - 1, y - 4, 'd3')
+    cv.put(x - 4, y, 't1'); cv.put(x + 4, y, 't0')
+    if kind == 'pine':
+        cv.put(x - 2, y - 5, 'p2'); cv.put(x + 2, y - 5, 'p2')
+    cv.outline('t0')
+    sprite('bloom_stump' + ('_pine' if kind == 'pine' else ''), cv)
 
 
 def flower(c, name):
@@ -493,44 +528,85 @@ def island_texture(isl, dust):
         if (x, y + 1) not in mask:
             cv.put(x, y + CLIFF + 2, 'foam', 200)
             cv.put(x - 1, y + CLIFF + 2, 'foam', 200); cv.put(x + 1, y + CLIFF + 2, 'foam', 200)
-    # cliff
-    for (x, y) in mask:
-        if (x, y + 1) not in mask:
-            for k in range(1, CLIFF + 1):
-                c = 'd2' if k <= 2 else ('d1' if k <= 4 else 'd0')
-                if k == 1 and x % 5 == 0:
-                    c = 'd3'
-                cv.put(x, y + k, P(c))
-            cv.put(x, y + CLIFF + 1, P('d0'))
-            if x % 7 == 3:
-                cv.put(x, y + 3, P('d0'))
-    # top
-    for (x, y) in mask:
+    # cliff: earth band under the grass, then layered rock with stones and cracks
+    bottom = sorted((x, y) for (x, y) in mask if (x, y + 1) not in mask)
+    for (x, y) in bottom:
+        crack = (x * 7 + y * 3) % 11 == 0
+        for k in range(1, CLIFF + 1):
+            if k <= 2:
+                c = 'd2'
+            elif k <= 4:
+                c = 'd1' if (x + k) % 9 else 'd2'
+            else:
+                c = 'd0'
+            if crack and 2 <= k <= CLIFF:
+                c = 'd0'
+            cv.put(x, y + k, P(c))
+        # stones in the rock
+        h = (x * 13 + y * 5) % 17
+        if h == 0:
+            cv.put(x, y + 3, P('d3')); cv.put(x + 1, y + 3, P('d2')); cv.put(x, y + 4, P('d2'))
+        elif h == 7:
+            cv.put(x, y + 5, P('d2'))
+        cv.put(x, y + CLIFF + 1, 'water_d' if not dust else 'ud0')
+    # top: two greens dithered at their border, light from the top-left
+    def tone(x, y):
         n = math.sin(x * 0.21 + y * 0.13 + isl['id']) + math.sin(x * 0.11 - y * 0.27) * 1.2
-        c = 'g2' if n > 0.9 else 'g1'
-        if (x // 8 + y // 8) % 2 == 0 and c == 'g1':
-            c = 'g1b'
+        return n
+    for (x, y) in mask:
+        n = tone(x, y)
+        if n > 1.05:
+            c = 'g2'
+        elif n > 0.75:
+            c = 'g2' if (x + y) % 2 == 0 else 'g1'
+        else:
+            c = 'g1'
+            if (x // 8 + y // 8) % 2 == 0:
+                c = 'g1b'
         cv.put(x, y, P(c))
     for (x, y) in mask:
-        if (x, y - 1) not in mask:
-            cv.put(x, y, P('g3')); cv.put(x, y - 1, P('gline'))
-        if (x - 1, y) not in mask:
+        top = (x, y - 1) not in mask
+        left = (x - 1, y) not in mask
+        right = (x + 1, y) not in mask
+        bot = (x, y + 1) not in mask
+        if top:
+            cv.put(x, y - 1, P('gline')); cv.put(x, y, P('g3'))
+            if (x, y + 1) in mask:
+                cv.put(x, y + 1, P('g2'))
+        if left:
             cv.put(x - 1, y, P('gline')); cv.put(x, y, P('g3'))
-        if (x + 1, y) not in mask:
+        if right:
             cv.put(x + 1, y, P('gline')); cv.put(x, y, P('g0'))
+        if bot and not left:
+            cv.put(x, y, P('g0'))
+    # grass hanging over the cliff edge
+    for (x, y) in bottom:
+        ln = (0, 1, 2, 1, 0, 0, 3, 1, 0, 2, 0, 1)[(x * 5 + y) % 12]
+        for k in range(1, ln + 1):
+            cv.put(x, y + k, P('g0' if k == ln else 'g1'))
     pts = sorted(mask)
-    for _ in range(len(cells) * 3):
-        (x, y) = rnd.choice(pts)
-        if all((x + a, y + b) in mask for a in (-2, 2) for b in (-2, 2)):
-            if dust:
-                cv.put(x, y, 'u0'); cv.put(x + 1, y, 'u0'); cv.put(x + 1, y + 1, 'u0')  # cracks
-            else:
-                cv.put(x, y, 'g3'); cv.put(x - 1, y + 1, 'g2'); cv.put(x + 1, y + 1, 'g2')
-    if dust:
+    inner = [(x, y) for (x, y) in pts if all((x + a, y + b) in mask for a in (-2, 2) for b in (-2, 2))]
+    # grass blades and tufts
+    for _ in range(len(cells) * 7):
+        (x, y) = rnd.choice(inner)
+        if dust:
+            cv.put(x, y, P('g0')); cv.put(x + 1, y, P('g0')); cv.put(x + 1, y + 1, P('g0'))
+        elif rnd.random() < 0.55:
+            cv.put(x, y, 'g0'); cv.put(x, y - 1, 'g0'); cv.put(x + 2, y, 'g0'); cv.put(x + 2, y - 1, 'g3')
+        else:
+            cv.put(x, y, 'g3'); cv.put(x - 1, y + 1, 'g2'); cv.put(x + 1, y + 1, 'g2')
+    if not dust:
         for _ in range(len(cells)):
-            (x, y) = rnd.choice(pts)
-            if all((x + a, y + b) in mask for a in (-3, 3) for b in (-3, 3)):
-                cv.put(x, y, 'ud1'); cv.put(x - 1, y - 1, 'ud1'); cv.put(x + 1, y - 2, 'ud1'); cv.put(x, y - 1, 'ud0')
+            (x, y) = rnd.choice(inner)
+            c = rnd.choice(('white', 'berry_l', 'gold', 'water_l'))
+            cv.put(x, y, c); cv.put(x, y + 1, 'g0')
+    else:
+        for _ in range(len(cells) * 2):
+            (x, y) = rnd.choice(inner)
+            cv.put(x, y, 'ud1'); cv.put(x - 1, y - 1, 'ud1'); cv.put(x + 1, y - 2, 'ud1'); cv.put(x, y - 1, 'ud0')
+        for _ in range(len(cells)):  # dead twigs and pebbles
+            (x, y) = rnd.choice(inner)
+            cv.put(x, y, 'ud0'); cv.put(x + 1, y - 1, 'ud0'); cv.put(x - 1, y - 1, 'ud0')
     # world position of the image's bottom-left corner (y up)
     wx = minx * T - pad
     wy = miny * T - pad - CLIFF - 2
@@ -547,7 +623,7 @@ def build_all():
     bush('berry'); bush('cotton'); crystal()
     for c, n in (('#ffffff', 'white'), ('berry_l', 'pink'), ('gold', 'yellow'), ('water_l', 'blue')):
         flower(c, n)
-    tuft(); shadow()
+    tuft(); shadow(); cloud_shadow(); cracks(); stump('tree'); stump('pine')
     furnace(0); furnace(1); anvil(); market(); loom()
     bridge(True); bridge(False); sign()
     for n in ('wood', 'stone', 'iron_ore', 'gold_ore', 'berry', 'cotton', 'coin', 'brick', 'iron_bar', 'gold_bar',

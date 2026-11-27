@@ -183,7 +183,7 @@ final class BloomGame: ObservableObject {
             up = s.level
         }
         if let l = up {
-            toast = BloomToast(title: "Уровень \(l)!", subtitle: BloomContent.levelUnlockText[l] ?? "Удар сильнее, добыча богаче")
+            showToast(BloomToast(title: "Уровень \(l)!", subtitle: BloomContent.levelUnlockText[l] ?? "Удар сильнее, добыча богаче"))
             Sfx.play(.levelUp)
         }
         return up
@@ -270,8 +270,8 @@ final class BloomGame: ObservableObject {
         s.pick += 1
         s.lucky = Double.random(in: 0..<1) < BloomContent.luckyChance
         onCrafted?(.anvil, .iron_bar, s.lucky)
-        toast = BloomToast(title: s.lucky ? "Удачная ковка!" : p.title,
-                           subtitle: s.lucky ? "\(p.title) +1 к удару" : "Удар: \(damage)")
+        showToast(BloomToast(title: s.lucky ? "Удачная ковка!" : p.title,
+                           subtitle: s.lucky ? "\(p.title) +1 к удару" : "Удар: \(damage)"))
         Sfx.play(s.lucky ? .victory : .chest)
         save()
     }
@@ -298,8 +298,20 @@ final class BloomGame: ObservableObject {
         panel = nil
         nearby = nil
         onIslandBought?(id)
-        toast = BloomToast(title: isl.name, subtitle: "Остров расцвёл!")
+        showToast(BloomToast(title: isl.name, subtitle: "Остров расцвёл!"))
         save()
+    }
+
+    // MARK: - toasts (one at a time, the rest wait their turn)
+
+    private var toastQueue: [BloomToast] = []
+
+    func showToast(_ t: BloomToast) {
+        if toast == nil { toast = t } else { toastQueue.append(t) }
+    }
+
+    func nextToast() {
+        toast = toastQueue.isEmpty ? nil : toastQueue.removeFirst()
     }
 
     // MARK: - save

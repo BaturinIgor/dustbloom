@@ -69,6 +69,7 @@ final class BloomScene: SKScene {
     private var heroPos = CGPoint.zero
     private var facing: CGFloat = 1
     private var animClock: TimeInterval = 0
+    private var dustClock: TimeInterval = 0
     private var hitTimer: TimeInterval = 0
     private var swinging = false
     private var comboLabel: SKLabelNode?
@@ -130,6 +131,7 @@ final class BloomScene: SKScene {
         cam.addChild(stickBase)
 
         buildWater()
+        buildClouds()
         for isl in game.world.islands {
             for c in isl.cells { cellIsland[Cell(x: c[0], y: c[1])] = isl.id }
             let owned = game.owned.contains(isl.id)
@@ -139,6 +141,14 @@ final class BloomScene: SKScene {
             n.zPosition = -1000
             world.addChild(n)
             islandNodes[isl.id] = n
+            let sh = SKSpriteNode(texture: n.texture)
+            sh.anchorPoint = .zero
+            sh.color = UIColor(red: 0.05, green: 0.25, blue: 0.45, alpha: 1)
+            sh.colorBlendFactor = 1
+            sh.alpha = 0.22
+            sh.position = CGPoint(x: n.position.x + 2, y: n.position.y - 3)
+            sh.zPosition = -1050
+            world.addChild(sh)
         }
         for (i, b) in game.world.bridges.enumerated() {
             let c = Cell(x: b.tile[0], y: b.tile[1])
@@ -203,6 +213,23 @@ final class BloomScene: SKScene {
                         .moveBy(x: 3, y: 0, duration: d)]),
                 .moveBy(x: -3, y: 0, duration: 0),
             ])))
+        }
+    }
+
+    private func buildClouds() {
+        for i in 0..<4 {
+            let c = SKSpriteNode(texture: tex("bloom_cloud"))
+            c.alpha = 0.09
+            c.setScale(CGFloat.random(in: 1.2...1.8))
+            c.zPosition = 1950
+            let y = CGFloat(-100 + i * 80) + CGFloat.random(in: -20...20)
+            let x0 = CGFloat.random(in: -200...250)
+            c.position = CGPoint(x: x0, y: y)
+            world.addChild(c)
+            let speed = CGFloat.random(in: 3...5)
+            let first = (300 - x0) / speed
+            c.run(.sequence([.moveTo(x: 300, duration: Double(first)), .moveTo(x: -220, duration: 0),
+                             .repeatForever(.sequence([.moveTo(x: 300, duration: Double(520 / speed)), .moveTo(x: -220, duration: 0)]))]))
         }
     }
 
@@ -346,6 +373,13 @@ final class BloomScene: SKScene {
         world.addChild(sh)
         world.addChild(n)
         res[c] = Res(kind: k, cell: c, island: island, node: n, shadow: sh)
+        if k == .tree || k == .pine || k.isSoft {
+            let a: CGFloat = k.isSoft ? 0.03 : 0.022
+            let d = Double.random(in: 1.4...1.9)
+            n.zRotation = -a
+            n.run(.sequence([.wait(forDuration: Double.random(in: 0...1.5)),
+                             .repeatForever(.sequence([.rotate(toAngle: a, duration: d), .rotate(toAngle: -a, duration: d)]))]))
+        }
         if delay >= 0 { pop(n, delay: delay); pop(sh, delay: delay) }
     }
 
@@ -675,6 +709,18 @@ final class BloomScene: SKScene {
             let f = Int(animClock * 10) % 4
             heroSprite.texture = tex("bloom_hero_run_\(f)")
             collectFlowers()
+            dustClock += dt
+            if dustClock > 0.17 {
+                dustClock = 0
+                let d = SKSpriteNode(texture: tex("bloom_fx_puff"))
+                d.position = CGPoint(x: heroPos.x - facing * 3, y: heroPos.y)
+                d.zPosition = 500 - heroPos.y + 1
+                d.setScale(0.5)
+                d.alpha = 0.7
+                world.addChild(d)
+                d.run(.sequence([.group([.moveBy(x: -facing * 3, y: 2, duration: 0.3), .scale(to: 0.15, duration: 0.3),
+                                         .fadeOut(withDuration: 0.3)]), .removeFromParent()]))
+            }
         } else {
             heroSprite.texture = tex(Int(animClock * 2) % 2 == 0 ? "bloom_hero_idle_0" : "bloom_hero_idle_1")
         }
@@ -798,6 +844,18 @@ final class BloomScene: SKScene {
             r.node.addChild(bg)
             r.bar = bg
         }
+        if r.kind.isStone {
+            let ratio = CGFloat(r.hp) / CGFloat(r.kind.hp)
+            let stage = ratio < 0.34 ? 2 : (ratio < 0.67 ? 1 : 0)
+            if stage > 0, r.node.childNode(withName: "crack\(stage)") == nil {
+                r.node.childNode(withName: "crack\(stage - 1)")?.removeFromParent()
+                let ck = SKSpriteNode(texture: tex("bloom_crack_\(stage)"))
+                ck.anchorPoint = r.node.anchorPoint
+                ck.name = "crack\(stage)"
+                ck.zPosition = 1
+                r.node.addChild(ck)
+            }
+        }
         if let f = r.bar?.childNode(withName: "fill") as? SKSpriteNode {
             f.run(.resize(toWidth: max(1, w * CGFloat(r.hp) / CGFloat(r.kind.hp)), duration: 0.08))
         }
@@ -809,7 +867,25 @@ final class BloomScene: SKScene {
         r.node.removeAllActions()
         r.node.run(.sequence([.group([.scale(to: 0.1, duration: 0.12), .fadeOut(withDuration: 0.12)]), .removeFromParent()]))
         r.shadow.run(.sequence([.fadeOut(withDuration: 0.15), .removeFromParent()]))
-        puff(at: p, n: 7)
+        puff(at: p, n: 9)
+        shake(1.2)
+        if r.kind == .tree || r.kind == .pine {
+            let st = SKSpriteNode(texture: tex(r.kind == .pine ? "bloom_stump_pine" : "bloom_stump"))
+            st.anchorPoint = CGPoint(x: 0.5, y: 2 / 10)
+            st.position = p
+            st.zPosition = 500 - p.y - 0.5
+            world.addChild(st)
+            st.run(.sequence([.wait(forDuration: 6), .fadeOut(withDuration: 0.6), .removeFromParent()]))
+            for _ in 0..<10 {
+                particle("bloom_fx_leaf", at: CGPoint(x: p.x, y: p.y + 14),
+                         v: CGVector(dx: CGFloat.random(in: -26...26), dy: CGFloat.random(in: 4...26)), life: 0.8)
+            }
+        } else if r.kind.isStone {
+            for _ in 0..<8 {
+                particle("bloom_fx_chip", at: CGPoint(x: p.x, y: p.y + 5),
+                         v: CGVector(dx: CGFloat.random(in: -28...28), dy: CGFloat.random(in: 8...30)), life: 0.6)
+            }
+        }
         medium.impactOccurred()
         Sfx.playThrottled(.poof, gap: 0.08, volume: 0.7)
         for (item, n) in game.roll(r.kind, mult: mult) { emit(item, n, from: p) }
