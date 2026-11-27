@@ -297,7 +297,7 @@ final class BloomScene: SKScene {
             coin.setScale(0.6)
             coin.position = CGPoint(x: -5, y: 11)
             s.addChild(coin)
-            let l = label(game.islandPrice(locked).short, size: 6, color: UIColor(red: 0.17, green: 0.14, blue: 0.25, alpha: 1), stroke: nil)
+            let l = label(game.islandPrice(locked).compact, size: 6, color: UIColor(red: 0.17, green: 0.14, blue: 0.25, alpha: 1), stroke: nil)
             l.horizontalAlignmentMode = .left
             l.verticalAlignmentMode = .center
             l.position = CGPoint(x: -1.5, y: 10.5)

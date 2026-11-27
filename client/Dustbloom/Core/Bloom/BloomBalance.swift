@@ -137,3 +137,12 @@ extension Int {
         return "\(self)"
     }
 }
+
+extension Int {
+    /// For tiny labels (island signs): 950, 1K, 3.5K, 20K.
+    var compact: String {
+        if self < 1000 { return "\(self)" }
+        let k = Double(self) / 1000
+        return k < 10 && self % 1000 != 0 ? String(format: "%.1fK", k) : "\(self / 1000)K"
+    }
+}

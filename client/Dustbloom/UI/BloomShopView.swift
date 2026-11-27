@@ -32,6 +32,7 @@ struct ShopView: View {
             .buttonStyle(.plain)
             .padding(.top, 4)
         }
+        .frame(width: 322)
     }
 
     private var balance: some View {
@@ -59,11 +60,11 @@ struct ShopView: View {
         VStack(spacing: 8) {
             HStack(spacing: 10) {
                 ZStack {
-                    Circle().fill(BUI.gold.opacity(0.25)).frame(width: 70, height: 70)
-                    PixelIcon(name: "bloom_helper_gold_idle_0", size: 54)
+                    Circle().fill(BUI.gold.opacity(0.25)).frame(width: 60, height: 60)
+                    PixelIcon(name: "bloom_helper_gold_idle_0", size: 46)
                 }
                 VStack(alignment: .leading, spacing: 3) {
-                    OutlinedText(text: "Набор основателя", size: 17, color: BUI.gold)
+                    OutlinedText(text: "Набор основателя", size: 17, color: BUI.gold, fixed: false)
                     OutlinedText(text: "Один раз и навсегда", size: 11, color: BUI.muted)
                 }
                 Spacer(minLength: 0)
@@ -90,8 +91,8 @@ struct ShopView: View {
     private func perk(_ icon: String, _ text: String) -> some View {
         HStack(spacing: 8) {
             PixelIcon(name: icon, size: 22)
-            OutlinedText(text: text, size: 11.5)
-                .fixedSize(horizontal: false, vertical: true)
+            OutlinedText(text: text, size: 11.5, fixed: false, lines: 2)
+                .frame(maxWidth: .infinity, alignment: .leading)
             Spacer(minLength: 0)
         }
     }
@@ -106,8 +107,7 @@ struct ShopView: View {
                     PixelIcon(name: "bloom_ui_ad", size: 34)
                     VStack(alignment: .leading, spacing: 2) {
                         OutlinedText(text: "Бесплатно", size: 14, color: BUI.green)
-                        OutlinedText(text: "Золотой час 3 мин за короткое видео", size: 11, color: BUI.muted)
-                            .fixedSize(horizontal: false, vertical: true)
+                        OutlinedText(text: "Золотой час 3 мин за короткое видео", size: 11, color: BUI.muted, fixed: false, lines: 2)
                     }
                     Spacer(minLength: 0)
                     if left > 0 {
@@ -163,7 +163,7 @@ struct ShopView: View {
                     PixelIcon(name: "bloom_ui_pass", size: 38)
                     VStack(alignment: .leading, spacing: 2) {
                         OutlinedText(text: "+25% добычи и опыта", size: 13)
-                        OutlinedText(text: "28 дней, без автопродления", size: 11, color: BUI.muted)
+                        OutlinedText(text: "28 дней, без автопродления", size: 11, color: BUI.muted, fixed: false)
                     }
                     Spacer(minLength: 0)
                 }
@@ -182,16 +182,16 @@ struct ShopView: View {
                 HStack(spacing: 10) {
                     PixelIcon(name: "bloom_ui_jar", size: 38)
                     VStack(alignment: .leading, spacing: 4) {
-                        OutlinedText(text: "Копится, пока ты играешь", size: 12)
+                        OutlinedText(text: "Копится, пока ты играешь", size: 12, fixed: false)
                         ZStack(alignment: .leading) {
                             Capsule().fill(BUI.ink).frame(height: 14)
                             Capsule().fill(Color(red: 0.28, green: 0.71, blue: 1))
-                                .frame(width: max(14, 190 * CGFloat(game.jar) / CGFloat(BloomGame.jarCap)), height: 10)
+                                .frame(width: max(14, 176 * CGFloat(game.jar) / CGFloat(BloomGame.jarCap)), height: 10)
                                 .padding(.leading, 2)
                             OutlinedText(text: "\(game.jar) / \(BloomGame.jarCap)", size: 10)
                                 .frame(maxWidth: .infinity)
                         }
-                        .frame(width: 194)
+                        .frame(width: 180)
                     }
                     Spacer(minLength: 0)
                 }
@@ -263,7 +263,7 @@ struct SpendRow: View {
                             OutlinedText(text: "Действует ещё \(s / 60):\(String(format: "%02d", s % 60))", size: 11, color: BUI.green)
                         }
                     } else {
-                        OutlinedText(text: text, size: 11, color: BUI.muted)
+                        OutlinedText(text: text, size: 11, color: BUI.muted, fixed: false, lines: 2)
                     }
                 }
                 Spacer(minLength: 0)

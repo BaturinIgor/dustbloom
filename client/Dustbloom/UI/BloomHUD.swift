@@ -311,7 +311,7 @@ struct PanelHost: View {
                     .padding(.horizontal, 14)
                     .padding(.bottom, 16)
             }
-            .frame(maxHeight: panel == .shop ? 610 : 470)
+            .frame(maxHeight: panel == .shop ? 520 : 470)
             .fixedSize(horizontal: false, vertical: true)
         }
         .frame(width: 350)
