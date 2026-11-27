@@ -1,4 +1,5 @@
 import SpriteKit
+import StoreKit
 import SwiftUI
 
 /// Bloom screen: the island scene with the HUD and in-game panels on top.
@@ -28,6 +29,14 @@ struct BloomView: View {
         .onAppear {
             scene.game = game
             BloomStore.shared.start(game: game)
+            game.onAskReview = {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                    if let ws = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+                        Analytics.shared.track("review_prompt")
+                        AppStore.requestReview(in: ws)
+                    }
+                }
+            }
             if ProcessInfo.processInfo.arguments.contains("-bloomTour") { tour() }
         }
         .onChange(of: phase) { _, p in

@@ -130,7 +130,9 @@ final class BloomGame: ObservableObject {
     private(set) var s = BloomSave() { willSet { objectWillChange.send() } }
     /// Seconds into the current item of each queue (not published).
     private(set) var progress: [String: Double] = [:]
-    @Published var panel: BloomPanel?
+    @Published var panel: BloomPanel? {
+        didSet { if let p = panel, p != oldValue { Analytics.shared.track("bloom_panel", ["panel": String(describing: p)]) } }
+    }
     @Published var combo = 0           // hits in the current chain
     @Published var toast: BloomToast?
     /// What the left context button offers right now (set by the scene).
@@ -244,6 +246,7 @@ final class BloomGame: ObservableObject {
             up = s.level
         }
         if let l = up {
+            Analytics.shared.track("bloom_level", ["level": l, "minutes": playMinutes])
             showToast(BloomToast(title: "Уровень \(l)!", subtitle: BloomContent.levelUnlockText[l] ?? "Новое очко таланта"))
             Sfx.play(.levelUp)
         }
@@ -258,6 +261,7 @@ final class BloomGame: ObservableObject {
 
     func build(_ b: BuildKind) {
         guard canBuild(b), let cell = placeBuilding?(b) else { Sfx.play(.error); return }
+        Analytics.shared.track("bloom_build", ["kind": b.rawValue, "level": s.level])
         pay(cost(b))
         let pb = PlacedBuilding(kind: b, cell: cell)
         s.buildings.append(pb)
@@ -362,6 +366,9 @@ final class BloomGame: ObservableObject {
         guard !owned.contains(id), s.coins >= islandPrice(id) else { Sfx.play(.error); return }
         s.coins -= islandPrice(id)
         s.owned.append(id)
+        Analytics.shared.track("bloom_island", ["id": id, "level": s.level, "minutes": playMinutes])
+        // ask for a rating at a happy moment, never after a loss: right after the 3rd island blooms
+        if s.owned.count == 3 { onAskReview?() }
         panel = nil
         nearby = nil
         onIslandBought?(id)
@@ -403,6 +410,7 @@ final class BloomGame: ObservableObject {
 
     func claimGoal() {
         guard let g = goal, goalDone else { return }
+        Analytics.shared.track("bloom_goal", ["index": s.goal, "key": g.key, "minutes": playMinutes])
         s.goal += 1
         s.coins += g.coins
         Sfx.play(.victory)
@@ -473,6 +481,7 @@ final class BloomGame: ObservableObject {
     }
     func learn(_ t: Talent) {
         guard canLearn(t) else { Sfx.play(.error); return }
+        Analytics.shared.track("bloom_talent", ["id": t.id, "level": s.level])
         s.talents.append(t.id)
         Sfx.play(.levelUp)
         onTalentsChanged?()
@@ -531,8 +540,12 @@ final class BloomGame: ObservableObject {
     /// Scene hooks: start (or extend) a golden hour; the founder's golden Bloomling arrives.
     var onGoldenRequested: ((Double) -> Void)?
     var onFounder: (() -> Void)?
+    var onAskReview: (() -> Void)?
+    /// Minutes of play in this save (from gathered things, about 2.5 s each): a cheap pacing clock for analytics.
+    var playMinutes: Int { s.jarTick / 24 }
 
     func grant(_ p: ShopProduct) {
+        Analytics.shared.track("bloom_purchase", ["product": p.rawValue, "level": s.level, "minutes": playMinutes])
         switch p {
         case .founder:
             guard !s.founder else { return }
@@ -588,6 +601,7 @@ final class BloomGame: ObservableObject {
 
     /// Called after a rewarded ad was watched to the end.
     func rewardAd() {
+        Analytics.shared.track("bloom_ad_reward", ["level": s.level])
         s.adReadyAt = Date().addingTimeInterval(BloomBalance.shared.shop.adGoldenCooldown)
         panel = nil
         onGoldenRequested?(BloomBalance.shared.shop.adGoldenSeconds)
