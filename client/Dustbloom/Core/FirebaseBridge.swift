@@ -29,9 +29,23 @@ enum FirebaseBridge {
         for (k, v) in props.prefix(25) {
             if let s = v as? String { p[String(k.prefix(40))] = String(s.prefix(100)) } else { p[String(k.prefix(40))] = v }
         }
-        FirebaseAnalytics.Analytics.logEvent(String(name.prefix(40)), parameters: p)
+        // Google Analytics silently drops events that use its reserved names
+        // (our "session_start" was one), so those get a "bloom_" prefix.
+        let event = reserved.contains(name) ? "bloom_" + name : name
+        FirebaseAnalytics.Analytics.logEvent(String(event.prefix(40)), parameters: p)
         #endif
     }
+
+    static let reserved: Set<String> = [
+        "ad_activeview", "ad_click", "ad_exposure", "ad_impression", "ad_query", "ad_reward",
+        "adunit_exposure", "app_background", "app_clear_data", "app_exception", "app_remove",
+        "app_store_refund", "app_store_subscription_cancel", "app_store_subscription_convert",
+        "app_store_subscription_renew", "app_update", "app_upgrade", "dynamic_link_app_open",
+        "dynamic_link_app_update", "dynamic_link_first_open", "error", "first_open", "first_visit",
+        "in_app_purchase", "notification_dismiss", "notification_foreground", "notification_open",
+        "notification_receive", "os_update", "session_start", "session_start_with_rollout",
+        "user_engagement",
+    ]
 
     /// Stores one player message in Firestore (collection "dustbloom_feedback").
     static func sendFeedback(_ text: String, mood: String, extra: [String: Any]) async -> Bool {
