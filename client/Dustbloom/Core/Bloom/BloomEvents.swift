@@ -50,11 +50,12 @@ enum BloomEvents {
         EventReward(coins: 0, gems: 0, chest: false, golden: true, skin: nil),
         EventReward(coins: 4, gems: 30, chest: false, golden: false, skin: nil),
     ]
+    // paid track: fixed rewards only, no random chests (no loot boxes)
     static let premium: [EventReward] = [
         EventReward(coins: 0, gems: 40, chest: false, golden: false, skin: nil),
-        EventReward(coins: 4, gems: 0, chest: true, golden: false, skin: nil),
+        EventReward(coins: 9, gems: 0, chest: false, golden: false, skin: nil),
         EventReward(coins: 0, gems: 60, chest: false, golden: false, skin: nil),
-        EventReward(coins: 6, gems: 0, chest: true, golden: false, skin: nil),
+        EventReward(coins: 12, gems: 0, chest: false, golden: false, skin: nil),
         EventReward(coins: 0, gems: 100, chest: false, golden: false, skin: nil),
         EventReward(coins: 0, gems: 0, chest: false, golden: false, skin: "star"),
     ]

@@ -99,13 +99,13 @@ def main():
         ar_id, cur = ar["data"]["id"], ar["data"]["attributes"]
         # cartoon pickaxe swings at rocks and trees only; rewarded ads; no chat, no web, no real gambling
         yes = {"advertising"}
-        keep = {"lootBox", "kidsAgeBand", "ageRatingOverride", "ageRatingOverrideV2", "koreaAgeRatingOverride",
+        keep = {"kidsAgeBand", "ageRatingOverride", "ageRatingOverrideV2", "koreaAgeRatingOverride",
                 "developerAgeRatingInfoUrl"}
         new = {}
         for k, val in cur.items():
             if k in keep:
                 continue
-            if isinstance(val, bool) or (val is None and k in yes | {"gambling", "unrestrictedWebAccess", "messagingAndChat",
+            if isinstance(val, bool) or (val is None and k in yes | {"lootBox", "gambling", "unrestrictedWebAccess", "messagingAndChat",
                                                                      "userGeneratedContent", "parentalControls", "ageAssurance",
                                                                      "healthOrWellnessTopics"}):
                 new[k] = k in yes
@@ -133,7 +133,7 @@ def main():
                     elif k in new:
                         new.pop(k)
                 print("   retry, fixed:", [er.get("source", {}).get("pointer") for er in errs])
-        print("   loot box answer left as is:", cur.get("lootBox"))
+        print("   loot box: no (every paid item has fixed contents)")
 
     if a.only_age:
         return

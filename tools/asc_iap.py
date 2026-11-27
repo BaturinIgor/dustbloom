@@ -119,11 +119,18 @@ def main():
             print("  created", iap_id)
 
         # localizations
-        have = set()
+        have = {}
         if iap_id != "DRY":
-            have = {l["attributes"]["locale"] for l in c.all(f"/v2/inAppPurchases/{iap_id}/inAppPurchaseLocalizations")}
+            have = {l["attributes"]["locale"]: l for l in c.all(f"/v2/inAppPurchases/{iap_id}/inAppPurchaseLocalizations")}
         for locale, name, desc in LOCALES[pid]:
             if locale in have:
+                cur = have[locale]["attributes"]
+                if cur.get("name") != name[:30] or cur.get("description") != desc[:45]:
+                    lid = have[locale]["id"]
+                    c.req("PATCH", f"/v1/inAppPurchaseLocalizations/{lid}", {"data": {
+                        "type": "inAppPurchaseLocalizations", "id": lid,
+                        "attributes": {"name": name[:30], "description": desc[:45]}}})
+                    print("  ~", locale)
                 continue
             c.req("POST", "/v1/inAppPurchaseLocalizations", {"data": {
                 "type": "inAppPurchaseLocalizations",

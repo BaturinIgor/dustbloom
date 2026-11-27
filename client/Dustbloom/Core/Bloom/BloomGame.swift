@@ -668,7 +668,10 @@ final class BloomGame: ObservableObject {
             guard !s.starter else { return }
             s.starter = true
             s.gems += 150
-            give(EventReward(coins: 5, gems: 0, chest: true, golden: false, skin: nil))
+            // a fixed bag, not a random chest: nothing bought with money is random (no loot boxes)
+            give(EventReward(coins: 12, gems: 0, chest: false, golden: false, skin: nil))
+            add(.wood, 40)
+            add(.stone, 40)
             if !s.skins.contains("mint") { s.skins.append("mint") }
             s.skin = "mint"
             showToast(BloomToast(title: tr("Стартовый набор"), subtitle: tr("Мятный облик уже на тебе!")))

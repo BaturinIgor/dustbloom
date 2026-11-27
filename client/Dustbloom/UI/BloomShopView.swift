@@ -134,7 +134,7 @@ struct ShopView: View {
             }
             VStack(alignment: .leading, spacing: 5) {
                 perk("bloom_item_gem", tr("%@ росинок сразу", 150))
-                perk("bloom_chest_closed", tr("Сундук и мешок монет"))
+                perk("bloom_item_coin", tr("Мешок монет, 40 дерева и 40 камня"))
                 perk("bloom_ui_skin", tr("Мятный облик героя"))
             }
             BuyButton(product: .starter, wide: true)
