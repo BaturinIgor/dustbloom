@@ -114,7 +114,7 @@ struct BloomHUD: View {
             VStack {
                 if let t = game.toast {
                     ToastView(toast: t)
-                        .padding(.top, 62)
+                        .padding(.top, 118) // below the goal card, so "goal done" doesn't hide the next goal
                         .transition(.move(edge: .top).combined(with: .opacity))
                         .id(t.id)
                         .task(id: t.id) {

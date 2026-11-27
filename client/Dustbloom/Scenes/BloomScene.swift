@@ -1250,6 +1250,10 @@ final class BloomScene: SKScene {
     private var demoDetour = CGVector.zero
     private var demoDetourUntil: TimeInterval = 0
     private var demoDetourSign: CGFloat = 1
+    private var demoSign: Int?                       // sign the autopilot is walking to
+    private var demoBestDist: CGFloat = .infinity
+    private var demoBestAt: TimeInterval = 0
+    private var demoSkip: [Int: TimeInterval] = [:]  // signs it couldn't reach, ignored until the time
     private func autopilot() {
         if game.panel != nil { stickVec = .zero; return }
         if now < demoPause { stickVec = .zero; return }
@@ -1266,12 +1270,19 @@ final class BloomScene: SKScene {
         if !game.isBuilt(.market) && game.canBuild(.market) {
             game.build(.market); demoPause = now + 1; return
         }
-        if game.isBuilt(.market), game.count(.wood) + game.count(.berry) > 24 {
+        // keep what the nursery and the next Bloomling need, sell the rest
+        let saving = game.s.level >= BuildKind.nursery.unlockLevel
+        let keepWood = saving && !game.isBuilt(.nursery) ? 28 : 8
+        let keepBerry = saving ? 12 + game.helpers.count * 10 + 10 : 0
+        let keepFlower = saving ? 4 + game.helpers.count * 4 : 0
+        if game.isBuilt(.market), game.count(.wood) - keepWood + game.count(.berry) - keepBerry > 16 {
             game.panel = .building(.market)
             demoPause = now + 1.6
             run(.sequence([.wait(forDuration: 0.7), .run { [weak self] in
-                self?.game.sell(.berry, all: true); self?.game.sell(.flower, all: true)
-                if let w = self?.game.count(.wood), w > 8 { for _ in 0..<(w - 8) { self?.game.sell(.wood, all: false) } }
+                guard let g = self?.game else { return }
+                for (item, keep) in [(BItem.berry, keepBerry), (.flower, keepFlower), (.wood, keepWood)] where g.count(item) > keep {
+                    for _ in 0..<(g.count(item) - keep) { g.sell(item, all: false) }
+                }
             }, .wait(forDuration: 0.8), .run { [weak self] in self?.game.panel = nil }]))
             return
         }
@@ -1281,16 +1292,24 @@ final class BloomScene: SKScene {
         }
         // go buy the cheapest island we can afford
         var goal: CGPoint?
-        for (i, s) in signs {
+        var sign: Int?
+        var bestPrice = Int.max
+        for (i, s) in signs where (demoSkip[i] ?? 0) < now {
             let b = game.world.bridges[i]
             let id = game.owned.contains(b.a) ? b.b : b.a
-            if game.coins >= game.island(id).price {
-                goal = s.position
-                if hypot(s.position.x - heroPos.x, s.position.y - heroPos.y) < 26 {  // same reach as the context button
-                    game.buy(id); demoPause = now + 2.5; return
-                }
-                break
+            let price = game.island(id).price
+            guard game.coins >= price, price < bestPrice else { continue }
+            if hypot(s.position.x - heroPos.x, s.position.y - heroPos.y) < 26 {  // same reach as the context button
+                game.buy(id); demoPause = now + 2.5; return
             }
+            bestPrice = price; goal = s.position; sign = i
+        }
+        if sign != demoSign { demoSign = sign; demoBestDist = .infinity; demoBestAt = now }
+        if let i = sign, let g = goal {
+            // a sign across the water can't be reached in a straight line: give up on it for a while
+            let dist = hypot(g.x - heroPos.x, g.y - heroPos.y)
+            if dist < demoBestDist - 4 { demoBestDist = dist; demoBestAt = now }
+            else if now - demoBestAt > 4 { demoSkip[i] = now + 25; demoSign = nil; return }
         }
         if goal == nil, let ch = chest { goal = ch.node.position }
         if goal == nil, target() == nil {

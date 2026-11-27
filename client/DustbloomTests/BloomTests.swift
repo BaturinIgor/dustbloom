@@ -3,6 +3,13 @@ import XCTest
 
 @MainActor
 final class BloomTests: XCTestCase {
+    // tests run inside the app host: start every BloomGame from a clean save,
+    // not from whatever the last simulator session left behind
+    override func setUp() {
+        super.setUp()
+        UserDefaults.standard.removeObject(forKey: "bloom.save.v2")
+    }
+
     func testWorldLoadsAndStartIslandIsFree() {
         let w = BloomWorld.load()
         XCTAssertEqual(w.islands.count, 6)
