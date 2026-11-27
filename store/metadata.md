@@ -1,4 +1,4 @@
-# App Store listing (version 0.1.0)
+# App Store listing (version 1.0.0; the texts uploaded by tools/asc_listing.py live in store/listing.py)
 
 Paste into App Store Connect → the app → version page. Limits: name 30, subtitle 30, promo 170, keywords 100 (comma, no spaces).
 
@@ -54,14 +54,16 @@ DUSTBLOOM — уютное пиксельное приключение про д
 
 Игра бесплатная. Покупки (набор основателя, пропуск цветения, росинки) ускоряют прогресс, но не обязательны.
 
-## App Privacy (questionnaire)
+## App Privacy (questionnaire, 1.0 with AdMob rewarded ads)
 
-Data collected, **not linked to the user, not used for tracking**:
-- Usage Data → Product Interaction — Analytics
-- Identifiers → Device ID (Firebase app-instance ID) — Analytics
-- Location → Coarse Location (country from IP) — Analytics
-- Purchases → Purchase History (purchase events) — Analytics
-- User Content → Other User Content (feedback text) — App Functionality / Customer Support
+Used for tracking: **Yes** (AdMob, only after the iOS tracking prompt allows it).
+- Identifiers → Device ID — Third-Party Advertising, Analytics; linked to user: No; tracking: Yes
+- Usage Data → Advertising Data — Third-Party Advertising; tracking: Yes
+- Usage Data → Product Interaction — Analytics; not linked, no tracking
+- Location → Coarse Location (country from IP) — Analytics, Third-Party Advertising
+- Purchases → Purchase History — Analytics; not linked
+- Diagnostics → Crash Data, Performance Data — App Functionality (Firebase / AdMob SDK)
+- User Content → Other User Content (feedback text) — App Functionality / Customer Support; not linked
 
 ## App Review notes
 
