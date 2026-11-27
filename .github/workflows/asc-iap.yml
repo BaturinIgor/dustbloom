@@ -8,7 +8,7 @@ on:
       task:
         description: "What to set up"
         type: choice
-        options: [products, gamecenter]
+        options: [products, gamecenter, listing]
         default: products
       dry_run:
         description: "Only print what would change"
@@ -19,7 +19,7 @@ permissions:
 jobs:
   iap:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -36,5 +36,6 @@ jobs:
           printf '%s\n' "$ASC_KEY_P8" > "$RUNNER_TEMP/key.p8"
           script=tools/asc_iap.py
           [ "${{ inputs.task }}" = "gamecenter" ] && script=tools/asc_gamecenter.py
+          [ "${{ inputs.task }}" = "listing" ] && script=tools/asc_listing.py
           ASC_KEY_PATH="$RUNNER_TEMP/key.p8" python3 "$script" ${{ inputs.dry_run && '--dry-run' || '' }}
           rm -f "$RUNNER_TEMP/key.p8"
