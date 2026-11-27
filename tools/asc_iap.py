@@ -74,7 +74,7 @@ class ASC:
         r = self.s.request(method, API + path, params=params, json=body,
                            headers={"Authorization": "Bearer " + self.token()})
         if r.status_code >= 400:
-            raise SystemExit(f"{method} {path} -> {r.status_code}\n{r.text[:1500]}")
+            raise SystemExit(f"{method} {path} -> {r.status_code}\n{r.text[:8000]}")
         return r.json() if r.text else {}
 
     def all(self, path, params=None):
