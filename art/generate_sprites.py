@@ -1272,7 +1272,7 @@ def main():
 
     keep = set(s) | {"edge_fence_x", "edge_fence_y", "ui_power"} | {"avatar_%d" % i for i in range(12)} | ARMY_NAMES | set(frames) | {"logo_wordmark"} | INTRO_NAMES
     for d in os.listdir(ASSETS):
-        if d.endswith(".imageset") and d[:-9] not in keep:
+        if d.endswith(".imageset") and d[:-9] not in keep and not d.startswith("def_"):
             for f in os.listdir(os.path.join(ASSETS, d)):
                 os.remove(os.path.join(ASSETS, d, f))
             os.rmdir(os.path.join(ASSETS, d))
@@ -1289,6 +1289,12 @@ def main():
     from hd.avatars import sprites as avatar_sprites  # profile avatars and the power icon
     avatars = avatar_sprites()
     for name, im in avatars.items():
+        save_imageset(name, im)
+    from hd.defense_art import sprites as defense_sprites  # Farm Defense battle
+    for name, im in defense_sprites().items():
+        save_imageset(name, im)
+    from hd.defense_heroes import sprites as hero_sprites  # big animated scarecrows
+    for name, im in hero_sprites().items():
         save_imageset(name, im)
     from hd.army_art import sprites as army_sprites  # workshop and raid cards
     for name, im in army_sprites().items():

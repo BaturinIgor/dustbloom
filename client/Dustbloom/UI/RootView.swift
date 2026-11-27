@@ -6,18 +6,26 @@ struct RootView: View {
     @EnvironmentObject private var store: FarmStore
     @State private var loaded = false
     @State private var connected = false
+    @State private var worldID = UUID()
 
     var body: some View {
         ZStack {
             if loaded {
-                GameView()
+                // Bloom (Forager-like) slice; DefenseView and GameView stay in code for now
+                BloomView()
+                    .id(worldID)
                     .transition(.opacity)
             } else {
-                IntroView(ready: connected) {
+                BloomIntroView(ready: connected) {
                     withAnimation(.easeInOut(duration: 0.6)) { loaded = true }
                 }
                 .transition(.opacity)
             }
+        }
+        // layouts are drawn symmetric by hand; keep them left-to-right even in Arabic
+        .environment(\.layoutDirection, .leftToRight)
+        .onReceive(NotificationCenter.default.publisher(for: .bloomRebirth)) { _ in
+            withAnimation(.easeInOut(duration: 0.8)) { worldID = UUID() }
         }
         .task {
             await store.connect()

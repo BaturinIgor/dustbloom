@@ -73,6 +73,7 @@ final class Analytics {
             }
         }
         queue.append(Event(name: name, at: Date(), props: p.isEmpty ? nil : p))
+        FirebaseBridge.log(name, props)
         if queue.count > Self.maxQueue { queue.removeFirst(queue.count - Self.maxQueue) }
         if queue.count >= Self.batchSize { Task { await flush() } }
     }

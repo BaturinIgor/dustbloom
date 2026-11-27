@@ -5,6 +5,10 @@ struct DustbloomApp: App {
     @StateObject private var store = FarmStore()
     @Environment(\.scenePhase) private var phase
 
+    init() {
+        FirebaseBridge.start()
+    }
+
     var body: some Scene {
         WindowGroup {
             RootView()

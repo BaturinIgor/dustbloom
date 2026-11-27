@@ -1,0 +1,12 @@
+// DUSTBLOOM shares a Firebase project with other apps. Do NOT replace the project's
+// rules with this file: paste only the match block below inside the existing
+// `match /databases/{database}/documents { ... }`.
+//
+// Players can only drop a feedback message; nobody can read or change it from the app.
+    match /dustbloom_feedback/{id} {
+      allow create: if request.resource.data.keys().hasOnly(['text', 'mood', 'game', 'at', 'app', 'lang', 'level', 'islands', 'minutes'])
+                    && request.resource.data.text is string
+                    && request.resource.data.text.size() > 0
+                    && request.resource.data.text.size() <= 2000;
+      allow read, update, delete: if false;
+    }

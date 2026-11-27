@@ -1,4 +1,5 @@
 import AVFoundation
+import QuartzCore
 
 /// Plays the sound effects built from CC0 Kenney packs (audio/build_sfx.py).
 /// Ambient session: respects the silent switch and mixes with the player's music.
@@ -8,6 +9,8 @@ enum Sfx {
         case till = "sfx_till", plant = "sfx_plant", harvest = "sfx_harvest", coin = "sfx_coin"
         case levelUp = "sfx_levelup", error = "sfx_error", select = "sfx_select", sparkle = "sfx_sparkle"
         case chest = "sfx_chest", speedup = "sfx_speedup", victory = "sfx_victory", defeat = "sfx_defeat"
+        case hit = "sfx_hit", shoot = "sfx_shoot", poof = "sfx_poof", skill = "sfx_skill", boss = "sfx_boss"
+        case fence = "sfx_fence"
     }
 
     /// Overall level of all effects. build_sfx.py already levels the WAVs to about
@@ -19,6 +22,7 @@ enum Sfx {
         .till: 0.8, .plant: 0.9, .select: 0.8, .error: 0.8,
         .harvest: 1.0, .coin: 0.9, .sparkle: 0.9, .levelUp: 1.0,
         .chest: 1.0, .speedup: 0.9, .victory: 1.0, .defeat: 0.9,
+        .hit: 0.7, .shoot: 0.45, .poof: 0.7, .skill: 1.0, .boss: 1.0, .fence: 0.8,
     ]
 
     private static var players: [Sound: [AVAudioPlayer]] = [:]
@@ -41,6 +45,16 @@ enum Sfx {
                 return p
             }
         }
+    }
+
+    private static var lastPlayed: [Sound: TimeInterval] = [:]
+
+    /// For battle sounds that fire many times a second: at most one per `gap`.
+    static func playThrottled(_ s: Sound, gap: TimeInterval, volume: Float = 1) {
+        let now = CACurrentMediaTime()
+        if let t = lastPlayed[s], now - t < gap { return }
+        lastPlayed[s] = now
+        play(s, volume: volume * Float.random(in: 0.85...1))
     }
 
     static func play(_ s: Sound, volume: Float = 1, after delay: TimeInterval = 0) {

@@ -2,6 +2,7 @@
 #   brew install xcodegen && cd client && xcodegen generate
 name: Dustbloom
 options:
+  developmentLanguage: en
   bundleIdPrefix: game.dustbloom
   deploymentTarget:
     iOS: "17.0"
@@ -9,23 +10,43 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.10"
-    MARKETING_VERSION: "0.1.0"
+    MARKETING_VERSION: "1.0.0"
     CURRENT_PROJECT_VERSION: "1"
     DEVELOPMENT_TEAM: ${DEVELOPMENT_TEAM}
     CODE_SIGN_STYLE: Automatic
+packages:
+  Firebase:
+    url: https://github.com/firebase/firebase-ios-sdk
+    from: 11.0.0
 targets:
   Dustbloom:
     type: application
     platform: iOS
+    dependencies:
+      # analytics + player feedback; GoogleService-Info.plist lives only on the Mac (gitignored)
+      - package: Firebase
+        product: FirebaseAnalytics
+      - package: Firebase
+        product: FirebaseFirestore
     sources:
       - path: Dustbloom
       # single source of truth for balance, shared with the Go server
       - path: ../server/internal/game/data/crops.json
         buildPhase: resources
+      # Farm Defense economy, tuned by server/cmd/balance-sim
+      - path: ../server/internal/defense/balance.json
+        buildPhase: resources
+    entitlements:
+      path: Dustbloom/Dustbloom.entitlements
+      properties:
+        com.apple.developer.game-center: true
     info:
       path: Dustbloom/Info.plist
       properties:
         CFBundleDisplayName: DUSTBLOOM
+        CFBundleDevelopmentRegion: en
+        CFBundleAllowMixedLocalizations: true
+        CFBundleLocalizations: [en, ru, de, fr, es, it, pt-BR, nl, pl, tr, uk, ja, ko, zh-Hans, zh-Hant, ar, th, vi, id, sv]
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         UILaunchScreen:
@@ -34,7 +55,7 @@ targets:
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         UIStatusBarStyle: UIStatusBarStyleLightContent
         ITSAppUsesNonExemptEncryption: false
-        UIAppFonts: [Tiny5.ttf]
+        UIAppFonts: [Tiny5.ttf, Rubik-Bold.ttf]
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
     settings:
