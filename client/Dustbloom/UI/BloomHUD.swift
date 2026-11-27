@@ -856,6 +856,7 @@ struct TalentTreeView: View {
             .ignoresSafeArea()
             .allowsHitTesting(false)
 
+            GeometryReader { screen in
             VStack(spacing: 0) {
                 header
                 GeometryReader { geo in
@@ -863,7 +864,8 @@ struct TalentTreeView: View {
                     ZStack {
                         Canvas { ctx, _ in drawTree(ctx, lay) }
                         ForEach(0..<5, id: \.self) { b in
-                            OutlinedText(text: BloomTalents.branches[b].title, size: 11, color: BloomTalents.branches[b].color)
+                            OutlinedText(text: BloomTalents.branches[b].title, size: 11, color: BloomTalents.branches[b].color, fixed: false)
+                                .frame(width: lay.size.width * 0.2 - 4)
                                 .position(x: lay.x(b), y: lay.y(4) - 44)
                         }
                         ForEach(BloomTalents.all) { t in
@@ -872,6 +874,8 @@ struct TalentTreeView: View {
                     }
                 }
                 detail
+            }
+            .frame(width: screen.size.width, height: screen.size.height)
             }
         }
         .onAppear { withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) { glow = true } }
@@ -890,8 +894,8 @@ struct TalentTreeView: View {
     private var header: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                OutlinedText(text: tr("Древо цветения"), size: 22, color: BUI.gold)
-                OutlinedText(text: tr("Очко таланта за каждый уровень"), size: 11, color: BUI.cream.opacity(0.8))
+                OutlinedText(text: tr("Древо цветения"), size: 22, color: BUI.gold, fixed: false, align: .leading)
+                OutlinedText(text: tr("Очко таланта за каждый уровень"), size: 11, color: BUI.cream.opacity(0.8), fixed: false, align: .leading)
             }
             Spacer()
             HStack(spacing: 6) {
@@ -995,7 +999,7 @@ struct TalentTreeView: View {
                 .frame(width: 56, height: 56)
                 .background(RoundedRectangle(cornerRadius: 12).fill(BloomTalents.branches[t.branch].color.opacity(0.35)))
             VStack(alignment: .leading, spacing: 3) {
-                OutlinedText(text: t.title, size: 16, color: BloomTalents.branches[t.branch].color)
+                OutlinedText(text: t.title, size: 16, color: BloomTalents.branches[t.branch].color, fixed: false, align: .leading)
                 OutlinedText(text: t.text, size: 12, fixed: false, lines: 2)
             }
             Spacer(minLength: 0)
