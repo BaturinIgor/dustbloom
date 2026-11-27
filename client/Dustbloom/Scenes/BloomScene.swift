@@ -100,6 +100,8 @@ final class BloomScene: SKScene {
     private let logFPS = ProcessInfo.processInfo.arguments.contains("-showFPS")
     private var fpsFrames = 0
     private var fpsClock: TimeInterval = 0
+    private var fpsWorst: TimeInterval = 0
+    private var fpsLong = 0
 
     // MARK: - setup
 
@@ -973,12 +975,17 @@ final class BloomScene: SKScene {
 
     override func update(_ currentTime: TimeInterval) {
         guard built else { return }
-        let dt = last == 0 ? 1 / 60 : min(1 / 20, currentTime - last)
+        let raw = last == 0 ? 1 / 60 : currentTime - last
+        let dt = min(1 / 20, raw)
         last = currentTime
         now += dt
         if logFPS {
-            fpsFrames += 1; fpsClock += dt
-            if fpsClock >= 2 { print(String(format: "[bloom] fps %.1f nodes %d", Double(fpsFrames) / fpsClock, world.children.count)); fpsFrames = 0; fpsClock = 0 }
+            // worst frame and frames over 25 ms show hitches the 2 s average hides
+            fpsFrames += 1; fpsClock += raw; fpsWorst = max(fpsWorst, raw); if raw > 0.025 { fpsLong += 1 }
+            if fpsClock >= 2 {
+                print(String(format: "[bloom] fps %.1f worst %.0f ms long %d nodes %d", Double(fpsFrames) / fpsClock, fpsWorst * 1000, fpsLong, world.children.count))
+                fpsFrames = 0; fpsClock = 0; fpsWorst = 0; fpsLong = 0
+            }
         }
         if demo && fishing == nil { autopilot() }
         updateFishing(dt)
