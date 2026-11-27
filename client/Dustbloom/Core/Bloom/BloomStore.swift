@@ -6,6 +6,9 @@ enum ShopProduct: String, CaseIterable, Identifiable {
     case founder = "bloom.founder"        // non-consumable
     case pass = "bloom.pass28"            // non-renewing, 28 days
     case jar = "bloom.jar"                // consumable, cracks the dew jar
+    case starter = "bloom.starter"        // non-consumable, once
+    case slot = "bloom.slot"              // non-consumable, +1 Bloomling
+    case eventPass = "bloom.eventpass"    // consumable, premium track of this week's event
     case gemsS = "bloom.gems.80"
     case gemsM = "bloom.gems.450"
     case gemsL = "bloom.gems.1000"
@@ -29,6 +32,9 @@ enum ShopProduct: String, CaseIterable, Identifiable {
         case .founder: return "4,99 $"
         case .pass: return "7,99 $"
         case .jar: return "2,99 $"
+        case .starter: return "0,99 $"
+        case .slot: return "1,99 $"
+        case .eventPass: return "2,99 $"
         case .gemsS: return "0,99 $"
         case .gemsM: return "4,99 $"
         case .gemsL: return "9,99 $"
@@ -91,8 +97,12 @@ final class BloomStore: ObservableObject {
     func restore() async {
         try? await AppStore.sync()
         for await r in Transaction.currentEntitlements {
-            if case .verified(let t) = r, t.productID == ShopProduct.founder.rawValue, game?.isFounder == false {
-                game?.grant(.founder)
+            guard case .verified(let t) = r, let p = ShopProduct(rawValue: t.productID) else { continue }
+            switch p {
+            case .founder where game?.isFounder == false: game?.grant(.founder)
+            case .starter where game?.starterBought == false: game?.grant(.starter)
+            case .slot where game?.hasSlot == false: game?.grant(.slot)
+            default: break
             }
         }
     }

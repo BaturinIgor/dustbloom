@@ -30,6 +30,11 @@ struct BloomView: View {
             scene.game = game
             BloomStore.shared.start(game: game)
             game.refreshDailies()
+            game.refreshEvent()
+            BloomGameCenter.shared.start(game)
+            BloomGameCenter.shared.onSignedOut = { [weak g = game] in
+                g?.showToast(BloomToast(title: tr("Game Center"), subtitle: tr("Войди в Game Center в настройках iPhone")))
+            }
             game.onRebirth = { NotificationCenter.default.post(name: .bloomRebirth, object: nil) }
             game.onAskReview = {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
@@ -44,13 +49,13 @@ struct BloomView: View {
             // App Store screenshots: -bloomPanel build|talents|shop|album opens one panel
             if let name = UserDefaults.standard.string(forKey: "bloomPanel") {
                 let p: BloomPanel? = ["build": .build, "talents": .talents, "shop": .shop, "album": .album,
-                                      "daily": .daily, "spring": .spring][name]
+                                      "daily": .daily, "spring": .spring, "event": .event, "skins": .skins][name]
                 DispatchQueue.main.asyncAfter(deadline: .now() + 3) { game.panel = p }
             }
             #endif
         }
         .onChange(of: phase) { _, p in
-            if p != .active { game.save() } else { game.refreshDailies() }
+            if p != .active { game.save() } else { game.refreshDailies(); game.refreshEvent() }
         }
     }
 }
@@ -125,14 +130,21 @@ struct BloomHUD: View {
                 HStack(alignment: .top) {
                     GoalCard()
                     Spacer()
-                    VStack(spacing: 10) {
-                        RoundIconButton(icon: "bloom_ui_calendar", badge: game.dailyReadyCount) { game.panel = .daily }
-                        RoundIconButton(icon: "bloom_ui_tree", badge: game.talentPoints) { game.panel = .talents }
-                        RoundIconButton(icon: "bloom_ui_book", badge: 0) { game.panel = .album }
-                        ShopButton()
-                        RoundIconButton(icon: "bloom_ui_mail", badge: 0) { game.panel = .feedback }
-                        if game.canRebirth || game.springs > 0 {
-                            RoundIconButton(icon: "bloom_ui_spring", badge: 0, dot: game.canRebirth) { game.panel = .spring }
+                    // two even columns: what you come back for on the right, the rest beside it
+                    HStack(alignment: .top, spacing: 10) {
+                        VStack(spacing: 10) {
+                            RoundIconButton(icon: "bloom_ui_book", badge: 0) { game.panel = .album }
+                            RoundIconButton(icon: "bloom_ui_trophy", badge: 0) { BloomGameCenter.shared.open() }
+                            RoundIconButton(icon: "bloom_ui_mail", badge: 0) { game.panel = .feedback }
+                            if game.canRebirth || game.springs > 0 {
+                                RoundIconButton(icon: "bloom_ui_spring", badge: 0, dot: game.canRebirth) { game.panel = .spring }
+                            }
+                        }
+                        VStack(spacing: 10) {
+                            RoundIconButton(icon: "bloom_ui_calendar", badge: game.dailyReadyCount) { game.panel = .daily }
+                            RoundIconButton(icon: "bloom_ui_event", badge: game.eventReadyCount) { game.panel = .event }
+                            RoundIconButton(icon: "bloom_ui_tree", badge: game.talentPoints) { game.panel = .talents }
+                            ShopButton()
                         }
                     }
                 }
@@ -363,6 +375,8 @@ struct PanelHost: View {
         case .feedback: return tr("Написать нам")
         case .daily: return tr("Календарь")
         case .spring: return tr("Новая весна")
+        case .event: return tr(game.event.title)
+        case .skins: return tr("Облик героя")
         }
     }
 
@@ -381,6 +395,8 @@ struct PanelHost: View {
         case .feedback: FeedbackView()
         case .daily: DailyView()
         case .spring: SpringView()
+        case .event: EventView()
+        case .skins: SkinsView()
         }
     }
 }

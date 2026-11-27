@@ -84,6 +84,18 @@ struct BloomSave: Codable {
     var seeds = 0                          // eternal seeds to spend
     var eternal: [String: Int] = [:]       // eternal upgrade levels
     var bestLevel = 1
+    // events, skins, offers (BloomEvents.swift)
+    var eventWeek: String?
+    var eventPoints = 0
+    var eventFree: [Int] = []
+    var eventPrem: [Int] = []
+    var eventPass: String?                 // week the event pass was bought for
+    var skins: [String] = []
+    var skin: String?
+    var starter = false
+    var slot = false
+    var tut = 0                            // onboarding step, 99 = done
+    var achieved: [String] = []            // Game Center achievements already sent
 
     init() {}
 
@@ -122,6 +134,18 @@ struct BloomSave: Codable {
         seeds = try c.decodeIfPresent(Int.self, forKey: .seeds) ?? 0
         eternal = try c.decodeIfPresent([String: Int].self, forKey: .eternal) ?? [:]
         bestLevel = try c.decodeIfPresent(Int.self, forKey: .bestLevel) ?? level
+        eventWeek = try c.decodeIfPresent(String.self, forKey: .eventWeek)
+        eventPoints = try c.decodeIfPresent(Int.self, forKey: .eventPoints) ?? 0
+        eventFree = try c.decodeIfPresent([Int].self, forKey: .eventFree) ?? []
+        eventPrem = try c.decodeIfPresent([Int].self, forKey: .eventPrem) ?? []
+        eventPass = try c.decodeIfPresent(String.self, forKey: .eventPass)
+        skins = try c.decodeIfPresent([String].self, forKey: .skins) ?? []
+        skin = try c.decodeIfPresent(String.self, forKey: .skin)
+        starter = try c.decodeIfPresent(Bool.self, forKey: .starter) ?? false
+        slot = try c.decodeIfPresent(Bool.self, forKey: .slot) ?? false
+        // players who already had a save skip the tutorial
+        tut = try c.decodeIfPresent(Int.self, forKey: .tut) ?? 99
+        achieved = try c.decodeIfPresent([String].self, forKey: .achieved) ?? []
     }
 }
 
@@ -136,6 +160,8 @@ enum BloomPanel: Equatable {
     case feedback
     case daily
     case spring
+    case event
+    case skins
 }
 
 struct BloomToast: Identifiable, Equatable {
@@ -232,6 +258,9 @@ final class BloomGame: ObservableObject {
     func bump(_ key: String, _ n: Int = 1) {
         s.stats[key, default: 0] += n
         s.life[key, default: 0] += n
+        if key.hasPrefix("gather.") { addEventPoints(n) }
+        else if key.hasPrefix("craft.") { addEventPoints(2 * n) }
+        else if key == "chest" { addEventPoints(15) }
     }
     func addCoins(_ n: Int) { s.coins += n }
 
@@ -266,6 +295,7 @@ final class BloomGame: ObservableObject {
         let extra = eternalBonus("loot")
         if extra > 0 { out = out.map { ($0.0, $0.1 + (Double.random(in: 0..<1) < extra ? 1 : 0)) } }
         if passActive { out = out.map { ($0.0, $0.1 + (Double.random(in: 0..<1) < BloomBalance.shared.shop.passDrop ? 1 : 0)) } }
+        if eventIs("festival") { out = out.map { ($0.0, $0.1 + (Double.random(in: 0..<1) < 0.25 ? 1 : 0)) } }
         return out
     }
 
@@ -503,7 +533,7 @@ final class BloomGame: ObservableObject {
         let c = BloomContent.helperCost(s.helpers.count)
         return hasT("h1") ? c.map { ($0.0, Int((Double($0.1) * 0.7).rounded(.up))) } : c
     }
-    var maxHelpers: Int { BloomContent.maxHelpers + (hasT("h4") ? 1 : 0) }
+    var maxHelpers: Int { BloomContent.maxHelpers + (hasT("h4") ? 1 : 0) + (s.slot ? 1 : 0) }
     var canGrowHelper: Bool { s.helpers.count < maxHelpers && has(helperCost) }
 
     func growHelper() {
@@ -547,16 +577,16 @@ final class BloomGame: ObservableObject {
     func secs(_ r: Recipe) -> Double { r.seconds * (hasT("c1") ? 0.75 : 1) * (hasT("c5") ? 0.7 : 1) / eternalMult("craft") }
     /// What the market pays for `n` of an item (market rate, Торговец talent).
     func sellValue(_ i: BItem, _ n: Int) -> Int {
-        Int(Double(n * i.price) * BloomBalance.shared.sellRate * (hasT("t1") ? 1.25 : 1) * eternalMult("coins") * (pageDone(3) ? 1.2 : 1))
+        Int(Double(n * i.price) * BloomBalance.shared.sellRate * (hasT("t1") ? 1.25 : 1) * eternalMult("coins") * (pageDone(3) ? 1.2 : 1) * (eventIs("fair") ? 1.5 : 1))
     }
     /// Price of one, for display (at least 1 when a stack would pay something).
-    func sellPrice(_ i: BItem) -> Double { Double(i.price) * BloomBalance.shared.sellRate * (hasT("t1") ? 1.25 : 1) * eternalMult("coins") * (pageDone(3) ? 1.2 : 1) }
+    func sellPrice(_ i: BItem) -> Double { Double(i.price) * BloomBalance.shared.sellRate * (hasT("t1") ? 1.25 : 1) * eternalMult("coins") * (pageDone(3) ? 1.2 : 1) * (eventIs("fair") ? 1.5 : 1) }
     func islandPrice(_ id: Int) -> Int {
         let pr = BloomBalance.shared.islandPrices
         let p = id < pr.count ? pr[id] : island(id).price
         return hasT("t4") ? Int((Double(p) * 0.8).rounded()) : p
     }
-    var chestChance: Double { BloomContent.chestChance * (hasT("t3") ? 2 : 1) * (golden ? 2 : 1) }
+    var chestChance: Double { BloomContent.chestChance * (hasT("t3") ? 2 : 1) * (golden ? 2 : 1) * (eventIs("starfall") ? 2 : 1) }
     var respawnInterval: Double {
         let b = BloomBalance.shared
         var iv = b.respawnSeconds / (1 + b.respawnPerIsland * Double(max(0, s.owned.count - 1)))
@@ -611,6 +641,22 @@ final class BloomGame: ObservableObject {
         case .pass:
             s.passUntil = max(Date(), s.passUntil ?? Date()).addingTimeInterval(28 * 86400)
             showToast(BloomToast(title: tr("Пропуск цветения"), subtitle: tr("+25% добычи и опыта на 28 дней")))
+        case .starter:
+            guard !s.starter else { return }
+            s.starter = true
+            s.gems += 150
+            give(EventReward(coins: 5, gems: 0, chest: true, golden: false, skin: nil))
+            if !s.skins.contains("mint") { s.skins.append("mint") }
+            s.skin = "mint"
+            showToast(BloomToast(title: tr("Стартовый набор"), subtitle: tr("Мятный облик уже на тебе!")))
+        case .slot:
+            guard !s.slot else { return }
+            s.slot = true
+            showToast(BloomToast(title: tr("Ещё одно место в питомнике"), subtitle: tr("Теперь можно вырастить ещё одного блумлинга")))
+        case .eventPass:
+            refreshEvent()
+            s.eventPass = eventKey
+            showToast(BloomToast(title: tr("Пропуск события"), subtitle: tr("Открыты все награды: %@", tr(event.title))))
         case .jar:
             s.gems += s.jar
             showToast(BloomToast(title: tr("Банка росы"), subtitle: tr("+%@ росинок", s.jar)))
@@ -670,7 +716,7 @@ final class BloomGame: ObservableObject {
 
     /// Maybe a rare find from a destroyed gatherable: (id, isNew).
     func rollFind(_ k: GatherKind) -> (String, Bool)? {
-        let chance = BloomAlbum.baseChance * (hasT("t5") ? 2 : 1) * (golden ? 1.5 : 1)
+        let chance = BloomAlbum.baseChance * (hasT("t5") ? 2 : 1) * (golden ? 1.5 : 1) * (eventIs("starfall") ? 2 : 1)
         guard Double.random(in: 0..<1) < chance else { return nil }
         let page = BloomAlbum.page(for: k)
         let f = BloomAlbum.pages[page].finds.randomElement()!.id
@@ -705,7 +751,13 @@ final class BloomGame: ObservableObject {
 
     // MARK: - save
 
+    private var gcAt = Date.distantPast
+
     func save() {
+        if Date() > gcAt {
+            gcAt = Date().addingTimeInterval(20)
+            BloomGameCenter.shared.sync(self)
+        }
         var v = s
         v.savedAt = Date()
         for (k, p) in progress { v.queues[k]?.progress = p }

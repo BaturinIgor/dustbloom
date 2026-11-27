@@ -138,6 +138,9 @@ extension BloomGame {
         n.life = s.life; n.loginDay = s.loginDay; n.loginClaimedOn = s.loginClaimedOn
         n.dailyDate = s.dailyDate; n.dailies = s.dailies; n.dailyBonus = s.dailyBonus
         n.eternal = s.eternal; n.bestLevel = s.bestLevel
+        n.eventWeek = s.eventWeek; n.eventPoints = s.eventPoints; n.eventFree = s.eventFree; n.eventPrem = s.eventPrem
+        n.eventPass = s.eventPass; n.skins = s.skins; n.skin = s.skin; n.starter = s.starter; n.slot = s.slot
+        n.tut = 99; n.achieved = s.achieved
         n.springs = s.springs + 1
         n.seeds = s.seeds + got
         n.coins = Int(eternalBonus("start"))
@@ -220,6 +223,7 @@ extension BloomGame {
         s.coins += r.coins
         s.gems += r.gems
         Analytics.shared.track("bloom_daily", ["key": s.dailies[i].key, "springs": s.springs])
+        addEventPoints(40)
         Sfx.play(.chest)
         gainXP(r.xp)
         save()

@@ -182,3 +182,148 @@ struct SpringView: View {
         }
     }
 }
+
+/// This week's event: what it changes, the time left and the two reward tracks.
+struct EventView: View {
+    @EnvironmentObject private var game: BloomGame
+
+    var body: some View {
+        let e = game.event
+        let pts = game.eventPoints
+        let last = BloomEvents.steps.last ?? 1
+        VStack(spacing: 10) {
+            Card {
+                HStack(spacing: 10) {
+                    PixelIcon(name: e.icon, size: 36)
+                        .frame(width: 48, height: 48)
+                        .background(RoundedRectangle(cornerRadius: 10).fill(BUI.ink.opacity(0.4)))
+                    VStack(alignment: .leading, spacing: 3) {
+                        OutlinedText(text: tr(e.text), size: 12, fixed: false, lines: 2, align: .leading)
+                        TimelineView(.periodic(from: .now, by: 30)) { _ in
+                            OutlinedText(text: tr("До конца: %@", game.eventLeft), size: 11, color: BUI.gold)
+                        }
+                    }
+                    Spacer(minLength: 0)
+                }
+            }
+            VStack(spacing: 4) {
+                HStack(spacing: 6) {
+                    PixelIcon(name: "bloom_ui_medal", size: 18)
+                    OutlinedText(text: "\(min(pts, last)) / \(last)", size: 14)
+                }
+                ZStack(alignment: .leading) {
+                    Capsule().fill(BUI.ink).frame(width: 300, height: 12)
+                    Capsule().fill(BUI.gold).frame(width: max(12, 300 * CGFloat(min(pts, last)) / CGFloat(last)), height: 12)
+                }
+                OutlinedText(text: tr("Звёзды дают добыча, крафт, сундуки и задания дня"), size: 10.5, color: BUI.muted, fixed: false, lines: 2)
+            }
+            HStack(spacing: 0) {
+                OutlinedText(text: tr("Бесплатно"), size: 12, color: BUI.cream).frame(width: 120)
+                Spacer(minLength: 0)
+                OutlinedText(text: tr("Пропуск"), size: 12, color: BUI.gold).frame(width: 120)
+            }
+            .frame(width: 300)
+            ForEach(BloomEvents.steps.indices, id: \.self) { i in row(i, pts) }
+            if !game.eventPassActive {
+                VStack(spacing: 6) {
+                    OutlinedText(text: tr("Пропуск события открывает правую колонку, в конце Звёздный облик"),
+                                 size: 11, color: BUI.cream, fixed: false, lines: 2)
+                    BuyButton(product: .eventPass, wide: true)
+                }
+                .padding(.top, 4)
+            }
+        }
+    }
+
+    private func row(_ i: Int, _ pts: Int) -> some View {
+        let need = BloomEvents.steps[i]
+        let open = pts >= need
+        return HStack(spacing: 0) {
+            cell(BloomEvents.free[i], open: open, claimed: game.eventFreeClaimed(i), locked: false) { game.claimEvent(i, premium: false) }
+            Spacer(minLength: 0)
+            ZStack {
+                Circle().fill(open ? BUI.gold : BUI.ink).frame(width: 40, height: 40)
+                    .overlay(Circle().stroke(BUI.ink, lineWidth: 2))
+                OutlinedText(text: "\(need)", size: need >= 1000 ? 10 : 11)
+            }
+            Spacer(minLength: 0)
+            cell(BloomEvents.premium[i], open: open, claimed: game.eventPremClaimed(i), locked: !game.eventPassActive) { game.claimEvent(i, premium: true) }
+        }
+        .frame(width: 300)
+    }
+
+    private func cell(_ r: EventReward, open: Bool, claimed: Bool, locked: Bool, _ claim: @escaping () -> Void) -> some View {
+        let icon = r.skin != nil ? "bloom_hero_star_idle_0" : r.chest ? "bloom_chest_closed" : r.golden ? "bloom_item_coin" : r.gems > 0 ? "bloom_item_gem" : "bloom_item_coin"
+        let label = r.skin != nil ? tr("Облик") : r.golden ? tr("Золотой час") : r.gems > 0 ? "\(r.gems)" : r.chest ? tr("Сундук") : (r.coins * game.coinUnit).short
+        let ready = open && !claimed && !locked
+        return Button { if ready { claim() } } label: {
+            HStack(spacing: 6) {
+                ZStack {
+                    PixelIcon(name: icon, size: 26)
+                    if claimed { OutlinedText(text: "✓", size: 18, color: BUI.green) }
+                    if locked { PixelIcon(name: "bloom_ui_lock", size: 14).offset(x: 12, y: 10) }
+                }
+                .frame(width: 30)
+                OutlinedText(text: label, size: 11, fixed: false)
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 8)
+            .frame(width: 120, height: 44)
+            .background(RoundedRectangle(cornerRadius: 12).fill(ready ? BUI.orange.opacity(0.45) : BUI.panelHi))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(ready ? BUI.gold : BUI.ink.opacity(0.6), lineWidth: 2))
+            .opacity(claimed || locked ? 0.6 : 1)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+/// Hero skins: pick one you own, or buy with dew (two taps, no popup).
+struct SkinsView: View {
+    @EnvironmentObject private var game: BloomGame
+    @State private var armed: String?
+
+    var body: some View {
+        let cols = [GridItem(.fixed(150), spacing: 12), GridItem(.fixed(150), spacing: 12)]
+        LazyVGrid(columns: cols, spacing: 12) {
+            ForEach(BloomEvents.skins) { k in tile(k) }
+        }
+    }
+
+    private func tile(_ k: HeroSkin) -> some View {
+        let owned = game.ownsSkin(k.id)
+        let on = game.skin == k.id
+        let sprite = k.id == "pink" ? "bloom_hero_idle_0" : "bloom_hero_\(k.id)_idle_0"
+        return VStack(spacing: 6) {
+            PixelIcon(name: sprite, size: 56).frame(height: 62)
+            OutlinedText(text: tr(k.title), size: 12, fixed: false)
+            Group {
+                if on {
+                    OutlinedText(text: tr("Надет"), size: 12, color: BUI.green).frame(height: 38)
+                } else if owned {
+                    Button { game.pickSkin(k) } label: { OutlinedText(text: tr("Надеть"), size: 13).frame(width: 100) }
+                        .buttonStyle(BloomButtonStyle())
+                } else if let g = k.gems {
+                    Button {
+                        if armed == k.id { game.pickSkin(k); armed = nil } else { armed = k.id; Sfx.play(.select) }
+                    } label: {
+                        HStack(spacing: 3) {
+                            if armed == k.id { OutlinedText(text: tr("Точно?"), size: 13) } else {
+                                OutlinedText(text: "\(g)", size: 13); PixelIcon(name: "bloom_item_gem", size: 16)
+                            }
+                        }
+                        .frame(width: 100)
+                    }
+                    .buttonStyle(BloomButtonStyle(color: game.gems >= g ? BUI.orange : BUI.panel, edge: game.gems >= g ? BUI.orangeEdge : BUI.ink))
+                    .disabled(game.gems < g)
+                } else {
+                    OutlinedText(text: k.id == "mint" ? tr("Стартовый набор") : tr("Пропуск события"),
+                                 size: 10.5, color: BUI.muted, fixed: false, lines: 2).frame(height: 38)
+                }
+            }
+        }
+        .padding(.vertical, 10)
+        .frame(width: 150)
+        .background(RoundedRectangle(cornerRadius: 14).fill(on ? BUI.green.opacity(0.25) : BUI.panelHi))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(on ? BUI.green : BUI.ink.opacity(0.6), lineWidth: 2))
+    }
+}

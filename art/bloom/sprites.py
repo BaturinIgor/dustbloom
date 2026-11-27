@@ -108,7 +108,7 @@ def sprite(name, cv):
 
 
 # ---------------------------------------------------------------- hero
-def hero(frame):
+def hero(frame, name='bloom_hero_'):
     """Bloomling: pink bud with a sprout. frame: idle_0/1, run_0..3."""
     cv = Canvas(16, 24)
     x, y = 8, 24 - BASE - 1
@@ -146,14 +146,77 @@ def hero(frame):
     cv.disc(x + 2.5, by - 14.5, 2.6, 1.4, 'l3'); cv.put(x + 2, by - 15, 'l4')
     cv.disc(x, by - 16.5, 1.6, 1.6, 'berry_l'); cv.put(x, by - 17, 'white')
     cv.outline('ink')
-    sprite('bloom_hero_' + frame, cv)
+    sprite(name + frame, cv)
 
 
 HELPER_COLORS = {
     'pink': ('#ffc9d8', '#f394b0'), 'sun': ('#ffe58a', '#f2b84a'),
     'sky': ('#bfe6ff', '#86c2ef'), 'plum': ('#e2c4ff', '#b48ae6'),
     'gold': ('#ffe14d', '#e0a12a'),   # founder's golden Bloomling
+    'mint': ('#c8f5dc', '#8fd9b0'),   # the extra slot bought in the shop
 }
+
+# hero skins: body, shade, deep shade, cheek, bud
+HERO_SKINS = {
+    'mint': ('#c8f5dc', '#8fd9b0', '#5fae86', '#ff8fa8', 'gold'),
+    'sky': ('#d2eaff', '#96c6f2', '#6a98cc', '#ff8fb0', '#ffffff'),
+    'sun': ('#ffe9a0', '#f5c24e', '#cf9330', '#ff7f6a', 'berry_l'),
+    'star': ('#ddd0ff', '#ab95ee', '#7d68c4', '#ff9ad0', 'gold'),
+}
+
+
+def hero_skins():
+    for skin, (b, d, dd, ch, bud) in HERO_SKINS.items():
+        keep = {k: C[k] for k in ('cream', 'cream_d', 'cream_dd', 'cheek', 'berry_l')}
+        C.update(cream=b, cream_d=d, cream_dd=dd, cheek=ch, berry_l=C.get(bud, bud))
+        for f in ('idle_0', 'idle_1', 'run_0', 'run_1', 'run_2', 'run_3'):
+            hero(f, 'bloom_hero_%s_' % skin)
+        C.update(keep)
+
+
+def meta_icons():
+    cv = Canvas(14, 14)  # event: festive pennant flag
+    cv.rect(2, 1, 2, 13, 't1'); cv.put(2, 0, 'gold_l')
+    for k in range(9):
+        h = 4 - abs(k - 4) // 2
+        cv.rect(3 + k, 2 + (4 - h), 3 + k, 2 + 4 + h - 1, 'berry' if k < 5 else 'berry_l')
+    cv.rect(3, 4, 11, 5, 'gold')
+    cv.put(6, 4, 'gold_l'); cv.put(9, 4, 'gold_l')
+    cv.outline('ink')
+    sprite('bloom_ui_event', cv)
+    cv = Canvas(14, 14)  # trophy: leaderboards and achievements
+    cv.rect(3, 1, 10, 6, 'gold'); cv.rect(4, 7, 9, 7, 'gold'); cv.rect(5, 8, 8, 8, 'gold_d')
+    cv.rect(6, 9, 7, 10, 'gold_d'); cv.rect(4, 11, 9, 12, 't1')
+    cv.put(1, 2, 'gold'); cv.put(1, 3, 'gold'); cv.put(2, 4, 'gold')
+    cv.put(12, 2, 'gold'); cv.put(12, 3, 'gold'); cv.put(11, 4, 'gold')
+    cv.rect(4, 2, 5, 5, 'gold_l')
+    cv.outline('ink')
+    sprite('bloom_ui_trophy', cv)
+    cv = Canvas(14, 14)  # gift box: starter pack
+    cv.rect(1, 5, 12, 12, 'berry'); cv.rect(1, 4, 12, 5, 'berry_l')
+    cv.rect(6, 4, 7, 12, 'gold'); cv.rect(1, 7, 12, 7, 'gold')
+    cv.disc(4.5, 2.5, 2, 1.5, 'gold'); cv.disc(8.5, 2.5, 2, 1.5, 'gold'); cv.put(6, 3, 'gold_l')
+    cv.outline('ink')
+    sprite('bloom_ui_gift', cv)
+    cv = Canvas(14, 14)  # wardrobe hanger: hero skins
+    cv.rect(6, 1, 7, 2, 'r1'); cv.put(8, 1, 'r1')
+    for k in range(6):
+        cv.put(6 - k, 4 + k // 1 if k < 5 else 8, 'r1'); cv.put(7 + k, 4 + k if k < 5 else 8, 'r1')
+    cv.rect(1, 9, 12, 9, 'r1')
+    cv.rect(3, 10, 10, 12, 'berry_l'); cv.rect(3, 12, 10, 12, 'berry')
+    cv.outline('ink')
+    sprite('bloom_ui_skin', cv)
+    cv = Canvas(14, 14)  # star medal: event points
+    cv.disc(6.5, 6.5, 5.5, 5.5, 'gold_d'); cv.disc(6.5, 6.5, 4.5, 4.5, 'gold')
+    for (x, y) in ((6, 3), (7, 3), (4, 6), (9, 6), (6, 5), (7, 5), (5, 8), (8, 8), (6, 7), (7, 7), (5, 6), (8, 6)):
+        cv.put(x, y, 'gold_l')
+    cv.outline('ink')
+    sprite('bloom_ui_medal', cv)
+    cv = Canvas(10, 11)  # padlock: premium reward without the pass
+    cv.rect(2, 1, 7, 1, 'r2'); cv.rect(2, 1, 2, 4, 'r2'); cv.rect(7, 1, 7, 4, 'r2')
+    cv.rect(1, 5, 8, 10, 'gold'); cv.rect(1, 5, 8, 5, 'gold_l'); cv.rect(4, 7, 5, 8, 'gold_d')
+    cv.outline('ink')
+    sprite('bloom_ui_lock', cv)
 
 
 def helper(color, frame):
@@ -1196,6 +1259,8 @@ def build_all():
         find(n)
     ui_icons()
     content2()
+    hero_skins()
+    meta_icons()
     world = dict(tile=T, islands=[], bridges=[])
     for isl in ISLANDS:
         for dust in (False, True):
