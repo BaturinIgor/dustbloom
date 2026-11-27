@@ -43,7 +43,7 @@ if [ "${PREVIEW:-1}" = 1 ]; then
   sleep 32; kill -INT $REC; wait $REC || true
   xcrun simctl terminate "$DEV" $APP 2>/dev/null || true
   ffmpeg -y -loglevel error -i /tmp/bloom_raw.mp4 -f lavfi -i anullsrc=r=44100:cl=stereo -t 30 \
-    -vf "scale=886:1920:force_original_aspect_ratio=increase,crop=886:1920,fps=30" \
+    -vf "crop=1245:2698:37:170,scale=886:1920,fps=30" \
     -c:v libx264 -profile:v high -pix_fmt yuv420p -b:v 10M -c:a aac -shortest "$ROOT/store/preview/preview_en.mp4"
 fi
 xcrun simctl status_bar "$DEV" clear || true
