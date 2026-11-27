@@ -228,7 +228,11 @@ final class BloomGame: ObservableObject {
         #if DEBUG
         // App Store screenshots: a farm a few hours in (more islands, helpers, talents)
         if args.contains("-bloomShowcase") {
-            s.level = max(s.level, 9)
+            // the same numbers in every language's screenshots
+            s.level = 12
+            s.xp = BloomContent.xpToNext(12) * 3 / 5
+            s.coins = 24850
+            s.gems = 340
             s.pick = max(s.pick, min(2, BloomContent.picks.count - 1))
             for id in [1, 2, 3, 4] where id < world.islands.count && !s.owned.contains(id) { s.owned.append(id) }
             s.helpers = Array(BloomContent.helperColors.prefix(max(s.helpers.count, min(3, BloomContent.maxHelpers))))
@@ -763,6 +767,9 @@ final class BloomGame: ObservableObject {
     private var toastQueue: [BloomToast] = []
 
     func showToast(_ t: BloomToast) {
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("-bloomShowcase") { return }  // clean store screenshots
+        #endif
         if toast == nil { toast = t } else { toastQueue.append(t) }
     }
 
