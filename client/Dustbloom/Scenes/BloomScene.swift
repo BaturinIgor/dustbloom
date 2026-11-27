@@ -171,7 +171,7 @@ final class BloomScene: SKScene {
         heroShadow.position = CGPoint(x: 0, y: 0)
         heroShadow.zPosition = -1300
         hero.addChild(heroShadow)
-        heroSprite.texture = tex("bloom_hero_idle_0"); heroSprite.size = heroSprite.texture!.size()
+        heroSprite.texture = tex(game.heroPrefix + "idle_0"); heroSprite.size = heroSprite.texture!.size()
         heroSprite.anchorPoint = CGPoint(x: 0.5, y: 2 / 24)
         hero.addChild(heroSprite)
         pickNode.texture = tex("bloom_pick_\(game.pickTier)"); pickNode.size = pickNode.texture!.size()
@@ -733,7 +733,7 @@ final class BloomScene: SKScene {
             heroPos = p
             if abs(stickVec.dx) > 0.2 { facing = stickVec.dx > 0 ? 1 : -1 }
             let f = Int(animClock * 10) % 4
-            heroSprite.texture = tex("bloom_hero_run_\(f)")
+            heroSprite.texture = tex(game.heroPrefix + "run_\(f)")
             collectFlowers()
             dustClock += dt
             if dustClock > 0.17 {
@@ -748,7 +748,7 @@ final class BloomScene: SKScene {
                                          .fadeOut(withDuration: 0.3)]), .removeFromParent()]))
             }
         } else {
-            heroSprite.texture = tex(Int(animClock * 2) % 2 == 0 ? "bloom_hero_idle_0" : "bloom_hero_idle_1")
+            heroSprite.texture = tex(game.heroPrefix + (Int(animClock * 2) % 2 == 0 ? "idle_0" : "idle_1"))
         }
         heroSprite.xScale = facing
         hero.position = CGPoint(x: (heroPos.x * zoom).rounded() / zoom, y: (heroPos.y * zoom).rounded() / zoom)

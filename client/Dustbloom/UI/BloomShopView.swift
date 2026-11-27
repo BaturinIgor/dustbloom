@@ -9,6 +9,7 @@ struct ShopView: View {
     var body: some View {
         VStack(spacing: 10) {
             balance
+            if !game.starterBought { starterCard }
             if !game.isFounder { founderCard }
             adCard
             section(tr("Росинки"))
@@ -22,8 +23,26 @@ struct ShopView: View {
                      gems: BloomBalance.shared.shop.fertilizerGems, active: game.fertUntil) { game.buyFertilizer() }
             SpendRow(icon: "bloom_item_coin", title: tr("Мешок монет"), text: tr("+%@ монет", game.coinSack.short),
                      gems: BloomGame.coinSackGems, active: nil) { game.buyCoinSack() }
+            Button { game.panel = .skins } label: {
+                Card {
+                    HStack(spacing: 10) {
+                        PixelIcon(name: "bloom_ui_skin", size: 32)
+                        VStack(alignment: .leading, spacing: 2) {
+                            OutlinedText(text: tr("Облик героя"), size: 13)
+                            OutlinedText(text: tr("Новые цвета для твоего блумлинга"), size: 11, color: BUI.muted, fixed: false, lines: 2)
+                        }
+                        Spacer(minLength: 0)
+                        OutlinedText(text: "›", size: 22, color: BUI.gold).frame(width: 30)
+                    }
+                }
+            }
+            .buttonStyle(.plain)
             section(tr("Пропуск цветения"))
             passCard
+            if !game.hasSlot {
+                section(tr("Питомник"))
+                slotCard
+            }
             section(tr("Банка росы"))
             jarCard
             Button { Task { await store.restore() } } label: {
@@ -94,6 +113,52 @@ struct ShopView: View {
             OutlinedText(text: text, size: 11.5, fixed: false, lines: 2, align: .leading)
                 .frame(maxWidth: .infinity, alignment: .leading)
             Spacer(minLength: 0)
+        }
+    }
+
+    // MARK: starter pack: cheap first purchase
+
+    private var starterCard: some View {
+        VStack(spacing: 8) {
+            HStack(spacing: 10) {
+                ZStack {
+                    Circle().fill(BUI.green.opacity(0.25)).frame(width: 60, height: 60)
+                    PixelIcon(name: "bloom_hero_mint_idle_0", size: 46)
+                }
+                VStack(alignment: .leading, spacing: 3) {
+                    OutlinedText(text: tr("Стартовый набор"), size: 17, color: BUI.green, fixed: false)
+                    OutlinedText(text: tr("Только один раз"), size: 11, color: BUI.muted)
+                }
+                Spacer(minLength: 0)
+                PixelIcon(name: "bloom_ui_gift", size: 40)
+            }
+            VStack(alignment: .leading, spacing: 5) {
+                perk("bloom_item_gem", tr("%@ росинок сразу", 150))
+                perk("bloom_chest_closed", tr("Сундук и мешок монет"))
+                perk("bloom_ui_skin", tr("Мятный облик героя"))
+            }
+            BuyButton(product: .starter, wide: true)
+        }
+        .padding(12)
+        .background(RoundedRectangle(cornerRadius: 16)
+            .fill(LinearGradient(colors: [Color(red: 0.16, green: 0.42, blue: 0.3), Color(red: 0.14, green: 0.26, blue: 0.32)],
+                                 startPoint: .top, endPoint: .bottom)))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(BUI.green, lineWidth: 3))
+    }
+
+    private var slotCard: some View {
+        Card {
+            VStack(spacing: 8) {
+                HStack(spacing: 10) {
+                    PixelIcon(name: "bloom_helper_mint_idle_0", size: 34)
+                    VStack(alignment: .leading, spacing: 2) {
+                        OutlinedText(text: tr("Ещё одно место в питомнике"), size: 13, fixed: false, lines: 2, align: .leading)
+                        OutlinedText(text: tr("Ещё один блумлинг добывает с тобой, навсегда"), size: 11, color: BUI.muted, fixed: false, lines: 2, align: .leading)
+                    }
+                    Spacer(minLength: 0)
+                }
+                BuyButton(product: .slot, wide: true)
+            }
         }
     }
 
@@ -216,7 +281,8 @@ struct BuyButton: View {
     var title: String?
 
     var body: some View {
-        let owned = product == .founder && game.isFounder
+        let owned = (product == .founder && game.isFounder) || (product == .starter && game.starterBought)
+            || (product == .slot && game.hasSlot) || (product == .eventPass && game.eventPassActive)
         Button {
             guard !owned, store.busy == nil else { return }
             Sfx.play(.select)

@@ -151,7 +151,7 @@ enum BloomContent {
     static var chestChance: Double { BloomBalance.shared.chestChance }
 
     // helpers
-    static let helperColors = ["pink", "sun", "sky", "plum"]
+    static let helperColors = ["pink", "sun", "sky", "plum", "mint"]
     static let helperNames = ["pink": tr("Розочка"), "sun": tr("Солнышко"), "sky": tr("Капелька"), "plum": tr("Сливка")]
     static var maxHelpers: Int { BloomBalance.shared.maxHelpers }
     static func helperCost(_ owned: Int) -> Cost {
