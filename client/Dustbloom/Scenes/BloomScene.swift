@@ -159,7 +159,7 @@ final class BloomScene: SKScene {
             refreshBridge(i)
         }
         rebuildLand()
-        for b in game.buildings { addBuildingNode(b, animated: false) }
+        for b in game.buildings where land.contains(b.cell) { addBuildingNode(b, animated: false) }
         for id in game.owned.sorted() {
             decorate(id)
             fill(id)
@@ -191,18 +191,20 @@ final class BloomScene: SKScene {
     }
 
     private func spawnPoint() -> CGPoint {
-        let order = [Cell(x: 2, y: 2), Cell(x: 3, y: 2), Cell(x: 2, y: 3), Cell(x: 3, y: 3), Cell(x: 1, y: 2)]
-        for c in order where res[c] == nil && buildingNodes[c] == nil {
-            return CGPoint(x: CGFloat(c.x) * T + 8, y: CGFloat(c.y) * T + 6)
-        }
-        return CGPoint(x: 2 * T + 8, y: 2 * T + 6)
+        // centre of the start island, nearest free cell
+        let cs = cells(of: 0)
+        let cx = CGFloat(cs.map(\.x).reduce(0, +)) / CGFloat(cs.count)
+        let cy = CGFloat(cs.map(\.y).reduce(0, +)) / CGFloat(cs.count)
+        let best = cs.filter { res[$0] == nil && buildingNodes[$0] == nil }
+            .min { hypot(CGFloat($0.x) - cx, CGFloat($0.y) - cy) < hypot(CGFloat($1.x) - cx, CGFloat($1.y) - cy) } ?? cs[0]
+        return CGPoint(x: CGFloat(best.x) * T + 8, y: CGFloat(best.y) * T + 6)
     }
 
     private func buildWater() {
-        for _ in 0..<70 {
+        for _ in 0..<160 {
             let w = CGFloat(Int.random(in: 3...5))
             let n = SKSpriteNode(color: UIColor(red: 0.62, green: 0.9, blue: 0.98, alpha: 1), size: CGSize(width: w, height: 1))
-            n.position = CGPoint(x: CGFloat.random(in: -140...230), y: CGFloat.random(in: -140...230)).rounded
+            n.position = CGPoint(x: CGFloat.random(in: -120...600), y: CGFloat.random(in: -120...470)).rounded
             n.zPosition = -1100
             n.alpha = 0
             world.addChild(n)
@@ -222,14 +224,14 @@ final class BloomScene: SKScene {
             c.alpha = 0.09
             c.setScale(CGFloat.random(in: 1.2...1.8))
             c.zPosition = 1950
-            let y = CGFloat(-100 + i * 80) + CGFloat.random(in: -20...20)
-            let x0 = CGFloat.random(in: -200...250)
+            let y = CGFloat(-60 + i * 120) + CGFloat.random(in: -20...20)
+            let x0 = CGFloat.random(in: -150...550)
             c.position = CGPoint(x: x0, y: y)
             world.addChild(c)
             let speed = CGFloat.random(in: 3...5)
-            let first = (300 - x0) / speed
-            c.run(.sequence([.moveTo(x: 300, duration: Double(first)), .moveTo(x: -220, duration: 0),
-                             .repeatForever(.sequence([.moveTo(x: 300, duration: Double(520 / speed)), .moveTo(x: -220, duration: 0)]))]))
+            let first = (650 - x0) / speed
+            c.run(.sequence([.moveTo(x: 650, duration: Double(first)), .moveTo(x: -200, duration: 0),
+                             .repeatForever(.sequence([.moveTo(x: 650, duration: Double(850 / speed)), .moveTo(x: -200, duration: 0)]))]))
         }
     }
 

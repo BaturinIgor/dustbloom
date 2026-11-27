@@ -454,35 +454,91 @@ def fx():
 
 
 # ---------------------------------------------------------------- world
-# tile coordinates, y up. price 0 = start island.
+# World map, one char per 16 px tile, top row = north. Digits are islands,
+# '|' and '=' are bridge spots (one water tile between two islands).
+MAP = """
+......1111111.................
+....111111111.....5555........
+...1111111111...5555555.......
+...11111111111=555555555......
+....1111111111..55555555......
+.....11111111....555555.......
+.......|..........|...........
+......00000.......222.........
+......0000000...22222.........
+..4...0000000...222222........
+.444..0000000=2222222.........
+44444=0000000...222222........
+44444.0000000...222222........
+.4444.00000000..222222........
+..444..000000...22222.........
+...44...0000.....222..........
+........|.....................
+.....33333333.................
+...333333333333...............
+...3333333333333..............
+....33333333333...............
+......333333..................
+"""
+
 ISLANDS = [
-    dict(id=0, name='Луг', price=0, rect=(0, 0, 5, 5), cut=[(0, 0), (5, 5)],
-         spawn={'tree': 4, 'rock': 3, 'bush_berry': 2}, cap=10),
-    dict(id=1, name='Сосновый лес', price=15, rect=(0, 7, 5, 11), cut=[(0, 11), (5, 11)],
-         spawn={'pine': 6, 'tree': 2, 'bush_cotton': 2, 'rock': 1}, cap=10),
-    dict(id=2, name='Каменный кряж', price=60, rect=(7, 0, 11, 5), cut=[(11, 0), (11, 5)],
-         spawn={'rock': 5, 'rock_iron': 3, 'tree': 1}, cap=9),
-    dict(id=3, name='Ягодная поляна', price=140, rect=(0, -6, 5, -2), cut=[(0, -6), (5, -6)],
-         spawn={'bush_berry': 4, 'bush_cotton': 3, 'tree': 2, 'rock': 1}, cap=10),
-    dict(id=4, name='Золотая жила', price=280, rect=(-6, 0, -2, 5), cut=[(-6, 0), (-6, 5)],
-         spawn={'rock': 3, 'rock_iron': 3, 'rock_gold': 3}, cap=9),
-    dict(id=5, name='Хрустальный холм', price=500, rect=(7, 7, 11, 11), cut=[(11, 11)],
-         spawn={'crystal': 3, 'rock_gold': 2, 'pine': 2, 'rock_iron': 2}, cap=9),
+    dict(id=0, name='Луг', price=0,
+         spawn={'tree': 5, 'rock': 4, 'bush_berry': 3}, cap=14),
+    dict(id=1, name='Сосновый лес', price=15,
+         spawn={'pine': 8, 'tree': 2, 'bush_cotton': 3, 'rock': 1}, cap=18),
+    dict(id=2, name='Каменный кряж', price=60,
+         spawn={'rock': 5, 'rock_iron': 4, 'tree': 1}, cap=14),
+    dict(id=3, name='Ягодная поляна', price=140,
+         spawn={'bush_berry': 5, 'bush_cotton': 4, 'tree': 2, 'rock': 1}, cap=16),
+    dict(id=4, name='Золотая жила', price=280,
+         spawn={'rock': 3, 'rock_iron': 3, 'rock_gold': 4}, cap=9),
+    dict(id=5, name='Хрустальный холм', price=500,
+         spawn={'crystal': 4, 'rock_gold': 2, 'pine': 2, 'rock_iron': 2}, cap=13),
 ]
-# bridge tile, orientation, the two islands it joins
-BRIDGES = [
-    dict(tile=(3, 6), v=True, a=0, b=1),
-    dict(tile=(6, 3), v=False, a=0, b=2),
-    dict(tile=(2, -1), v=True, a=0, b=3),
-    dict(tile=(-1, 2), v=False, a=0, b=4),
-    dict(tile=(6, 9), v=False, a=1, b=5),
-    dict(tile=(9, 6), v=True, a=2, b=5),
-]
+# per-island grass tint so every island reads differently
+TINTS = {
+    1: dict(g0='#4c9a3a', g1='#6dbd45', g1b='#73c34a', g2='#86cf52', g3='#b9ea7a', gline='#2a6034'),
+    2: dict(g0='#6aa844', g1='#8cc957', g1b='#92cd5c', g2='#a3d668', g3='#d2f09a'),
+    3: dict(g0='#62b444', g1='#86d353', g1b='#8cd858', g2='#a2e264', g3='#d6f79a'),
+    4: dict(g0='#8aa83c', g1='#a9c95a', g1b='#aecd60', g2='#c2dc72', g3='#e6f3a4', gline='#5b6b2a'),
+    5: dict(g0='#3f9e7a', g1='#5cc59a', g1b='#62ca9f', g2='#7fd8b0', g3='#bff2da', gline='#245f52'),
+}
+
+
+def _parse():
+    rows = [r for r in MAP.strip('\n').split('\n')]
+    h = len(rows)
+    cells = {}
+    bridges = []
+    for r, row in enumerate(rows):
+        for x, ch in enumerate(row):
+            y = h - 1 - r
+            if ch.isdigit():
+                cells.setdefault(int(ch), set()).add((x, y))
+    def at(x, y):
+        r = h - 1 - y
+        if 0 <= r < h and 0 <= x < len(rows[r]) and rows[r][x].isdigit():
+            return int(rows[r][x])
+        return None
+    for r, row in enumerate(rows):
+        for x, ch in enumerate(row):
+            y = h - 1 - r
+            if ch == '|':
+                bridges.append(dict(tile=(x, y), v=True, a=at(x, y - 1), b=at(x, y + 1)))
+            elif ch == '=':
+                bridges.append(dict(tile=(x, y), v=False, a=at(x - 1, y), b=at(x + 1, y)))
+    for b in bridges:
+        assert b['a'] is not None and b['b'] is not None, b
+    return cells, bridges
+
+
+CELLS, BRIDGES = _parse()
+for _i in ISLANDS:
+    _i['cells'] = CELLS[_i['id']]
 
 
 def cells_of(isl):
-    x0, y0, x1, y1 = isl['rect']
-    return {(x, y) for x in range(x0, x1 + 1) for y in range(y0, y1 + 1)} - set(map(tuple, isl['cut']))
+    return set(isl['cells'])
 
 
 def island_texture(isl, dust):
@@ -517,8 +573,9 @@ def island_texture(isl, dust):
                 for k in range(3):
                     for j in range(3 - k):
                         mask.discard((x0 - px_s * k, y0 - py_s * j))
+    tint = TINTS.get(isl['id'], {})
     P = (lambda k: {'g0': 'u0', 'g1': 'u1', 'g1b': 'u1b', 'g2': 'u2', 'g3': 'u3', 'gline': 'uline',
-                    'd0': 'ud0', 'd1': 'ud1', 'd2': 'ud2', 'd3': 'ud3'}.get(k, k)) if dust else (lambda k: k)
+                    'd0': 'ud0', 'd1': 'ud1', 'd2': 'ud2', 'd3': 'ud3'}.get(k, k)) if dust else (lambda k: tint.get(k, k))
     # foam ring under the cliff
     for (x, y) in mask:
         for (dx, dy) in ((1, 0), (-1, 0), (0, -1)):
@@ -592,16 +649,16 @@ def island_texture(isl, dust):
         if dust:
             cv.put(x, y, P('g0')); cv.put(x + 1, y, P('g0')); cv.put(x + 1, y + 1, P('g0'))
         elif rnd.random() < 0.55:
-            cv.put(x, y, 'g0'); cv.put(x, y - 1, 'g0'); cv.put(x + 2, y, 'g0'); cv.put(x + 2, y - 1, 'g3')
+            cv.put(x, y, P('g0')); cv.put(x, y - 1, P('g0')); cv.put(x + 2, y, P('g0')); cv.put(x + 2, y - 1, P('g3'))
         else:
-            cv.put(x, y, 'g3'); cv.put(x - 1, y + 1, 'g2'); cv.put(x + 1, y + 1, 'g2')
+            cv.put(x, y, P('g3')); cv.put(x - 1, y + 1, P('g2')); cv.put(x + 1, y + 1, P('g2'))
     if not dust:
         for _ in range(len(cells)):
             (x, y) = rnd.choice(inner)
             c = rnd.choice(('white', 'berry_l', 'gold', 'water_l'))
-            cv.put(x, y, c); cv.put(x, y + 1, 'g0')
+            cv.put(x, y, c); cv.put(x, y + 1, P('g0'))
     else:
-        for _ in range(len(cells) * 2):
+        for _ in range(len(cells)):
             (x, y) = rnd.choice(inner)
             cv.put(x, y, 'ud1'); cv.put(x - 1, y - 1, 'ud1'); cv.put(x + 1, y - 2, 'ud1'); cv.put(x, y - 1, 'ud0')
         for _ in range(len(cells)):  # dead twigs and pebbles
@@ -667,21 +724,21 @@ def preview(world, path):
         y = int(H - (wy - miny) - s.height + (BASE if anchor_bottom else 0))
         im.alpha_composite(s, (x, y))
     for i in world['islands']:
-        paste('bloom_isl_%d%s' % (i['id'], '_dust' if i['id'] in (3, 4, 5) else ''), i['origin'][0], i['origin'][1], False)
+        paste('bloom_isl_%d%s' % (i['id'], '_dust' if i['id'] in (4, 5) else ''), i['origin'][0], i['origin'][1], False)
     for b in world['bridges']:
         tx, ty = b['tile']
         paste('bloom_bridge_v' if b['vertical'] else 'bloom_bridge_h', tx * T, ty * T, False)
     rnd = random.Random(1)
     objs = []
-    for i in world['islands'][:3]:
+    for i in world['islands'][:4]:
         cells = [tuple(c) for c in i['cells']]
         rnd.shuffle(cells)
         kinds = [k for k, n in i['spawn'].items() for _ in range(n)]
         for c, k in zip(cells, kinds):
             objs.append((k, c[0] * T + 8, c[1] * T + 4))
-    objs.append(('hero_idle_0', 2 * T + 8, 2 * T + 6))
-    objs.append(('furnace_0', 4 * T + 8, 3 * T + 4))
-    objs.append(('market', 1 * T + 8, 4 * T + 4))
+    objs.append(('hero_idle_0', 9 * T + 8, 10 * T + 6))
+    objs.append(('furnace_0', 11 * T + 8, 10 * T + 4))
+    objs.append(('market', 7 * T + 8, 12 * T + 4))
     objs.sort(key=lambda o: -o[2])
     for k, x, y in objs:
         paste('bloom_shadow', x, y - 3)
