@@ -38,6 +38,13 @@ struct BloomView: View {
                 }
             }
             if ProcessInfo.processInfo.arguments.contains("-bloomTour") { tour() }
+            #if DEBUG
+            // App Store screenshots: -bloomPanel build|talents|shop|album opens one panel
+            if let name = UserDefaults.standard.string(forKey: "bloomPanel") {
+                let p: BloomPanel? = ["build": .build, "talents": .talents, "shop": .shop, "album": .album][name]
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3) { game.panel = p }
+            }
+            #endif
         }
         .onChange(of: phase) { _, p in
             if p != .active { game.save() }

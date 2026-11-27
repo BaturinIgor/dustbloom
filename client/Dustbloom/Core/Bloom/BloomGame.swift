@@ -169,6 +169,16 @@ final class BloomGame: ObservableObject {
             s.gems += 200
             s.level = max(s.level, 4)
         }
+        #if DEBUG
+        // App Store screenshots: a farm a few hours in (more islands, helpers, talents)
+        if args.contains("-bloomShowcase") {
+            s.level = max(s.level, 9)
+            s.pick = max(s.pick, min(2, BloomContent.picks.count - 1))
+            for id in [1, 2, 3, 4] where id < world.islands.count && !s.owned.contains(id) { s.owned.append(id) }
+            s.helpers = Array(BloomContent.helperColors.prefix(max(s.helpers.count, min(3, BloomContent.maxHelpers))))
+            for t in ["d1", "d2", "c1", "b1", "h1", "t1"] where !s.talents.contains(t) { s.talents.append(t) }
+        }
+        #endif
     }
 
     // MARK: - inventory
