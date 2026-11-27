@@ -67,10 +67,10 @@ targets:
         UIAppFonts: [Tiny5.ttf, Rubik-Bold.ttf]
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
-        # AdMob app id; Google's test id until the real DUSTBLOOM app is created in AdMob
-        GADApplicationIdentifier: ca-app-pub-3940256099942544~1458002511
-        # rewarded ad unit for App Store builds; empty = no ads in release (debug/TestFlight use Google's test unit)
-        AdMobRewardedUnit: ""
+        # AdMob app DUSTBLOOM (app id and unit ids are public by design, they ship inside the app)
+        GADApplicationIdentifier: ca-app-pub-9867750696429328~4959814952
+        # rewarded ad unit for App Store builds (debug/TestFlight use Google's test unit)
+        AdMobRewardedUnit: ca-app-pub-9867750696429328/6468337748
         NSUserTrackingUsageDescription: Your data will be used to show you more relevant ads.
         SKAdNetworkItems:
           - SKAdNetworkIdentifier: cstr6suwn9.skadnetwork
