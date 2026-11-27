@@ -114,6 +114,7 @@ struct BloomHUD: View {
                         RoundIconButton(icon: "bloom_ui_tree", badge: game.talentPoints) { game.panel = .talents }
                         RoundIconButton(icon: "bloom_ui_book", badge: 0) { game.panel = .album }
                         ShopButton()
+                        RoundIconButton(icon: "bloom_ui_mail", badge: 0) { game.panel = .feedback }
                     }
                 }
                 .padding(.horizontal, 16)
@@ -338,6 +339,7 @@ struct PanelHost: View {
         case .talents: return "Древо цветения"
         case .album: return "Альбом находок"
         case .shop: return "Лавка"
+        case .feedback: return "Написать нам"
         }
     }
 
@@ -353,6 +355,7 @@ struct PanelHost: View {
         case .talents: EmptyView()
         case .album: AlbumView()
         case .shop: ShopView()
+        case .feedback: FeedbackView()
         }
     }
 }
@@ -966,5 +969,90 @@ struct AlbumView: View {
         }
         OutlinedText(text: "Находки иногда выпадают из деревьев, кустов и камней", size: 11, color: BUI.cream.opacity(0.7), fixed: false, lines: 2)
             .padding(.top, 4)
+    }
+}
+
+/// Player feedback in the game's own style: a mood, a message, and a rating button.
+struct FeedbackView: View {
+    @EnvironmentObject private var game: BloomGame
+    @Environment(\.requestReview) private var requestReview
+    @State private var text = ""
+    @State private var mood = "good"
+    @State private var state = 0   // 0 idle, 1 sending, 2 sent, 3 failed
+    @FocusState private var typing: Bool
+
+    private let moods = [("love", "😍"), ("good", "🙂"), ("meh", "😕")]
+
+    var body: some View {
+        VStack(spacing: 12) {
+            OutlinedText(text: "Как тебе игра? Каждое сообщение читаем сами", size: 13, color: BUI.muted, fixed: false, lines: 2)
+            HStack(spacing: 14) {
+                ForEach(moods, id: \.0) { m in
+                    Button { mood = m.0; Sfx.play(.select) } label: {
+                        Text(m.1).font(.system(size: 30))
+                            .frame(width: 60, height: 52)
+                            .background(RoundedRectangle(cornerRadius: 14).fill(mood == m.0 ? BUI.gold.opacity(0.35) : BUI.panelHi))
+                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(mood == m.0 ? BUI.gold : BUI.ink.opacity(0.6), lineWidth: 2))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            ZStack(alignment: .topLeading) {
+                RoundedRectangle(cornerRadius: 14).fill(BUI.ink.opacity(0.7))
+                if text.isEmpty {
+                    Text("Что понравилось, что мешает, чего хочется…")
+                        .font(DText.font(13)).foregroundStyle(BUI.muted.opacity(0.7))
+                        .padding(12)
+                }
+                TextEditor(text: $text)
+                    .font(DText.font(14))
+                    .foregroundStyle(BUI.cream)
+                    .scrollContentBackground(.hidden)
+                    .focused($typing)
+                    .padding(6)
+            }
+            .frame(height: 120)
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(BUI.ink, lineWidth: 2))
+            Button {
+                Task { await send() }
+            } label: {
+                Group {
+                    switch state {
+                    case 1: ProgressView().tint(.white)
+                    case 2: OutlinedText(text: "Спасибо! Отправлено", size: 15)
+                    default: OutlinedText(text: "Отправить", size: 15)
+                    }
+                }
+                .frame(maxWidth: .infinity, minHeight: 24)
+            }
+            .buttonStyle(BloomButtonStyle(color: state == 2 ? BUI.green : BUI.orange, edge: state == 2 ? BUI.greenEdge : BUI.orangeEdge))
+            .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || state == 1 || state == 2)
+            if state == 3 {
+                OutlinedText(text: "Нет связи. Попробуй чуть позже", size: 12, color: BUI.red)
+            }
+            Button {
+                Analytics.shared.track("review_manual")
+                requestReview()
+            } label: {
+                HStack(spacing: 6) {
+                    Text("⭐️").font(.system(size: 16))
+                    OutlinedText(text: "Оценить в App Store", size: 14)
+                }
+                .frame(maxWidth: .infinity, minHeight: 24)
+            }
+            .buttonStyle(BloomButtonStyle(color: BUI.panelHi, edge: BUI.ink))
+        }
+        .frame(width: 322)
+        .onAppear { if state == 2 { state = 0; text = "" } }
+    }
+
+    private func send() async {
+        typing = false
+        state = 1
+        let ok = await FirebaseBridge.sendFeedback(text.trimmingCharacters(in: .whitespacesAndNewlines), mood: mood,
+                                                   extra: ["level": game.level, "islands": game.owned.count, "minutes": game.playMinutes])
+        Analytics.shared.track("feedback", ["mood": mood, "sent": ok])
+        state = ok ? 2 : 3
+        if ok { Sfx.play(.victory) }
     }
 }

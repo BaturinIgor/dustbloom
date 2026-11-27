@@ -1,0 +1,16 @@
+rules_version = '2';
+// Players can only drop a feedback message; nobody can read or change it from the app.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /feedback/{id} {
+      allow create: if request.resource.data.keys().hasOnly(['text', 'mood', 'at', 'app', 'lang', 'level', 'islands', 'minutes'])
+                    && request.resource.data.text is string
+                    && request.resource.data.text.size() > 0
+                    && request.resource.data.text.size() <= 2000;
+      allow read, update, delete: if false;
+    }
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

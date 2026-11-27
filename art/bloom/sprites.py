@@ -630,6 +630,14 @@ def ui_icons():
     cv.put(3, 0, 'gold_l')
     cv.outline('ink')
     sprite('bloom_ui_arrow', cv)
+    cv = Canvas(14, 14)  # letter: write to the developers
+    cv.rect(1, 3, 12, 11, 'canvas_w')
+    for k in range(6):
+        cv.put(1 + k, 3 + k // 1 if k < 5 else 8, 'd2'); cv.put(12 - k, 3 + k if k < 5 else 8, 'd2')
+    cv.rect(1, 11, 12, 11, 'd3')
+    cv.disc(6.5, 7.6, 1.6, 1.4, 'berry'); cv.put(6, 7, 'berry_l')
+    cv.outline('ink')
+    sprite('bloom_ui_mail', cv)
 
 
 def fx():

@@ -112,6 +112,7 @@ enum BloomPanel: Equatable {
     case talents
     case album
     case shop
+    case feedback
 }
 
 struct BloomToast: Identifiable, Equatable {

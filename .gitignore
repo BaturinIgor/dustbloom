@@ -15,6 +15,7 @@ build/
 *.p12
 *.mobileprovision
 *.cer
+GoogleService-Info.plist
 
 # server
 server/dev-state.json*
