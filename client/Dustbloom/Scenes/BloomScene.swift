@@ -118,6 +118,9 @@ final class BloomScene: SKScene {
     private func setUp() {
         guard !built else { return }
         built = true
+        let burst = ["bloom_fx_puff", "bloom_fx_leaf", "bloom_fx_chip", "bloom_fx_spark", "bloom_fx_petal", "bloom_item_coin"]
+            + BItem.allCases.map(\.sprite) + GatherKind.allCases.flatMap { $0.isTree ? [$0.stump] : [] }
+        SKTexture.preload(burst.map(tex)) {}
         addChild(world)
         cam.setScale(1 / zoom)
         addChild(cam)
@@ -1332,11 +1335,22 @@ final class BloomScene: SKScene {
     private var pickupLabels: [String: (node: SKNode, total: Int, at: TimeInterval)] = [:]
 
     private func showPickup(_ key: String, sprite: String, amount: Int, color: UIColor) {
-        var total = amount
-        if let old = pickupLabels[key], now - old.at < 0.6 {
-            total += old.total
-            old.node.removeFromParent()
+        // still on screen: bump the number in place instead of building a new label
+        if let old = pickupLabels[key], now - old.at < 0.6, old.node.parent != nil,
+           let l = old.node.childNode(withName: "n") as? SKLabelNode {
+            let total = old.total + amount
+            let fresh = label("+\(total)", size: 5.5, color: color)
+            l.attributedText = fresh.attributedText
+            old.node.removeAllActions()
+            old.node.alpha = 1
+            old.node.setScale(1)
+            old.node.run(.sequence([.scale(to: 1.12, duration: 0.05), .scale(to: 1, duration: 0.05),
+                                    .wait(forDuration: 0.45),
+                                    .group([.moveBy(x: 0, y: 6, duration: 0.25), .fadeOut(withDuration: 0.25)]), .removeFromParent()]))
+            pickupLabels[key] = (old.node, total, now)
+            return
         }
+        let total = amount
         let slot = CGFloat(pickupLabels.filter { $0.key != key && now - $0.value.at < 0.6 }.count)
         let n = SKNode()
         n.position = CGPoint(x: 0, y: 30 + slot * 9)
@@ -1346,6 +1360,7 @@ final class BloomScene: SKScene {
         ic.position = CGPoint(x: -6, y: 2.5)
         n.addChild(ic)
         let l = label("+\(total)", size: 5.5, color: color)
+        l.name = "n"
         l.horizontalAlignmentMode = .left
         l.position = CGPoint(x: -1.5, y: 0)
         n.addChild(l)

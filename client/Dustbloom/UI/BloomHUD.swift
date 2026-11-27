@@ -15,8 +15,8 @@ struct BloomView: View {
 
     var body: some View {
         ZStack {
-            SpriteView(scene: scene, preferredFramesPerSecond: 60,
-                       debugOptions: ProcessInfo.processInfo.arguments.contains("-showFPS") ? [.showsFPS, .showsNodeCount, .showsDrawCount] : [])
+            // equatable: game changes redraw the HUD only, never reconfigure the SpriteKit view
+            BloomSceneHost(scene: scene).equatable()
                 .ignoresSafeArea()
             // soft vignette pulls the eye to the hero
             RadialGradient(colors: [.clear, .clear, Color(red: 0.05, green: 0.12, blue: 0.25).opacity(0.28)],
@@ -59,6 +59,16 @@ struct BloomView: View {
         .onChange(of: phase) { _, p in
             if p != .active { game.save() } else { game.refreshDailies(); game.refreshEvent(); game.refreshFair() }
         }
+    }
+}
+
+/// The SpriteKit view on its own, so SwiftUI leaves it alone when the game state changes.
+private struct BloomSceneHost: View, Equatable {
+    let scene: BloomScene
+    static func == (a: Self, b: Self) -> Bool { a.scene === b.scene }
+    var body: some View {
+        SpriteView(scene: scene, preferredFramesPerSecond: 60,
+                   debugOptions: ProcessInfo.processInfo.arguments.contains("-showFPS") ? [.showsFPS, .showsNodeCount, .showsDrawCount] : [])
     }
 }
 
