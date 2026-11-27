@@ -892,7 +892,6 @@ final class BloomScene: SKScene {
         let c = game.rollCoins(r.kind, mult: mult)
         if c > 0 { emit(nil, c, from: p) }
         game.gainXP(r.kind.xp)
-        floatText("+\(r.kind.xp) XP", at: CGPoint(x: p.x, y: p.y + 18), color: UIColor(red: 0.6, green: 1, blue: 0.45, alpha: 1), size: 4.5, rise: 8)
     }
 
     private func emit(_ item: BItem?, _ total: Int, from p: CGPoint) {

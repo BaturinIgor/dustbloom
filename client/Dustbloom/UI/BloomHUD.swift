@@ -82,16 +82,6 @@ struct BloomHUD: View {
         ZStack {
             VStack(spacing: 0) {
                 topBar
-                if let t = game.toast {
-                    ToastView(toast: t)
-                        .padding(.top, 10)
-                        .transition(.move(edge: .top).combined(with: .opacity))
-                        .id(t.id)
-                        .task(id: t.id) {
-                            try? await Task.sleep(nanoseconds: 2_300_000_000)
-                            if game.toast?.id == t.id { game.nextToast() }
-                        }
-                }
                 Spacer()
                 HStack(alignment: .bottom) {
                     VStack(alignment: .leading, spacing: 12) {
@@ -114,6 +104,22 @@ struct BloomHUD: View {
                 PanelHost(panel: p)
                     .transition(.scale(scale: 0.85).combined(with: .opacity))
             }
+            // toasts sit above panels so they never look dimmed
+            VStack {
+                if let t = game.toast {
+                    ToastView(toast: t)
+                        .padding(.top, 62)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                        .id(t.id)
+                        .task(id: t.id) {
+                            try? await Task.sleep(nanoseconds: 2_300_000_000)
+                            if game.toast?.id == t.id { game.nextToast() }
+                        }
+                }
+                Spacer()
+            }
+            .allowsHitTesting(false)
+            .animation(.spring(response: 0.3, dampingFraction: 0.75), value: game.toast)
         }
         .animation(.spring(response: 0.28, dampingFraction: 0.8), value: game.panel)
     }
