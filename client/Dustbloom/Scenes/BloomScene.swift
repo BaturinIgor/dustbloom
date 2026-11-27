@@ -359,7 +359,7 @@ final class BloomScene: SKScene {
     }
 
     private func freeCell(_ c: Cell) -> Bool {
-        res[c] == nil && buildingNodes[c] == nil && flowers[c] == nil && !nearBridge.contains(c) && land.contains(c) && !bridgeCells.contains(c)
+        res[c] == nil && buildingNodes[c] == nil && flowers[c] == nil && !chests.contains(where: { $0.cell == c }) && !nearBridge.contains(c) && land.contains(c) && !bridgeCells.contains(c)
     }
 
     private func randomKind(_ id: Int) -> GatherKind {
@@ -949,6 +949,13 @@ final class BloomScene: SKScene {
 
     private func tap(_ p: CGPoint) {
         if fishing != nil { reelIn(); return }
+        // a tapped chest opens if the hero is close; otherwise say where to go
+        if let i = chests.firstIndex(where: { hypot($0.node.position.x - p.x, $0.node.position.y + 6 - p.y) < 14 }) {
+            let c = chests[i].node.position
+            if hypot(c.x - heroPos.x, c.y - heroPos.y) < 40 { openChest(at: i) }
+            else { floatText(tr("Подойди к сундуку"), at: CGPoint(x: c.x, y: c.y + 20), size: 6) }
+            return
+        }
         for (b, n) in buildingNodes.values where hypot(n.position.x - p.x, n.position.y + 7 - p.y) < 12 {
             game.panel = .building(b.kind)
             Sfx.play(.select)
@@ -1412,7 +1419,7 @@ final class BloomScene: SKScene {
     }
 
     private func respawnOne() {
-        if chest == nil, now >= chestFreeAt, Double.random(in: 0..<1) < game.chestChance {
+        if chests.isEmpty, now >= chestFreeAt, Double.random(in: 0..<1) < game.chestChance {
             chestFreeAt = now + BloomBalance.shared.chestCooldown
             spawnChest()
         }
@@ -1455,7 +1462,8 @@ final class BloomScene: SKScene {
 
     // MARK: - treasure chests
 
-    private var chest: (cell: Cell, node: SKSpriteNode)?
+    /// Several can be out at once (talent, rewards, random spawn); each opens on its own.
+    private var chests: [(cell: Cell, node: SKSpriteNode)] = []
 
     private func spawnChest(near: Bool = false) {
         let owned = game.owned.sorted()
@@ -1477,14 +1485,18 @@ final class BloomScene: SKScene {
             self?.particle("bloom_fx_spark", at: CGPoint(x: p.x + CGFloat.random(in: -6...6), y: p.y + CGFloat.random(in: 4...12)),
                            v: CGVector(dx: 0, dy: 8), life: 0.6, gravity: false)
         }, .wait(forDuration: 0.25)])))
-        chest = (c, n)
+        chests.append((c, n))
         for _ in 0..<8 { spark(at: CGPoint(x: p.x, y: p.y + 6), spread: 16, gold: false) }
         Sfx.play(.sparkle, volume: 0.6)
     }
 
     private func checkChest() {
-        guard let ch = chest, hypot(ch.node.position.x - heroPos.x, ch.node.position.y - heroPos.y) < 11 else { return }
-        chest = nil
+        guard let i = chests.firstIndex(where: { hypot($0.node.position.x - heroPos.x, $0.node.position.y - heroPos.y) < 14 }) else { return }
+        openChest(at: i)
+    }
+
+    private func openChest(at i: Int) {
+        let ch = chests.remove(at: i)
         let n = ch.node
         let p = n.position
         n.removeAllActions()
@@ -1831,7 +1843,7 @@ final class BloomScene: SKScene {
             if dist < demoBestDist - 4 { demoBestDist = dist; demoBestAt = now }
             else if now - demoBestAt > 4 { demoSkip[i] = now + 25; demoSign = nil; return }
         }
-        if goal == nil, let ch = chest { goal = ch.node.position }
+        if goal == nil, let ch = chests.first { goal = ch.node.position }
         // show off fishing: walk to a pond nearby and stand next to it
         if goal == nil, now > fishCooldown {
             let hc = heroCell
