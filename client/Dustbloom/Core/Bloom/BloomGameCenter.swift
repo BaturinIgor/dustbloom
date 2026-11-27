@@ -8,7 +8,7 @@ struct Achievement {
     let id: String        // "bloom.ach." + id in App Store Connect
     let title: String     // Russian source; the in-game list and the store share it
     let text: String
-    let check: (BloomGame) -> Bool
+    let check: @MainActor (BloomGame) -> Bool
 }
 
 enum BloomAchievements {
