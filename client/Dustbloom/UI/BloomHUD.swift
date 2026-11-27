@@ -28,9 +28,21 @@ struct BloomView: View {
         .onAppear {
             scene.game = game
             BloomStore.shared.start(game: game)
+            if ProcessInfo.processInfo.arguments.contains("-bloomTour") { tour() }
         }
         .onChange(of: phase) { _, p in
             if p != .active { game.save() }
+        }
+    }
+}
+
+extension BloomView {
+    /// Video tour for previews: opens the main screens one by one.
+    func tour() {
+        let steps: [(Double, BloomPanel?)] = [(14, .shop), (22, nil), (26, .talents), (32, nil), (36, .album), (41, nil),
+                                              (45, .building(.market)), (49, nil)]
+        for (t, p) in steps {
+            DispatchQueue.main.asyncAfter(deadline: .now() + t) { game.panel = p }
         }
     }
 }
