@@ -25,7 +25,10 @@ struct BloomView: View {
             BloomHUD()
         }
         .environmentObject(game)
-        .onAppear { scene.game = game }
+        .onAppear {
+            scene.game = game
+            BloomStore.shared.start(game: game)
+        }
         .onChange(of: phase) { _, p in
             if p != .active { game.save() }
         }
@@ -43,6 +46,7 @@ enum BUI {
     static let orangeEdge = Color(red: 0.70, green: 0.37, blue: 0.12)
     static let red = Color(red: 1, green: 0.45, blue: 0.45)
     static let cream = Color(red: 1, green: 0.97, blue: 0.9)
+    static let muted = Color(red: 0.78, green: 0.74, blue: 0.86)
 }
 
 struct PixelIcon: View {
@@ -88,6 +92,7 @@ struct BloomHUD: View {
                     VStack(spacing: 10) {
                         RoundIconButton(icon: "bloom_ui_tree", badge: game.talentPoints) { game.panel = .talents }
                         RoundIconButton(icon: "bloom_ui_book", badge: 0) { game.panel = .album }
+                        ShopButton()
                     }
                 }
                 .padding(.horizontal, 16)
@@ -155,14 +160,32 @@ struct BloomHUD: View {
                 }
             }
             Spacer()
-            HStack(spacing: 6) {
-                PixelIcon(name: "bloom_item_coin", size: 26)
-                OutlinedText(text: "\(game.coins)", size: 18)
-                    .frame(minWidth: 56)
+            VStack(alignment: .trailing, spacing: 6) {
+                HStack(spacing: 6) {
+                    PixelIcon(name: "bloom_item_coin", size: 26)
+                    OutlinedText(text: game.coins.short, size: 18)
+                        .frame(minWidth: 64, alignment: .trailing)
+                }
+                .padding(.horizontal, 12)
+                .frame(width: 124, height: 36)
+                .background(Capsule().fill(BUI.ink.opacity(0.85)))
+                // gems: tapping the counter is the most common way into a shop
+                Button { game.panel = .shop; Sfx.play(.select) } label: {
+                    HStack(spacing: 6) {
+                        PixelIcon(name: "bloom_item_gem", size: 22)
+                        OutlinedText(text: "\(game.gems)", size: 15)
+                            .frame(minWidth: 40, alignment: .trailing)
+                        ZStack {
+                            Circle().fill(BUI.green).frame(width: 20, height: 20)
+                            Text("+").font(DText.font(15)).foregroundStyle(.white)
+                        }
+                    }
+                    .padding(.leading, 12).padding(.trailing, 6)
+                    .frame(width: 124, height: 30)
+                    .background(Capsule().fill(BUI.ink.opacity(0.85)))
+                }
+                .buttonStyle(.plain)
             }
-            .padding(.horizontal, 12)
-            .frame(height: 38)
-            .background(Capsule().fill(BUI.ink.opacity(0.85)))
         }
         .padding(.horizontal, 16)
         .padding(.top, 6)
@@ -263,6 +286,8 @@ struct PanelHost: View {
                             Circle().fill(BUI.ink).frame(width: 34, height: 34)
                             Text("✕").font(DText.font(15)).foregroundStyle(BUI.cream)
                         }
+                        .frame(width: 44, height: 44)   // Apple's minimum touch target
+                        .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                 }
@@ -274,7 +299,7 @@ struct PanelHost: View {
                     .padding(.horizontal, 14)
                     .padding(.bottom, 16)
             }
-            .frame(maxHeight: 470)
+            .frame(maxHeight: panel == .shop ? 610 : 470)
             .fixedSize(horizontal: false, vertical: true)
         }
         .frame(width: 350)
@@ -291,6 +316,7 @@ struct PanelHost: View {
         case .inventory: return "Рюкзак"
         case .talents: return "Древо цветения"
         case .album: return "Альбом находок"
+        case .shop: return "Лавка"
         }
     }
 
@@ -305,6 +331,7 @@ struct PanelHost: View {
         case .inventory: InventoryGrid()
         case .talents: EmptyView()
         case .album: AlbumView()
+        case .shop: ShopView()
         }
     }
 }
@@ -435,17 +462,19 @@ struct MarketList: View {
                     PixelIcon(name: i.sprite, size: 32)
                     VStack(alignment: .leading, spacing: 2) {
                         OutlinedText(text: i.title, size: 13)
-                        HStack(spacing: 3) {
-                            OutlinedText(text: "\(game.count(i)) шт · по", size: 11)
-                            PixelIcon(name: "bloom_item_coin", size: 14)
-                            OutlinedText(text: "\(game.sellPrice(i))", size: 11, color: BUI.gold)
-                        }
+                        OutlinedText(text: "\(game.count(i)) шт", size: 11, color: BUI.muted)
                     }
                     Spacer(minLength: 0)
-                    Button { game.sell(i, all: false) } label: { OutlinedText(text: "1", size: 13) }
-                        .buttonStyle(BloomButtonStyle(color: BUI.panel, edge: BUI.ink))
-                    Button { game.sell(i, all: true) } label: { OutlinedText(text: "Все", size: 13) }
-                        .buttonStyle(BloomButtonStyle(color: BUI.orange, edge: BUI.orangeEdge))
+                    let value = game.sellValue(i, game.count(i))
+                    Button { game.sell(i, all: true) } label: {
+                        HStack(spacing: 4) {
+                            OutlinedText(text: value > 0 ? "+\(value)" : "мало", size: 13)
+                            if value > 0 { PixelIcon(name: "bloom_item_coin", size: 16) }
+                        }
+                        .frame(minWidth: 64)
+                    }
+                    .buttonStyle(BloomButtonStyle(color: value > 0 ? BUI.orange : BUI.panel, edge: value > 0 ? BUI.orangeEdge : BUI.ink))
+                    .disabled(value == 0)
                 }
             }
         }
@@ -511,13 +540,13 @@ struct BuyView: View {
             HStack(spacing: 6) {
                 OutlinedText(text: "Купить за", size: 16)
                 PixelIcon(name: "bloom_item_coin", size: 22)
-                OutlinedText(text: "\(game.islandPrice(id))", size: 16)
+                OutlinedText(text: game.islandPrice(id).short, size: 16)
             }
             .frame(maxWidth: .infinity)
         }
         .buttonStyle(BloomButtonStyle(enabled: game.coins >= game.islandPrice(id)))
         if game.coins < game.islandPrice(id) {
-            OutlinedText(text: "Не хватает \(game.islandPrice(id) - game.coins). Продай ресурсы на рынке", size: 11, color: BUI.red, fixed: false, lines: 2)
+            OutlinedText(text: "Не хватает \((game.islandPrice(id) - game.coins).short). Продай ресурсы на рынке", size: 11, color: BUI.red, fixed: false, lines: 2)
         }
     }
 }
@@ -623,6 +652,7 @@ struct NurseryView: View {
 struct RoundIconButton: View {
     let icon: String
     var badge: Int
+    var dot = false
     let action: () -> Void
     var body: some View {
         Button {
@@ -641,10 +671,26 @@ struct RoundIconButton: View {
                         Text("\(badge)").font(DText.font(12)).foregroundStyle(.white)
                     }
                     .offset(x: 4, y: -4)
+                } else if dot {
+                    Circle().fill(BUI.green).frame(width: 14, height: 14)
+                        .overlay(Circle().stroke(BUI.ink, lineWidth: 2))
+                        .offset(x: 1, y: -1)
                 }
             }
         }
         .buttonStyle(.plain)
+    }
+}
+
+/// Shop entry with a green dot when the free reward is ready.
+struct ShopButton: View {
+    @EnvironmentObject private var game: BloomGame
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 5)) { ctx in
+            RoundIconButton(icon: "bloom_ui_shop", badge: 0, dot: game.adReadyAt <= ctx.date && RewardedAds.isAvailable) {
+                game.panel = .shop
+            }
+        }
     }
 }
 
@@ -657,7 +703,7 @@ struct GoldenBanner: View {
                 HStack(spacing: 8) {
                     PixelIcon(name: "bloom_item_coin", size: 22)
                     OutlinedText(text: "ЗОЛОТОЙ ЧАС  ×2", size: 16, color: BUI.gold)
-                    OutlinedText(text: "0:\(String(format: "%02d", left))", size: 14)
+                    OutlinedText(text: "\(left / 60):\(String(format: "%02d", left % 60))", size: 14)
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 6)

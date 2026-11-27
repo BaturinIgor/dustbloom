@@ -1,19 +1,19 @@
 {
- "note": "Single source of Bloom balance. Read by the game (BloomBalance.swift) and by tools/bloom_sim.py.",
+ "note": "Single source of Bloom balance. Read by the game (BloomBalance.swift) and by tools/bloom_sim.py. Tune here, run the bots, ship.",
  "xp": {
-  "base": 10,
-  "lin": 8,
-  "quad": 1
+  "base": 20,
+  "lin": 20,
+  "quad": 6
  },
  "gather": {
   "tree": {
-   "hp": 3,
+   "hp": 8,
    "xp": 2,
    "drops": [
     [
      "wood",
+     1,
      2,
-     3,
      1.0
     ],
     [
@@ -25,31 +25,31 @@
    ]
   },
   "pine": {
-   "hp": 4,
+   "hp": 10,
    "xp": 3,
    "drops": [
     [
      "wood",
-     3,
-     4,
-     1.0
-    ]
-   ]
-  },
-  "rock": {
-   "hp": 4,
-   "xp": 2,
-   "drops": [
-    [
-     "stone",
      2,
      3,
      1.0
     ]
    ]
   },
+  "rock": {
+   "hp": 9,
+   "xp": 2,
+   "drops": [
+    [
+     "stone",
+     1,
+     2,
+     1.0
+    ]
+   ]
+  },
   "rock_iron": {
-   "hp": 7,
+   "hp": 18,
    "xp": 5,
    "drops": [
     [
@@ -60,14 +60,14 @@
     ],
     [
      "iron_ore",
+     1,
      2,
-     3,
      1.0
     ]
    ]
   },
   "rock_gold": {
-   "hp": 10,
+   "hp": 27,
    "xp": 8,
    "drops": [
     [
@@ -78,44 +78,44 @@
     ],
     [
      "gold_ore",
-     2,
+     1,
      2,
      1.0
     ]
    ]
   },
   "bush_berry": {
-   "hp": 1,
+   "hp": 3,
    "xp": 1,
    "drops": [
     [
      "berry",
+     1,
      2,
-     3,
      1.0
     ]
    ]
   },
   "bush_cotton": {
-   "hp": 1,
+   "hp": 3,
    "xp": 1,
    "drops": [
     [
      "cotton",
-     2,
+     1,
      2,
      1.0
     ]
    ]
   },
   "crystal": {
-   "hp": 14,
+   "hp": 42,
    "xp": 12,
    "drops": [
     [
      "crystal",
      1,
-     2,
+     1,
      1.0
     ]
    ]
@@ -124,27 +124,26 @@
  "prices": {
   "wood": 1,
   "stone": 1,
-  "berry": 2,
+  "berry": 1,
   "cotton": 2,
   "flower": 3,
-  "iron_ore": 3,
-  "gold_ore": 6,
-  "crystal": 40,
-  "brick": 5,
-  "iron_bar": 10,
-  "gold_bar": 22,
-  "cloth": 9
+  "iron_ore": 2,
+  "gold_ore": 4,
+  "crystal": 25,
+  "brick": 4,
+  "iron_bar": 7,
+  "gold_bar": 14,
+  "cloth": 8
  },
- "coinChance": 0.28,
- "respawnPerIsland": 2.2,
- "chestChance": 0.05,
+ "coinChance": 0.18,
+ "respawnPerIsland": 0.2,
  "islandPrices": [
   0,
-  15,
-  60,
-  140,
-  280,
-  500
+  150,
+  1000,
+  3500,
+  9000,
+  20000
  ],
  "picks": [
   {
@@ -156,11 +155,11 @@
    "cost": [
     [
      "stone",
-     10
+     25
     ],
     [
      "wood",
-     8
+     20
     ]
    ]
   },
@@ -169,24 +168,24 @@
    "cost": [
     [
      "iron_bar",
-     5
+     15
     ],
     [
      "wood",
-     10
+     30
     ]
    ]
   },
   {
-   "damage": 5,
+   "damage": 4,
    "cost": [
     [
      "gold_bar",
-     6
+     15
     ],
     [
      "iron_bar",
-     4
+     12
     ]
    ]
   }
@@ -197,11 +196,11 @@
    "cost": [
     [
      "stone",
-     8
+     12
     ],
     [
      "wood",
-     4
+     8
     ]
    ]
   },
@@ -210,11 +209,11 @@
    "cost": [
     [
      "wood",
-     10
+     20
     ],
     [
      "berry",
-     4
+     8
     ]
    ]
   },
@@ -223,11 +222,11 @@
    "cost": [
     [
      "brick",
-     4
+     8
     ],
     [
      "wood",
-     8
+     16
     ]
    ]
   },
@@ -236,15 +235,15 @@
    "cost": [
     [
      "wood",
-     20
+     40
     ],
     [
      "brick",
-     6
+     15
     ],
     [
      "berry",
-     10
+     20
     ]
    ]
   },
@@ -253,11 +252,11 @@
    "cost": [
     [
      "wood",
-     14
+     30
     ],
     [
      "iron_bar",
-     2
+     5
     ]
    ]
   }
@@ -271,7 +270,7 @@
      3
     ]
    ],
-   "seconds": 2
+   "seconds": 6
   },
   "iron_bar": {
    "at": "furnace",
@@ -285,7 +284,7 @@
      1
     ]
    ],
-   "seconds": 3
+   "seconds": 9
   },
   "gold_bar": {
    "at": "furnace",
@@ -299,7 +298,7 @@
      1
     ]
    ],
-   "seconds": 4
+   "seconds": 12
   },
   "cloth": {
    "at": "loom",
@@ -309,42 +308,42 @@
      3
     ]
    ],
-   "seconds": 2.5
+   "seconds": 8
   }
  },
  "helperCost": {
   "berry": [
-   12,
-   10
+   25,
+   20
   ],
   "flower": [
-   4,
-   4
+   6,
+   6
   ]
  },
  "goalScale": 1.0,
  "goals": [
   {
-   "title": "Сруби 5 деревьев",
+   "title": "Сруби 10 деревьев",
    "icon": "bloom_tree",
    "key": "gather.tree",
-   "target": 5,
+   "target": 10,
    "coins": 8,
    "xp": 5
   },
   {
-   "title": "Разбей 5 камней",
+   "title": "Разбей 10 камней",
    "icon": "bloom_rock",
    "key": "gather.rock",
-   "target": 5,
+   "target": 10,
    "coins": 8,
    "xp": 5
   },
   {
-   "title": "Собери 10 ягод",
+   "title": "Собери 20 ягод",
    "icon": "bloom_item_berry",
    "key": "item.berry",
-   "target": 10,
+   "target": 20,
    "coins": 10,
    "xp": 6
   },
@@ -365,10 +364,10 @@
    "xp": 10
   },
   {
-   "title": "Обожги 5 кирпичей",
+   "title": "Обожги 10 кирпичей",
    "icon": "bloom_item_brick",
    "key": "craft.brick",
-   "target": 5,
+   "target": 10,
    "coins": 12,
    "xp": 8
   },
@@ -397,10 +396,10 @@
    "xp": 10
   },
   {
-   "title": "Собери 5 цветов",
+   "title": "Собери 10 цветов",
    "icon": "bloom_item_flower",
    "key": "item.flower",
-   "target": 5,
+   "target": 10,
    "coins": 15,
    "xp": 8
   },
@@ -413,10 +412,10 @@
    "xp": 0
   },
   {
-   "title": "Добудь 10 железной руды",
+   "title": "Добудь 20 железной руды",
    "icon": "bloom_item_iron_ore",
    "key": "item.iron_ore",
-   "target": 10,
+   "target": 20,
    "coins": 20,
    "xp": 12
   },
@@ -469,10 +468,10 @@
    "xp": 20
   },
   {
-   "title": "Выплавь 5 железных слитков",
+   "title": "Выплавь 10 железных слитков",
    "icon": "bloom_item_iron_bar",
    "key": "craft.iron_bar",
-   "target": 5,
+   "target": 10,
    "coins": 40,
    "xp": 20
   },
@@ -509,10 +508,10 @@
    "xp": 40
   },
   {
-   "title": "Добудь 10 золотой руды",
+   "title": "Добудь 20 золотой руды",
    "icon": "bloom_item_gold_ore",
    "key": "item.gold_ore",
-   "target": 10,
+   "target": 20,
    "coins": 80,
    "xp": 40
   },
@@ -533,12 +532,57 @@
    "xp": 60
   },
   {
-   "title": "Добудь 5 кристаллов",
+   "title": "Добудь 10 кристаллов",
    "icon": "bloom_item_crystal",
    "key": "item.crystal",
-   "target": 5,
+   "target": 10,
    "coins": 200,
    "xp": 80
   }
- ]
+ ],
+ "chest": {
+  "chance": 0.03,
+  "cooldown": 60,
+  "coinsMin": 6,
+  "coinsMax": 12,
+  "coinsPerIsland": 4
+ },
+ "golden": {
+  "every": 240,
+  "first": 75,
+  "duration": 25
+ },
+ "critChance": 0.1,
+ "maxHelpers": 3,
+ "respawnSeconds": 3.0,
+ "shop": {
+  "founder": {
+   "price": 4.99,
+   "gems": 300,
+   "helperPower": 3,
+   "regrowBonus": 0.3
+  },
+  "pass": {
+   "price": 7.99,
+   "dropBonus": 0.25,
+   "xpBonus": 0.25
+  },
+  "adGolden": {
+   "duration": 180,
+   "cooldown": 900
+  },
+  "gemCoins": 10,
+  "fertilizer": {
+   "gems": 40,
+   "minutes": 10,
+   "mult": 2
+  }
+ },
+ "combo": {
+  "window": 1.6,
+  "hitsPerStep": 4,
+  "max": 5,
+  "bonusDiv": 2
+ },
+ "sellRate": 0.4
 }

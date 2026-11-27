@@ -34,8 +34,27 @@ final class BloomTests: XCTestCase {
         let g = BloomGame()
         let base = g.roll(.rock, mult: 1).first!.1
         let boosted = g.roll(.rock, mult: 5).first!.1
-        XCTAssertGreaterThanOrEqual(base, 2)
-        XCTAssertGreaterThanOrEqual(boosted, 6)
+        let minDrop = GatherKind.rock.drops[0].min
+        XCTAssertGreaterThanOrEqual(base, minDrop)
+        XCTAssertGreaterThanOrEqual(boosted, minDrop + 4 / BloomBalance.shared.comboBonusDiv)
+    }
+
+    func testBalanceFileLoads() {
+        let b = BloomBalance.shared
+        XCTAssertEqual(b.islandPrices.count, 6)
+        XCTAssertEqual(b.goals.count, 27)
+        XCTAssertEqual(BloomContent.picks.count, 4)
+        XCTAssertTrue(GatherKind.allCases.allSatisfy { b.gather[$0] != nil })
+        XCTAssertFalse(BuildKind.furnace.recipes.isEmpty)
+        XCTAssertEqual(BuildKind.loom.recipes.map(\.id), ["cloth"])
+    }
+
+    func testMarketNeverEatsItemsForNothing() {
+        let g = BloomGame()
+        g.add(.wood, 1)
+        let coins = g.coins
+        g.sell(.wood, all: true)
+        if g.coins == coins { XCTAssertEqual(g.count(.wood), 1) }
     }
 
     func testFurnaceCraftsOverTime() {

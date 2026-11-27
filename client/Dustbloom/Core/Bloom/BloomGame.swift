@@ -65,6 +65,14 @@ struct BloomSave: Codable {
     var talents: [String] = []
     var finds: [String: Int] = [:]
     var savedAt = Date()
+    // donate
+    var gems = 0
+    var founder = false
+    var passUntil: Date?
+    var jar = 0
+    var jarTick = 0
+    var fertUntil: Date?
+    var adReadyAt: Date?
 
     init() {}
 
@@ -86,6 +94,13 @@ struct BloomSave: Codable {
         talents = try c.decodeIfPresent([String].self, forKey: .talents) ?? []
         finds = try c.decodeIfPresent([String: Int].self, forKey: .finds) ?? [:]
         savedAt = try c.decodeIfPresent(Date.self, forKey: .savedAt) ?? Date()
+        gems = try c.decodeIfPresent(Int.self, forKey: .gems) ?? 0
+        founder = try c.decodeIfPresent(Bool.self, forKey: .founder) ?? false
+        passUntil = try c.decodeIfPresent(Date.self, forKey: .passUntil)
+        jar = try c.decodeIfPresent(Int.self, forKey: .jar) ?? 0
+        jarTick = try c.decodeIfPresent(Int.self, forKey: .jarTick) ?? 0
+        fertUntil = try c.decodeIfPresent(Date.self, forKey: .fertUntil)
+        adReadyAt = try c.decodeIfPresent(Date.self, forKey: .adReadyAt)
     }
 }
 
@@ -96,6 +111,7 @@ enum BloomPanel: Equatable {
     case inventory
     case talents
     case album
+    case shop
 }
 
 struct BloomToast: Identifiable, Equatable {
@@ -146,7 +162,8 @@ final class BloomGame: ObservableObject {
         }
         if args.contains("-bloomRich") {
             for i in BItem.allCases { s.inv[i.rawValue, default: 0] += 40 }
-            s.coins += 1000
+            s.coins += 30000
+            s.gems += 200
             s.level = max(s.level, 4)
         }
     }
@@ -200,15 +217,16 @@ final class BloomGame: ObservableObject {
         for d in k.drops where Double.random(in: 0..<1) < d.chance {
             out.append((d.item, Int.random(in: d.min...d.max)))
         }
-        if mult > 1, let first = out.first { out[0] = (first.0, first.1 + mult - 1) }
+        if mult > 1, let first = out.first { out[0] = (first.0, first.1 + (mult - 1) / BloomBalance.shared.comboBonusDiv) }
         if hasT("d4"), Double.random(in: 0..<1) < 0.15 { out = out.map { ($0.0, $0.1 * 2) } }
         if golden { out = out.map { ($0.0, $0.1 * 2) } }
+        if passActive { out = out.map { ($0.0, $0.1 + (Double.random(in: 0..<1) < BloomBalance.shared.shop.passDrop ? 1 : 0)) } }
         return out
     }
 
     /// Coins that fall out of a destroyed gatherable.
     func rollCoins(_ k: GatherKind, mult: Int) -> Int {
-        let chance = (0.28 + 0.06 * Double(mult - 1) + (k.isStone ? 0.1 : 0)) * (hasT("t2") ? 1.5 : 1)
+        let chance = (BloomBalance.shared.coinChance + 0.06 * Double(mult - 1) + (k.isStone ? 0.1 : 0)) * (hasT("t2") ? 1.5 : 1)
         let n = Double.random(in: 0..<1) < chance ? Int.random(in: 1...(k.isStone ? 3 : 2)) : 0
         return golden ? n * 2 : n
     }
@@ -216,7 +234,8 @@ final class BloomGame: ObservableObject {
     /// Returns new level if the xp made one.
     @discardableResult
     func gainXP(_ n0: Int) -> Int? {
-        let n = pageDone(1) ? Int((Double(n0) * 1.15).rounded(.up)) : n0
+        var n = pageDone(1) ? Int((Double(n0) * 1.15).rounded(.up)) : n0
+        if passActive { n = Int((Double(n) * (1 + BloomBalance.shared.shop.passXP)).rounded(.up)) }
         s.xp += n
         var up: Int?
         while s.xp >= BloomContent.xpToNext(s.level) {
@@ -325,9 +344,12 @@ final class BloomGame: ObservableObject {
 
     func sell(_ i: BItem, all: Bool) {
         let n = all ? count(i) : min(count(i), 1)
-        guard n > 0 else { return }
-        s.inv[i.rawValue] = count(i) - n
-        s.coins += n * sellPrice(i)
+        let coins = sellValue(i, n)
+        guard n > 0, coins > 0 else { Sfx.play(.error); return }
+        // only take as many as the coins pay for; the rest stays in the bag
+        let used = min(n, Int((Double(coins) / sellPrice(i)).rounded(.up)))
+        s.inv[i.rawValue] = count(i) - used
+        s.coins += coins
         Sfx.playThrottled(.coin, gap: 0.05)
     }
 
@@ -350,6 +372,9 @@ final class BloomGame: ObservableObject {
     // MARK: - stats & goals
 
     func gathered(_ k: GatherKind) {
+        // the dew jar fills a little with every gathered thing
+        s.jarTick += 1
+        if s.jarTick % 25 == 0 { s.jar = min(BloomGame.jarCap, s.jar + 1) }
         let key: String
         switch k {
         case .tree, .pine: key = "gather.tree"
@@ -371,6 +396,7 @@ final class BloomGame: ObservableObject {
         }
     }
 
+    var goalIndex: Int { s.goal }
     var goal: Goal? { s.goal < BloomContent.goals.count ? BloomContent.goals[s.goal] : nil }
     var goalProgress: Int { goal.map { min($0.target, stat($0.key)) } ?? 0 }
     var goalDone: Bool { goal.map { stat($0.key) >= $0.target } ?? false }
@@ -392,7 +418,8 @@ final class BloomGame: ObservableObject {
     func openChest() -> (coins: Int, items: [(BItem, Int)]) {
         s.stats["chest", default: 0] += 1
         let tier = s.owned.count
-        let coins = Int.random(in: 10...20) + tier * 8
+        let bb = BloomBalance.shared
+        let coins = Int.random(in: bb.chestCoinsMin...bb.chestCoinsMax) + tier * bb.chestCoinsPerIsland
         var pool: [BItem] = [.wood, .stone, .berry, .flower]
         if s.owned.contains(1) || s.owned.contains(3) { pool.append(.cotton) }
         if s.owned.contains(2) { pool += [.iron_ore, .brick] }
@@ -456,18 +483,116 @@ final class BloomGame: ObservableObject {
     var critChance: Double { BloomContent.critChance + (hasT("d2") ? 0.06 : 0) }
     var luckyChance: Double { BloomContent.luckyChance + (hasT("c4") ? 0.25 : 0) }
     func secs(_ r: Recipe) -> Double { r.seconds * (hasT("c1") ? 0.75 : 1) * (hasT("c5") ? 0.7 : 1) }
-    func sellPrice(_ i: BItem) -> Int { hasT("t1") ? Int((Double(i.price) * 1.25).rounded(.up)) : i.price }
+    /// What the market pays for `n` of an item (market rate, Торговец talent).
+    func sellValue(_ i: BItem, _ n: Int) -> Int {
+        Int(Double(n * i.price) * BloomBalance.shared.sellRate * (hasT("t1") ? 1.25 : 1))
+    }
+    /// Price of one, for display (at least 1 when a stack would pay something).
+    func sellPrice(_ i: BItem) -> Double { Double(i.price) * BloomBalance.shared.sellRate * (hasT("t1") ? 1.25 : 1) }
     func islandPrice(_ id: Int) -> Int {
-        let p = island(id).price
+        let pr = BloomBalance.shared.islandPrices
+        let p = id < pr.count ? pr[id] : island(id).price
         return hasT("t4") ? Int((Double(p) * 0.8).rounded()) : p
     }
     var chestChance: Double { BloomContent.chestChance * (hasT("t3") ? 2 : 1) * (golden ? 2 : 1) }
-    var respawnInterval: Double { hasT("b2") ? 2.2 / 1.4 : 2.2 }
+    var respawnInterval: Double {
+        let b = BloomBalance.shared
+        var iv = b.respawnSeconds / (1 + b.respawnPerIsland * Double(max(0, s.owned.count - 1)))
+        if hasT("b2") { iv /= 1.4 }
+        if s.founder { iv /= 1 + b.shop.founderRegrow }
+        if fertActive { iv /= b.shop.fertilizerMult }
+        return iv
+    }
     var flowerFactor: Int { hasT("b1") ? 2 : 1 }
     var goldenDuration: Double { GoldenHour.duration * (hasT("b4") ? 1.5 : 1) }
     var helperSpeed: CGFloat { hasT("h2") ? 1.4 : 1 }
     var helperDamage: Int { hasT("h3") ? 2 : 1 }
     var runSpeed: CGFloat { pageDone(0) ? 1.15 : 1 }
+
+    // MARK: - shop & donate
+
+    static let jarCap = 300
+    /// Gem price of the in-game spends.
+    static let goldenNowGems = 20
+    static let coinSackGems = 50
+    var gems: Int { s.gems }
+    var isFounder: Bool { s.founder }
+    var passUntil: Date? { passActive ? s.passUntil : nil }
+    var passActive: Bool { (s.passUntil ?? .distantPast) > Date() }
+    var fertUntil: Date? { fertActive ? s.fertUntil : nil }
+    var fertActive: Bool { (s.fertUntil ?? .distantPast) > Date() }
+    var jar: Int { s.jar }
+    var adReadyAt: Date { s.adReadyAt ?? .distantPast }
+    /// Coins in a sack: a quarter of the next island, so it always feels useful.
+    var coinSack: Int {
+        let next = (0..<world.islands.count).first { !owned.contains($0) }
+        return max(200, (next.map { islandPrice($0) } ?? 2000) / 4)
+    }
+    /// Scene hooks: start (or extend) a golden hour; the founder's golden Bloomling arrives.
+    var onGoldenRequested: ((Double) -> Void)?
+    var onFounder: (() -> Void)?
+
+    func grant(_ p: ShopProduct) {
+        switch p {
+        case .founder:
+            guard !s.founder else { return }
+            s.founder = true
+            s.gems += BloomBalance.shared.shop.founderGems
+            onFounder?()
+            showToast(BloomToast(title: "Набор основателя", subtitle: "Золотой блумлинг уже бежит к тебе!"))
+        case .pass:
+            s.passUntil = max(Date(), s.passUntil ?? Date()).addingTimeInterval(28 * 86400)
+            showToast(BloomToast(title: "Пропуск цветения", subtitle: "+25% добычи и опыта на 28 дней"))
+        case .jar:
+            s.gems += s.jar
+            showToast(BloomToast(title: "Банка росы", subtitle: "+\(s.jar) росинок"))
+            s.jar = 0
+        default:
+            s.gems += p.gems
+            showToast(BloomToast(title: "+\(p.gems) росинок", subtitle: "Спасибо, что поддерживаешь игру!"))
+        }
+        Sfx.play(.victory)
+        save()
+    }
+
+    private func spend(_ n: Int) -> Bool {
+        guard s.gems >= n else { Sfx.play(.error); return false }
+        s.gems -= n
+        return true
+    }
+
+    func buyGoldenNow() {
+        guard spend(BloomGame.goldenNowGems) else { return }
+        panel = nil
+        onGoldenRequested?(BloomBalance.shared.shop.adGoldenSeconds)
+        save()
+    }
+
+    func buyFertilizer() {
+        let sh = BloomBalance.shared.shop
+        guard spend(sh.fertilizerGems) else { return }
+        s.fertUntil = max(Date(), s.fertUntil ?? Date()).addingTimeInterval(sh.fertilizerMinutes * 60)
+        showToast(BloomToast(title: "Удобрение", subtitle: "Всё растёт вдвое быстрее"))
+        Sfx.play(.harvest)
+        save()
+    }
+
+    func buyCoinSack() {
+        let n = coinSack
+        guard spend(BloomGame.coinSackGems) else { return }
+        s.coins += n
+        Sfx.play(.coin)
+        showToast(BloomToast(title: "Мешок монет", subtitle: "+\(n) монет"))
+        save()
+    }
+
+    /// Called after a rewarded ad was watched to the end.
+    func rewardAd() {
+        s.adReadyAt = Date().addingTimeInterval(BloomBalance.shared.shop.adGoldenCooldown)
+        panel = nil
+        onGoldenRequested?(BloomBalance.shared.shop.adGoldenSeconds)
+        save()
+    }
 
     // MARK: - album
 

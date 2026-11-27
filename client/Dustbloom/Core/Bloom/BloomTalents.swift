@@ -104,7 +104,7 @@ enum BloomAlbum {
 
 /// Golden hour: every few minutes the islands turn gold and all drops double.
 enum GoldenHour {
-    static let every: Double = 240
-    static let first: Double = 75
-    static let duration: Double = 25
+    static var every: Double { BloomBalance.shared.goldenEvery }
+    static var first: Double { BloomBalance.shared.goldenFirst }
+    static var duration: Double { BloomBalance.shared.goldenDuration }
 }

@@ -36,6 +36,7 @@ C = dict(
     p0="#16503f", p1="#227a55", p2="#33a063", p3="#5fc777",
     r0="#5d6680", r1="#8d97ad", r2="#b7c0d1", r3="#e6ebf2", rline="#3a3f57",
     iron="#e0874a", iron_l="#ffb37a", gold="#ffd040", gold_l="#fff2a0", gold_d="#d8962a",
+    gem_d="#2a62d4", gem="#47b6ff", gem_l="#aef0ff",
     berry="#e8394f", berry_l="#ff8a9a", berry_d="#a8203a",
     cotton="#ffffff", cotton_d="#dfe6f2",
     cream="#ffc9d8", cream_d="#f394b0", cream_dd="#d0607f", cheek="#ff6f91",
@@ -151,6 +152,7 @@ def hero(frame):
 HELPER_COLORS = {
     'pink': ('#ffc9d8', '#f394b0'), 'sun': ('#ffe58a', '#f2b84a'),
     'sky': ('#bfe6ff', '#86c2ef'), 'plum': ('#e2c4ff', '#b48ae6'),
+    'gold': ('#ffe14d', '#e0a12a'),   # founder's golden Bloomling
 }
 
 
@@ -172,8 +174,15 @@ def helper(color, frame):
     cv.put(x - 2, by - 6, 'white')
     cv.put(x - 1, by - 4, 'ink'); cv.put(x + 1, by - 4, 'ink')
     cv.put(x - 3, by - 3, 'cheek'); cv.put(x + 3, by - 3, 'cheek')
-    cv.rect(x, by - 9, x, by - 8, 'l0')
-    cv.put(x - 1, by - 9, 'l2'); cv.put(x - 2, by - 10, 'l2'); cv.put(x + 1, by - 10, 'l3'); cv.put(x + 2, by - 10, 'l3')
+    if color == 'gold':  # a tiny crown instead of the sprout, and a sparkle
+        cv.rect(x - 2, by - 8, x + 2, by - 8, 'gold_d')
+        for xx in (x - 2, x, x + 2):
+            cv.put(xx, by - 9, 'gold')
+        cv.put(x, by - 10, 'gold_l'); cv.put(x - 1, by - 8, 'berry')
+        cv.put(x - 3, by - 6, 'gold_l') if frame.endswith('0') else cv.put(x + 3, by - 7, 'white')
+    else:
+        cv.rect(x, by - 9, x, by - 8, 'l0')
+        cv.put(x - 1, by - 9, 'l2'); cv.put(x - 2, by - 10, 'l2'); cv.put(x + 1, by - 10, 'l3'); cv.put(x + 2, by - 10, 'l3')
     cv.outline('ink')
     sprite('bloom_helper_%s_%s' % (color, frame), cv)
 
@@ -472,6 +481,11 @@ def item(name):
         cv.put(6, 1, 'l2'); cv.put(7, 1, 'l3')
     elif name == 'cotton':
         cv.disc(6, 6, 4.2, 3.8, 'cotton'); cv.disc(7, 7, 2.6, 2, 'cotton_d'); cv.put(4, 4, 'white')
+    elif name == 'gem':  # dew drop, the premium currency
+        cv.disc(6, 7.2, 3.9, 3.6, 'gem_d'); cv.disc(6, 6.8, 3.2, 3, 'gem')
+        for k, w in ((1, 0), (2, 0), (3, 1)):
+            cv.rect(6 - w, k, 6 + w, k, 'gem_d' if k < 3 else 'gem')
+        cv.put(6, 2, 'gem'); cv.rect(4, 5, 4, 7, 'gem_l'); cv.put(5, 4, 'white'); cv.put(8, 9, 'gem_l')
     elif name == 'coin':
         cv.disc(6, 6, 4.4, 4.4, 'gold_d'); cv.disc(6, 5.5, 3.6, 3.6, 'gold'); cv.rect(5, 4, 5, 7, 'gold_l'); cv.put(4, 3, 'white')
     elif name == 'brick':
@@ -580,6 +594,42 @@ def ui_icons():
     cv.rect(4, 12, 11, 12, 'canvas_w')
     cv.outline('ink')
     sprite('bloom_ui_book', cv)
+    cv = Canvas(14, 14)  # shop: a gift box
+    cv.rect(2, 6, 11, 12, 'berry'); cv.rect(2, 6, 11, 6, 'berry_l'); cv.rect(1, 4, 12, 6, 'berry_l')
+    cv.rect(6, 4, 7, 12, 'gold'); cv.rect(1, 4, 12, 4, 'white')
+    cv.put(4, 2, 'gold'); cv.put(5, 3, 'gold'); cv.put(9, 2, 'gold'); cv.put(8, 3, 'gold'); cv.put(3, 3, 'gold_d'); cv.put(10, 3, 'gold_d')
+    cv.outline('ink')
+    sprite('bloom_ui_shop', cv)
+    cv = Canvas(14, 14)  # rewarded ad: a play button in a little screen
+    cv.rect(1, 3, 12, 11, 'r0'); cv.rect(2, 4, 11, 10, 'water_l')
+    for k in range(3):
+        cv.rect(5 + k, 5 + k, 5 + k, 9 - k, 'white')
+    cv.rect(4, 12, 9, 12, 'r0')
+    cv.outline('ink')
+    sprite('bloom_ui_ad', cv)
+    cv = Canvas(14, 14)  # dew jar (piggy bank)
+    cv.rect(3, 4, 10, 12, 'water_l'); cv.rect(4, 7, 9, 12, 'gem'); cv.rect(4, 7, 9, 7, 'gem_l')
+    cv.rect(3, 2, 10, 3, 't1'); cv.rect(3, 2, 10, 2, 't2'); cv.put(5, 9, 'white'); cv.put(8, 10, 'gem_l')
+    cv.outline('ink')
+    sprite('bloom_ui_jar', cv)
+    cv = Canvas(14, 14)  # fertilizer sack
+    cv.disc(6.5, 8.5, 5, 4.2, 'd3'); cv.rect(4, 3, 9, 5, 'd3'); cv.rect(4, 5, 9, 5, 'd1'); cv.rect(3, 11, 10, 12, 'd2')
+    cv.put(6, 2, 'l2'); cv.put(7, 1, 'l3'); cv.put(5, 1, 'l3')
+    cv.disc(6.5, 9, 2, 2, 'l2'); cv.put(6, 8, 'l4')
+    cv.outline('ink')
+    sprite('bloom_ui_fert', cv)
+    cv = Canvas(14, 14)  # season pass: a ribbon medal
+    cv.rect(3, 1, 5, 6, 'berry'); cv.rect(8, 1, 10, 6, 'water'); 
+    cv.disc(6.5, 9, 4, 4, 'gold_d'); cv.disc(6.5, 8.6, 3.2, 3.2, 'gold'); cv.put(6, 8, 'white'); cv.put(7, 9, 'gold_l')
+    cv.outline('ink')
+    sprite('bloom_ui_pass', cv)
+    cv = Canvas(9, 8)  # guide arrow that points at the next goal
+    for k in range(4):
+        cv.rect(1 + k, 3 + k, 7 - k, 3 + k, 'gold' if k else 'gold_l')
+    cv.rect(3, 0, 5, 3, 'gold')
+    cv.put(3, 0, 'gold_l')
+    cv.outline('ink')
+    sprite('bloom_ui_arrow', cv)
 
 
 def fx():
@@ -833,7 +883,7 @@ def build_all():
             helper(c, f)
     bridge(True); bridge(False); sign()
     for n in ('wood', 'stone', 'iron_ore', 'gold_ore', 'berry', 'cotton', 'coin', 'brick', 'iron_bar', 'gold_bar',
-              'plank', 'cloth', 'crystal', 'flower'):
+              'plank', 'cloth', 'crystal', 'flower', 'gem'):
         item(n)
     fx()
     for n in FINDS:

@@ -71,6 +71,7 @@ final class BloomScene: SKScene {
     private var animClock: TimeInterval = 0
     private var dustClock: TimeInterval = 0
     private var hitTimer: TimeInterval = 0
+    private var chestFreeAt: TimeInterval = 0
     private var swinging = false
     private var comboLabel: SKLabelNode?
 
@@ -191,6 +192,8 @@ final class BloomScene: SKScene {
         game.onGoalClaimed = { [weak self] in self?.goalFX() }
         game.onHelperAdded = { [weak self] c in self?.addHelper(c, animated: true) }
         game.onTalentsChanged = { [weak self] in self?.talentsChanged() }
+        game.onGoldenRequested = { [weak self] d in self?.startGolden(duration: d) }
+        game.onFounder = { [weak self] in self?.addHelper("gold", animated: true) }
         goldenNext = demo ? 20 : GoldenHour.first
         goldOverlay.color = UIColor(red: 1, green: 0.78, blue: 0.3, alpha: 1)
         goldOverlay.size = CGSize(width: 3000, height: 3000)
@@ -199,6 +202,7 @@ final class BloomScene: SKScene {
         goldOverlay.zPosition = 4000
         cam.addChild(goldOverlay)
         for c in game.helpers { addHelper(c, animated: false) }
+        if game.isFounder { addHelper("gold", animated: false) }
         if ProcessInfo.processInfo.arguments.contains("-bloomDemo") {
             run(.sequence([.wait(forDuration: 6), .run { [weak self] in self?.spawnChest(near: true) }]))
         }
@@ -293,7 +297,7 @@ final class BloomScene: SKScene {
             coin.setScale(0.6)
             coin.position = CGPoint(x: -5, y: 11)
             s.addChild(coin)
-            let l = label("\(game.islandPrice(locked))", size: 6, color: UIColor(red: 0.17, green: 0.14, blue: 0.25, alpha: 1), stroke: nil)
+            let l = label(game.islandPrice(locked).short, size: 6, color: UIColor(red: 0.17, green: 0.14, blue: 0.25, alpha: 1), stroke: nil)
             l.horizontalAlignmentMode = .left
             l.verticalAlignmentMode = .center
             l.position = CGPoint(x: -1.5, y: 10.5)
@@ -690,6 +694,7 @@ final class BloomScene: SKScene {
         game.tick(dt: dt)
         game.tickCombo(now: now)
         updateCombo()
+        updateGuide(dt)
 
         spawnTimer += dt
         if spawnTimer > game.respawnInterval {
@@ -1096,7 +1101,10 @@ final class BloomScene: SKScene {
     }
 
     private func respawnOne() {
-        if chest == nil, Double.random(in: 0..<1) < game.chestChance { spawnChest() }
+        if chest == nil, now >= chestFreeAt, Double.random(in: 0..<1) < game.chestChance {
+            chestFreeAt = now + BloomBalance.shared.chestCooldown
+            spawnChest()
+        }
         let owned = game.owned.sorted()
         let counts = Dictionary(grouping: res.values, by: { $0.island }).mapValues(\.count)
         let candidates = owned.filter { (counts[$0] ?? 0) < game.island($0).cap }
@@ -1248,8 +1256,67 @@ final class BloomScene: SKScene {
         if goldenNext <= 0 { startGolden() }
     }
 
-    private func startGolden() {
-        let d = game.goldenDuration
+    // MARK: - guide arrow (show, don't tell: points at what the current goal needs)
+
+    private let guide = SKSpriteNode()
+    private let guideHolder = SKNode()
+    private var guideClock: TimeInterval = 0
+    private var lastHeroHits = 0
+    private var idleTime: TimeInterval = 0
+
+    private func updateGuide(_ dt: TimeInterval) {
+        if guide.parent == nil {
+            guide.texture = tex("bloom_ui_arrow")
+            guide.size = guide.texture!.size()
+            guideHolder.zPosition = 3500
+            guideHolder.alpha = 0
+            world.addChild(guideHolder)
+            guideHolder.addChild(guide)
+            guide.run(.repeatForever(.sequence([.moveBy(x: 0, y: 3, duration: 0.35), .moveBy(x: 0, y: -3, duration: 0.35)])))
+        }
+        // only while learning (first goals) or when the player seems stuck
+        idleTime = heroHits == lastHeroHits ? idleTime + dt : 0
+        lastHeroHits = heroHits
+        guideClock += dt
+        guard guideClock > 0.4 else { return }
+        guideClock = 0
+        let show = game.panel == nil && (game.goalIndex < 8 || idleTime > 8)
+        let p = show ? guideTarget() : nil
+        if let p {
+            if guideHolder.alpha == 0 { guideHolder.position = p } else {
+                guideHolder.run(.move(to: p, duration: 0.25), withKey: "move")
+            }
+            guideHolder.run(.fadeAlpha(to: 1, duration: 0.2), withKey: "fade")
+        } else if guideHolder.alpha > 0 {
+            guideHolder.run(.fadeAlpha(to: 0, duration: 0.25), withKey: "fade")
+        }
+    }
+
+    private func guideTarget() -> CGPoint? {
+        guard let g = game.goal, !game.goalDone else { return nil }
+        let kinds: [GatherKind]
+        if g.key == "gather.tree" { kinds = [.tree, .pine] }
+        else if g.key == "gather.rock" { kinds = [.rock, .rock_iron, .rock_gold] }
+        else if g.key.hasPrefix("item."), let it = BItem(rawValue: String(g.key.dropFirst(5))) {
+            kinds = GatherKind.allCases.filter { $0.drops.contains { $0.item == it } }
+        } else if g.key == "islands" {
+            let near = signs.values.min { hypot($0.position.x - heroPos.x, $0.position.y - heroPos.y) < hypot($1.position.x - heroPos.x, $1.position.y - heroPos.y) }
+            return near.map { CGPoint(x: $0.position.x, y: $0.position.y + 26) }
+        } else { return nil }
+        let best = res.values.filter { kinds.contains($0.kind) }
+            .min { hypot($0.node.position.x - heroPos.x, $0.node.position.y - heroPos.y) < hypot($1.node.position.x - heroPos.x, $1.node.position.y - heroPos.y) }
+        guard let b = best, hypot(b.node.position.x - heroPos.x, b.node.position.y - heroPos.y) > 14 else { return nil }
+        return CGPoint(x: b.node.position.x, y: b.node.position.y + b.node.size.height + 2)
+    }
+
+    private func startGolden(duration: Double? = nil) {
+        let d = duration ?? game.goldenDuration
+        if goldenLeft > 0 {  // already golden: just make it last longer
+            goldenLeft += d
+            game.goldenUntil = Date().addingTimeInterval(goldenLeft)
+            Sfx.play(.sparkle)
+            return
+        }
         goldenLeft = d
         game.goldenUntil = Date().addingTimeInterval(d)
         goldOverlay.run(.fadeAlpha(to: 0.16, duration: 0.8))
@@ -1357,11 +1424,12 @@ final class BloomScene: SKScene {
             } else {
                 h.node.texture = tex("bloom_helper_\(h.color)_idle_\(Int(h.clock * 2) % 2)")
             }
-            if working, let t = h.target, h.hitTimer > 0.9 {
+            let golden = h.color == "gold"
+            if working, let t = h.target, h.hitTimer > (golden ? 0.6 : 0.9) {
                 h.hitTimer = 0
                 h.node.xScale = t.node.position.x > h.pos.x ? 1 : -1
                 h.node.run(.sequence([.moveBy(x: 0, y: 2, duration: 0.06), .moveBy(x: 0, y: -2, duration: 0.08)]))
-                var dmg = game.helperDamage
+                var dmg = game.helperDamage * (golden ? 2 : 1)
                 if game.hasT("h5"), Double.random(in: 0..<1) < 0.12 {
                     dmg *= 2
                     floatText("крит", at: CGPoint(x: t.node.position.x, y: t.node.position.y + 16), color: UIColor(red: 1, green: 0.85, blue: 0.3, alpha: 1), size: 4.5, rise: 8)
@@ -1436,7 +1504,7 @@ final class BloomScene: SKScene {
         for (i, s) in signs where (demoSkip[i] ?? 0) < now {
             let b = game.world.bridges[i]
             let id = game.owned.contains(b.a) ? b.b : b.a
-            let price = game.island(id).price
+            let price = game.islandPrice(id)
             guard game.coins >= price, price < bestPrice else { continue }
             if hypot(s.position.x - heroPos.x, s.position.y - heroPos.y) < 26 {  // same reach as the context button
                 game.buy(id); demoPause = now + 2.5; return
