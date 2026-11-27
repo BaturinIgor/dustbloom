@@ -172,6 +172,7 @@ final class BloomGame: ObservableObject {
     var onBuildingPlaced: ((PlacedBuilding) -> Void)?
     var onCrafted: ((BuildKind, BItem, Bool) -> Void)?
     var onGoalClaimed: (() -> Void)?
+    var onRebirth: (() -> Void)?
     var onHelperAdded: ((String) -> Void)?
     var placeBuilding: ((BuildKind) -> Cell?)?
 

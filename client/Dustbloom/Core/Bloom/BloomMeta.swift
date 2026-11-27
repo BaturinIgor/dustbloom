@@ -16,7 +16,7 @@ struct DailyKind {
     let title: String     // Russian source text with %@ for the target, goes through tr()
     let icon: String
     let base: Int         // target with one island; grows with islands
-    let needs: (BloomGame) -> Bool
+    let needs: @MainActor (BloomGame) -> Bool
 }
 
 /// A reward of the login calendar.
@@ -126,7 +126,6 @@ extension BloomGame {
     var canRebirth: Bool { s.owned.count >= world.islands.count }
     /// Seeds a new spring would give now.
     var rebirthSeeds: Int { s.level + s.owned.count * 2 + s.springs }
-    var onRebirth: (() -> Void)?
 
     func rebirth() {
         guard canRebirth else { Sfx.play(.error); return }
