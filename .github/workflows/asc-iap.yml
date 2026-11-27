@@ -8,7 +8,7 @@ on:
       task:
         description: "What to set up"
         type: choice
-        options: [products, gamecenter, listing, age]
+        options: [products, gamecenter, listing, age, submit]
         default: products
       dry_run:
         description: "Only print what would change"
@@ -38,6 +38,7 @@ jobs:
           [ "${{ inputs.task }}" = "gamecenter" ] && script=tools/asc_gamecenter.py
           [ "${{ inputs.task }}" = "listing" ] && script=tools/asc_listing.py
           extra=""
+          [ "${{ inputs.task }}" = "submit" ] && script=tools/asc_submit.py
           [ "${{ inputs.task }}" = "age" ] && script=tools/asc_listing.py && extra="--only-age"
           ASC_KEY_PATH="$RUNNER_TEMP/key.p8" python3 "$script" $extra ${{ inputs.dry_run && '--dry-run' || '' }}
           rm -f "$RUNNER_TEMP/key.p8"
