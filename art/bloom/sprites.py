@@ -1057,13 +1057,15 @@ TINTS = {
     3: dict(g0='#62b444', g1='#86d353', g1b='#8cd858', g2='#a2e264', g3='#d6f79a'),
     4: dict(g0='#8aa83c', g1='#a9c95a', g1b='#aecd60', g2='#c2dc72', g3='#e6f3a4', gline='#5b6b2a'),
     5: dict(g0='#3f9e7a', g1='#5cc59a', g1b='#62ca9f', g2='#7fd8b0', g3='#bff2da', gline='#245f52'),
-    6: dict(g0='#b89a52', g1='#e2c77a', g1b='#e6cc80', g2='#f0da95', g3='#fbedc0', gline='#7a5e2c'),
+    6: dict(g0='#c9a45a', g1='#efd18a', g1b='#f2d590', g2='#f8e2a8', g3='#fff2cc', gline='#8a6a34',
+            d0='#8a5a2e', d1='#b88648', d2='#d8a860', d3='#f0c882'),
     7: dict(g0='#3e9a5e', g1='#5abf78', g1b='#60c47e', g2='#7ed494', g3='#b8f0c4', gline='#22603e'),
     8: dict(g0='#5a8a3a', g1='#77a84c', g1b='#7dad52', g2='#93c062', g3='#c4e292', gline='#33522a'),
     9: dict(g0='#8aa93a', g1='#b2cf4e', g1b='#b8d454', g2='#cde06a', g3='#eef5a4', gline='#5a6a24'),
-    10: dict(g0='#6a5a4a', g1='#8a7660', g1b='#8f7b64', g2='#a68f74', g3='#cdb89a', gline='#3a2e28',
-             d0='#3a2a2a', d1='#5a3a30', d2='#7a4a34'),
-    11: dict(g0='#5a5aa0', g1='#7a7ac4', g1b='#8080c8', g2='#9a9ad8', g3='#cacaf2', gline='#33336a'),
+    10: dict(g0='#3a3040', g1='#55485a', g1b='#5a4d60', g2='#6e6074', g3='#9a8aa0', gline='#1e1824',
+             d0='#2a1e26', d1='#40303a', d2='#5a404a', d3='#7a5560'),
+    11: dict(g0='#4a4a96', g1='#6464b8', g1b='#6a6abd', g2='#8484d0', g3='#c0c0f4', gline='#28285e',
+             d0='#2a2a5e', d1='#3e3e80', d2='#5656a0', d3='#7a7ac4'),
 }
 
 
@@ -1104,6 +1106,75 @@ for _i in ISLANDS:
 
 def cells_of(isl):
     return set(isl['cells'])
+
+
+def biome_decor(iid, cv, rnd, inner, mask):
+    """Ground detail that makes each late island its own biome."""
+    n = len(inner)
+    if iid == 6:      # sand spit: wind ripples, shells, dry grass
+        for _ in range(n // 30):
+            x, y = rnd.choice(inner)
+            for k in range(-3, 4):
+                if (x + k, y + (k * k) // 6) in mask:
+                    cv.put(x + k, y + (k * k) // 6, '#d8b46a')
+        for _ in range(n // 160):
+            x, y = rnd.choice(inner)
+            cv.put(x, y, '#ffffff'); cv.put(x + 1, y, '#ffc9d8'); cv.put(x, y + 1, '#f394b0')
+        for _ in range(n // 140):
+            x, y = rnd.choice(inner)
+            cv.put(x, y, '#8aa84a'); cv.put(x - 1, y - 1, '#a9c95a'); cv.put(x + 1, y - 2, '#8aa84a')
+    elif iid == 7:    # backwater: puddles with lily pads and reeds
+        for _ in range(n // 260):
+            x, y = rnd.choice(inner)
+            for a in range(-3, 4):
+                for b in range(-1, 2):
+                    if abs(a) + abs(b) * 2 <= 3 and (x + a, y + b) in mask:
+                        cv.put(x + a, y + b, '#5cb8e6' if b < 1 else '#3c8ec4')
+            cv.put(x - 1, y, '#7fd36a'); cv.put(x, y, '#5aa84a')
+        for _ in range(n // 120):
+            x, y = rnd.choice(inner)
+            for k in range(3):
+                cv.put(x, y - k, '#4a8a3a')
+            cv.put(x, y - 3, '#8a5a2e')
+    elif iid == 8:    # mushroom thicket: moss patches, spores, tiny caps
+        for _ in range(n // 90):
+            x, y = rnd.choice(inner)
+            cv.put(x, y, '#4a7a34'); cv.put(x + 1, y, '#4a7a34'); cv.put(x, y + 1, '#3e6a2c')
+        for _ in range(n // 150):
+            x, y = rnd.choice(inner)
+            cv.put(x, y, '#e84a4a'); cv.put(x + 1, y, '#e84a4a'); cv.put(x, y - 0, '#ffffff'); cv.put(x, y + 1, '#f4e2c8')
+        for _ in range(n // 120):
+            x, y = rnd.choice(inner)
+            cv.put(x, y, '#c8f0a0')
+    elif iid == 9:    # honey meadow: dense flowers in clumps
+        for _ in range(n // 40):
+            x, y = rnd.choice(inner)
+            c = rnd.choice(('#ffe14d', '#ffffff', '#ff9ad0', '#ffb526'))
+            cv.put(x, y, c); cv.put(x + 1, y + 1, '#5a8a2a')
+    elif iid == 10:   # fire mountain: glowing lava cracks, ash
+        for _ in range(n // 140):
+            x, y = rnd.choice(inner)
+            for k in range(6):
+                x += rnd.choice((-1, 0, 1)); y += 1
+                if (x, y) in mask:
+                    cv.put(x, y, '#ff6a2a' if k % 3 else '#ffd040')
+                    if (x + 1, y) in mask:
+                        cv.put(x + 1, y, '#a83a1a')
+        for _ in range(n // 70):
+            x, y = rnd.choice(inner)
+            cv.put(x, y, '#2a2230')
+    elif iid == 11:   # star peak: crystal ground with sparkles
+        for _ in range(n // 60):
+            x, y = rnd.choice(inner)
+            cv.put(x, y, '#fff6b0')
+        for _ in range(n // 200):
+            x, y = rnd.choice(inner)
+            for (a, b) in ((0, -1), (0, 1), (-1, 0), (1, 0)):
+                cv.put(x + a, y + b, '#ffd23f')
+            cv.put(x, y, '#ffffff')
+        for _ in range(n // 160):
+            x, y = rnd.choice(inner)
+            cv.put(x, y, '#a0e0ff'); cv.put(x, y - 1, '#e0f6ff'); cv.put(x + 1, y, '#6ab8e8')
 
 
 def island_texture(isl, dust):
@@ -1229,6 +1300,8 @@ def island_texture(isl, dust):
         for _ in range(len(cells)):  # dead twigs and pebbles
             (x, y) = rnd.choice(inner)
             cv.put(x, y, 'ud0'); cv.put(x + 1, y - 1, 'ud0'); cv.put(x - 1, y - 1, 'ud0')
+    if not dust:
+        biome_decor(isl['id'], cv, rnd, inner, mask)
     # world position of the image's bottom-left corner (y up)
     wx = minx * T - pad
     wy = miny * T - pad - CLIFF - 2
