@@ -42,6 +42,15 @@ PRODUCTS = [
     ("bloom.gems.2200", "CONSUMABLE", "19.99", "2200 Dew",
      ("2200 росинок", "Целое озеро росинок, самая выгодная цена"),
      ("2200 Dew", "A whole lake of dew, best value")),
+    ("bloom.starter", "NON_CONSUMABLE", "0.99", "Starter Pack",
+     ("Стартовый набор", "150 росинок, сундук и мятный облик"),
+     ("Starter Pack", "150 dew, a chest and the Mint look")),
+    ("bloom.slot", "NON_CONSUMABLE", "1.99", "Nursery Slot",
+     ("Место в питомнике", "Ещё один блумлинг-помощник навсегда"),
+     ("Nursery Slot", "One more Bloomling helper, forever")),
+    ("bloom.eventpass", "CONSUMABLE", "2.99", "Event Pass",
+     ("Пропуск события", "Все награды события этой недели"),
+     ("Event Pass", "All rewards of this week's event")),
 ]
 
 

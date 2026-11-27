@@ -226,6 +226,15 @@ final class BloomGame: ObservableObject {
             for id in [1, 2, 3, 4] where id < world.islands.count && !s.owned.contains(id) { s.owned.append(id) }
             s.helpers = Array(BloomContent.helperColors.prefix(max(s.helpers.count, min(3, BloomContent.maxHelpers))))
             for t in ["d1", "d2", "c1", "b1", "h1", "t1"] where !s.talents.contains(t) { s.talents.append(t) }
+            s.tut = 99
+        }
+        // late game check: every island but the last two, level 14
+        if args.contains("-bloomLate") {
+            s.level = max(s.level, 14)
+            for id in 0..<max(1, world.islands.count - 2) where !s.owned.contains(id) { s.owned.append(id) }
+            for i in BItem.allCases { s.inv[i.rawValue, default: 0] += 60 }
+            s.coins += 50000
+            s.tut = 99
         }
         #endif
     }
@@ -668,9 +677,10 @@ final class BloomGame: ObservableObject {
         save()
     }
 
-    private func spend(_ n: Int) -> Bool {
+    private func spend(_ n: Int, _ what: String = #function) -> Bool {
         guard s.gems >= n else { Sfx.play(.error); return false }
         s.gems -= n
+        Analytics.shared.track("bloom_gems_spent", ["what": what, "gems": n, "level": s.level])
         return true
     }
 
@@ -733,6 +743,7 @@ final class BloomGame: ObservableObject {
             s.coins += BloomAlbum.duplicateCoins
         }
         bump("finds")
+        if isNew { Analytics.shared.track("bloom_find", ["id": f, "minutes": playMinutes]) }
         return (f, isNew)
     }
 
@@ -753,6 +764,7 @@ final class BloomGame: ObservableObject {
     private var gcAt = Date.distantPast
 
     func save() {
+        if s.tut < 99 { advanceTutorial() }
         if Date() > gcAt {
             gcAt = Date().addingTimeInterval(20)
             BloomGameCenter.shared.sync(self)

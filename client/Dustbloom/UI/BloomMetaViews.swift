@@ -215,7 +215,7 @@ struct EventView: View {
                     Capsule().fill(BUI.ink).frame(width: 300, height: 12)
                     Capsule().fill(BUI.gold).frame(width: max(12, 300 * CGFloat(min(pts, last)) / CGFloat(last)), height: 12)
                 }
-                OutlinedText(text: tr("Звёзды дают добыча, крафт, сундуки и задания дня"), size: 10.5, color: BUI.muted, fixed: false, lines: 2)
+                OutlinedText(text: tr("Звёзды дают: добыча, крафт, сундуки и задания дня"), size: 10.5, color: BUI.muted, fixed: false, lines: 2)
             }
             HStack(spacing: 0) {
                 OutlinedText(text: tr("Бесплатно"), size: 12, color: BUI.cream).frame(width: 120)

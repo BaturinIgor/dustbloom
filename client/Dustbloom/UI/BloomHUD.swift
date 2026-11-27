@@ -161,6 +161,7 @@ struct BloomHUD: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 12)
+                if let t = game.tutorialStep, game.panel == nil { TutorialBubble(step: t) }
                 hotbar
             }
             .animation(.spring(response: 0.3, dampingFraction: 0.75), value: game.toast)
@@ -745,6 +746,36 @@ struct RoundIconButton: View {
             }
         }
         .buttonStyle(.plain)
+    }
+}
+
+/// One tutorial hint above the hotbar, with a quiet "skip".
+struct TutorialBubble: View {
+    @EnvironmentObject private var game: BloomGame
+    let step: BloomTutorial.Step
+    var body: some View {
+        HStack(spacing: 10) {
+            PixelIcon(name: step.icon, size: 30)
+                .frame(width: 40, height: 40)
+                .background(RoundedRectangle(cornerRadius: 10).fill(BUI.ink.opacity(0.4)))
+            VStack(alignment: .leading, spacing: 2) {
+                OutlinedText(text: tr(step.text), size: 12.5, fixed: false, lines: 2, align: .leading)
+                OutlinedText(text: "\(game.tutorialIndex + 1)/\(BloomTutorial.steps.count)", size: 10, color: BUI.gold)
+            }
+            Spacer(minLength: 0)
+            Button { game.skipTutorial() } label: {
+                OutlinedText(text: tr("Пропустить"), size: 10, color: BUI.muted).frame(height: 44)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .frame(width: 350)
+        .background(RoundedRectangle(cornerRadius: 16).fill(BUI.panel.opacity(0.95)))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(BUI.gold, lineWidth: 2.5))
+        .padding(.bottom, 8)
+        .transition(.move(edge: .bottom).combined(with: .opacity))
+        .id(game.tutorialIndex)
     }
 }
 

@@ -176,3 +176,42 @@ extension BloomGame {
     var starterBought: Bool { s.starter }
     var hasSlot: Bool { s.slot }
 }
+
+// MARK: - first five minutes
+
+/// Short tutorial: one hint at a time, each closes itself when the player does it.
+enum BloomTutorial {
+    struct Step { let text: String; let icon: String; let done: (BloomGame) -> Bool }
+    static let steps: [Step] = [
+        Step(text: "Подойди к дереву и бей по нему, пока не упадёт", icon: "bloom_tree", done: { $0.life("gather.tree") >= 2 }),
+        Step(text: "Теперь разбей камень, он нужен для печи", icon: "bloom_rock", done: { $0.life("gather.rock") >= 2 }),
+        Step(text: "Нажми «Строить» внизу и поставь печь", icon: "bloom_furnace_0", done: { $0.isBuilt(.furnace) }),
+        Step(text: "Подойди к печи и обожги кирпичи", icon: "bloom_item_brick", done: { $0.life("craft.brick") >= 1 || $0.queue(for: .furnace) != nil }),
+        Step(text: "Цель слева вверху: выполни её и забери монеты", icon: "bloom_item_coin", done: { $0.goalIndex >= 1 }),
+        Step(text: "Подойди к табличке у моста и купи новый остров", icon: "bloom_sign", done: { $0.owned.count >= 2 }),
+    ]
+}
+
+extension BloomGame {
+    var tutorialStep: BloomTutorial.Step? { s.tut < BloomTutorial.steps.count ? BloomTutorial.steps[s.tut] : nil }
+    var tutorialIndex: Int { s.tut }
+
+    /// Moves the tutorial on; called from save().
+    func advanceTutorial() {
+        while s.tut < BloomTutorial.steps.count, BloomTutorial.steps[s.tut].done(self) {
+            Analytics.shared.track("bloom_tut_step", ["step": s.tut + 1, "minutes": playMinutes])
+            s.tut += 1
+            if s.tut == BloomTutorial.steps.count {
+                s.tut = 99
+                Analytics.shared.track("bloom_tut_done", ["minutes": playMinutes])
+                showToast(BloomToast(title: tr("Обучение пройдено!"), subtitle: tr("Дальше острова расскажут сами")))
+            }
+        }
+    }
+
+    func skipTutorial() {
+        Analytics.shared.track("bloom_tut_skip", ["step": s.tut + 1, "minutes": playMinutes])
+        s.tut = 99
+        save()
+    }
+}

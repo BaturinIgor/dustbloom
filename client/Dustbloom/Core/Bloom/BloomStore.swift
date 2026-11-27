@@ -81,6 +81,7 @@ final class BloomStore: ObservableObject {
     func buy(_ p: ShopProduct) async {
         busy = p
         defer { busy = nil }
+        Analytics.shared.track("bloom_purchase_start", ["product": p.rawValue, "level": game?.s.level ?? 0])
         guard let product = products[p.rawValue] else {
             #if DEBUG
             try? await Task.sleep(nanoseconds: 400_000_000)
@@ -90,8 +91,15 @@ final class BloomStore: ObservableObject {
             #endif
             return
         }
-        guard let result = try? await product.purchase() else { return }
-        if case .success(let v) = result { await handle(v) }
+        guard let result = try? await product.purchase() else {
+            Analytics.shared.track("bloom_purchase_fail", ["product": p.rawValue]); return
+        }
+        switch result {
+        case .success(let v): await handle(v)
+        case .userCancelled: Analytics.shared.track("bloom_purchase_cancel", ["product": p.rawValue])
+        case .pending: Analytics.shared.track("bloom_purchase_pending", ["product": p.rawValue])
+        @unknown default: break
+        }
     }
 
     func restore() async {

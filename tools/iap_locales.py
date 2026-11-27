@@ -81,3 +81,44 @@ def table():
         for pid, (n, d) in zip(IDS, rows):
             out[pid].append((loc, n, d))
     return out
+
+
+# Added for 1.0: starter pack, nursery slot, event pass (same order as IDS2).
+IDS2 = ["bloom.starter", "bloom.slot", "bloom.eventpass"]
+L2 = {
+ "en-US": [("Starter Pack", "150 dew, a chest and the Mint look"), ("Nursery Slot", "One more Bloomling helper, forever"), ("Event Pass", "All rewards of this week's event")],
+ "ru": [("Стартовый набор", "150 росинок, сундук и мятный облик"), ("Место в питомнике", "Ещё один блумлинг-помощник навсегда"), ("Пропуск события", "Все награды события этой недели")],
+ "uk": [("Стартовий набір", "150 росинок, скриня й м'ятний образ"), ("Місце в розсаднику", "Ще один блумлінг-помічник назавжди"), ("Перепустка події", "Усі нагороди події цього тижня")],
+ "de-DE": [("Starterpaket", "150 Tau, eine Truhe und der Minz-Look"), ("Gärtnerei-Platz", "Ein weiterer Bloomling-Helfer, für immer"), ("Eventpass", "Alle Belohnungen des Wochenevents")],
+ "fr-FR": [("Pack de départ", "150 rosée, un coffre et le look menthe"), ("Place à la pépinière", "Un Bloomling de plus, pour toujours"), ("Pass d'événement", "Toutes les récompenses de la semaine")],
+ "es-ES": [("Pack de inicio", "150 rocío, un cofre y el aspecto menta"), ("Hueco en el vivero", "Un Bloomling ayudante más, para siempre"), ("Pase del evento", "Todas las recompensas del evento semanal")],
+ "es-MX": [("Paquete inicial", "150 rocío, un cofre y el aspecto menta"), ("Lugar en el vivero", "Un Bloomling ayudante más, para siempre"), ("Pase del evento", "Todas las recompensas del evento semanal")],
+ "it": [("Pacchetto iniziale", "150 rugiada, un forziere e look menta"), ("Posto nel vivaio", "Un Bloomling aiutante in più, per sempre"), ("Pass evento", "Tutte le ricompense dell'evento")],
+ "pt-BR": [("Pacote inicial", "150 orvalho, um baú e o visual menta"), ("Vaga no viveiro", "Mais um Bloomling ajudante, para sempre"), ("Passe do evento", "Todas as recompensas do evento da semana")],
+ "pt-PT": [("Pacote inicial", "150 orvalho, um baú e o visual menta"), ("Lugar no viveiro", "Mais um Bloomling ajudante, para sempre"), ("Passe do evento", "Todas as recompensas do evento da semana")],
+ "nl-NL": [("Starterspakket", "150 dauw, een kist en de muntgroene look"), ("Kwekerijplek", "Nog een Bloomling-helper, voor altijd"), ("Eventpas", "Alle beloningen van het weekevent")],
+ "pl": [("Zestaw startowy", "150 rosy, skrzynia i miętowy wygląd"), ("Miejsce w szkółce", "Jeszcze jeden Bloomling na zawsze"), ("Karnet wydarzenia", "Wszystkie nagrody wydarzenia tygodnia")],
+ "tr": [("Başlangıç paketi", "150 çiy, bir sandık ve nane görünümü"), ("Fidanlık yeri", "Bir Bloomling yardımcı daha, sonsuza dek"), ("Etkinlik bileti", "Bu haftaki etkinliğin tüm ödülleri")],
+ "ja": [("スターターパック", "しずく150、宝箱、ミントの見た目"), ("苗床の追加枠", "ブルームリングの仲間がずっと1匹増える"), ("イベントパス", "今週のイベントの報酬すべて")],
+ "ko": [("스타터 팩", "이슬 150, 상자, 민트 외형"), ("묘목장 자리", "블룸링 도우미 한 마리 영구 추가"), ("이벤트 패스", "이번 주 이벤트의 모든 보상")],
+ "zh-Hans": [("新手礼包", "150露珠、一个宝箱和薄荷外观"), ("苗圃位置", "永久多一只花灵助手"), ("活动通行证", "本周活动的全部奖励")],
+ "zh-Hant": [("新手禮包", "150露珠、一個寶箱和薄荷外觀"), ("苗圃位置", "永久多一隻花靈助手"), ("活動通行證", "本週活動的全部獎勵")],
+ "ar-SA": [("حزمة البداية", "150 ندى وصندوق ومظهر نعناعي"), ("مكان في المشتل", "مساعد بلوملينغ إضافي إلى الأبد"), ("تذكرة الحدث", "كل مكافآت حدث هذا الأسبوع")],
+ "th": [("ชุดเริ่มต้น", "น้ำค้าง 150 หีบ และชุดสีมิ้นต์"), ("ที่ในเรือนเพาะ", "บลูมลิงผู้ช่วยเพิ่มอีกตัวตลอดไป"), ("บัตรผ่านกิจกรรม", "รางวัลทั้งหมดของกิจกรรมสัปดาห์นี้")],
+ "vi": [("Gói khởi đầu", "150 sương, một rương và diện mạo bạc hà"), ("Chỗ trong vườn ươm", "Thêm một Bloomling trợ thủ, mãi mãi"), ("Vé sự kiện", "Mọi phần thưởng của sự kiện tuần này")],
+ "id": [("Paket pemula", "150 embun, peti, dan tampilan mint"), ("Tempat pembibitan", "Satu Bloomling pembantu lagi, selamanya"), ("Pass event", "Semua hadiah event minggu ini")],
+ "sv": [("Startpaket", "150 dagg, en kista och mintlooken"), ("Plantskoleplats", "En Bloomling-hjälpare till, för alltid"), ("Eventpass", "Alla belöningar i veckans event")],
+}
+_old_table = table
+
+
+def table():
+    out = _old_table()
+    for pid in IDS2:
+        out[pid] = []
+    for loc, rows in L2.items():
+        assert len(rows) == len(IDS2), loc
+        for pid, (n, d) in zip(IDS2, rows):
+            assert len(n) <= 30 and len(d) <= 45, (loc, pid, n, d, len(d))
+            out[pid].append((loc, n, d))
+    return out

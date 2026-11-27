@@ -260,7 +260,7 @@ class Sim:
                 it = k.split(".", 1)[1]
                 left = self.goal_target(g) - self.stat(k)
                 if left > 0:
-                    if k.startswith("craft."): want([tuple(x) for x in BAL["recipes"][it]["cost"]], left)
+                    if k.startswith("craft."): need[it] = need.get(it, 0) + self.cnt(it) + left
                     else: need[it] = need.get(it, 0) + left
         # expand crafted items to raw
         raw = {}

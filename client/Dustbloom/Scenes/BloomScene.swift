@@ -705,6 +705,7 @@ final class BloomScene: SKScene {
         if nearbyTimer > 0.15 { nearbyTimer = 0; updateNearby() }
         saveTimer += dt
         if saveTimer > 10 { saveTimer = 0; game.save() }
+        if game.tutorialIndex < 99, Int(saveTimer * 2) != Int((saveTimer - dt) * 2) { game.advanceTutorial() }
 
         // camera
         let k = 1 - exp(-dt * 7)
