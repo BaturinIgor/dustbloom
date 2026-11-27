@@ -14,7 +14,7 @@ struct RootView: View {
                 BloomView()
                     .transition(.opacity)
             } else {
-                IntroView(ready: connected) {
+                BloomIntroView(ready: connected) {
                     withAnimation(.easeInOut(duration: 0.6)) { loaded = true }
                 }
                 .transition(.opacity)
