@@ -181,7 +181,7 @@ extension BloomGame {
 
 /// Short tutorial: one hint at a time, each closes itself when the player does it.
 enum BloomTutorial {
-    struct Step { let text: String; let icon: String; let done: (BloomGame) -> Bool }
+    struct Step { let text: String; let icon: String; let done: @MainActor (BloomGame) -> Bool }
     static let steps: [Step] = [
         Step(text: "Подойди к дереву и бей по нему, пока не упадёт", icon: "bloom_tree", done: { $0.life("gather.tree") >= 2 }),
         Step(text: "Теперь разбей камень, он нужен для печи", icon: "bloom_rock", done: { $0.life("gather.rock") >= 2 }),
