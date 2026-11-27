@@ -29,7 +29,7 @@ def soft(c, method, path, body=None, params=None):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--dry-run", action="store_true")
-    ap.add_argument("--build", default="")
+    ap.add_argument("--build", default="202611272314")
     ap.add_argument("--wait", type=int, default=35, help="minutes to wait for the build to finish processing")
     a = ap.parse_args()
     c = ASC(os.environ["ASC_KEY_ID"], os.environ["ASC_ISSUER_ID"], os.environ["ASC_KEY_PATH"], a.dry_run)
@@ -61,7 +61,18 @@ def main():
     else:
         print("price set")
     av = soft(c, "GET", f"/v1/apps/{app_id}/appAvailabilityV2")
-    print("availability", "set" if av and av.get("data") else "MISSING (set it in Pricing and Availability)")
+    if av and av.get("data"):
+        print("availability set")
+    else:
+        terr = [t["id"] for t in c.all("/v1/territories")]
+        print("availability -> all", len(terr), "territories, new ones automatically")
+        refs = [{"type": "territoryAvailabilities", "id": f"${{t{i}}}"} for i in range(len(terr))]
+        inc = [{"type": "territoryAvailabilities", "id": f"${{t{i}}}", "attributes": {"available": True},
+                "relationships": {"territory": {"data": {"type": "territories", "id": t}}}} for i, t in enumerate(terr)]
+        soft(c, "POST", "/v2/appAvailabilities", {"data": {"type": "appAvailabilities",
+             "attributes": {"availableInNewTerritories": True},
+             "relationships": {"app": {"data": {"type": "apps", "id": app_id}},
+                               "territoryAvailabilities": {"data": refs}}}, "included": inc})
 
     # version
     versions = c.all(f"/v1/apps/{app_id}/appStoreVersions", {"filter[platform]": "IOS"})
@@ -134,7 +145,9 @@ def main():
                                "appStoreVersion": {"data": {"type": "appStoreVersions", "id": vid}}}}})
     r = soft(c, "PATCH", f"/v1/reviewSubmissions/{sid}", {"data": {"type": "reviewSubmissions", "id": sid,
              "attributes": {"submitted": True}}})
-    if r and r.get("data"):
+    if a.dry_run:
+        print("\n(dry run, nothing submitted)")
+    elif r and r.get("data", {}).get("attributes"):
         print("\nSUBMITTED, state:", r["data"]["attributes"].get("state"))
     else:
         print("\nnot submitted, see the errors above")
