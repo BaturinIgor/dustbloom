@@ -161,7 +161,7 @@ struct SpringView: View {
                     .frame(width: 44, height: 44)
                     .background(RoundedRectangle(cornerRadius: 10).fill(BUI.ink.opacity(0.4)))
                 VStack(alignment: .leading, spacing: 3) {
-                    OutlinedText(text: tr(e.title), size: 13.5)
+                    OutlinedText(text: tr(e.title), size: 13.5, fixed: false, align: .leading)
                     OutlinedText(text: tr(e.text, value), size: 11, color: BUI.muted, fixed: false, lines: 2, align: .leading)
                     OutlinedText(text: "\(lv)/\(e.max)", size: 10, color: BUI.gold)
                 }

@@ -446,9 +446,9 @@ struct BuildList: View {
                         .frame(width: 54, height: 54)
                         .background(RoundedRectangle(cornerRadius: 10).fill(BUI.ink.opacity(0.4)))
                     VStack(alignment: .leading, spacing: 4) {
-                        OutlinedText(text: k.title, size: 15)
+                        OutlinedText(text: k.title, size: 15, fixed: false, align: .leading)
                         Text(k.blurb).font(DText.font(10.5)).foregroundStyle(BUI.cream.opacity(0.75))
-                            .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                            .lineLimit(3).fixedSize(horizontal: false, vertical: true)
                         CostRow(cost: game.cost(k))
                     }
                     Spacer(minLength: 0)
