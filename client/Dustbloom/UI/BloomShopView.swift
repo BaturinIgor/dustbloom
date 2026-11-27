@@ -91,7 +91,7 @@ struct ShopView: View {
     private func perk(_ icon: String, _ text: String) -> some View {
         HStack(spacing: 8) {
             PixelIcon(name: icon, size: 22)
-            OutlinedText(text: text, size: 11.5, fixed: false, lines: 2)
+            OutlinedText(text: text, size: 11.5, fixed: false, lines: 2, align: .leading)
                 .frame(maxWidth: .infinity, alignment: .leading)
             Spacer(minLength: 0)
         }

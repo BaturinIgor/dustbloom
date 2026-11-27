@@ -50,6 +50,7 @@ struct OutlinedText: View {
     /// false: one line that shrinks to fit its frame instead of widening the layout.
     var fixed = true
     var lines = 1
+    var align: TextAlignment = .center
 
     var body: some View {
         let base = ZStack {
@@ -60,7 +61,7 @@ struct OutlinedText: View {
             Text(text).font(DText.font(size)).foregroundStyle(color)
         }
         .lineLimit(lines)
-        .multilineTextAlignment(.center)
+        .multilineTextAlignment(align)
         if fixed {
             base.fixedSize()
         } else {

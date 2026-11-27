@@ -243,7 +243,7 @@ def splash_bg():
     for _ in range(46):
         x, y = rnd.randrange(W), rnd.randrange(58, H)
         cv.rect(x, y, x + rnd.choice((1, 2)), y, 'water_l', 170)
-    for (x, y, r, sd, sp) in ((7, 58, 6, 1, True), (60, 66, 5, 2, False), (58, 128, 6, 4, True), (8, 132, 5, 5, False)):
+    for (x, y, r, sd, sp) in ((8, 58, 6, 1, True), (57, 64, 5, 2, False), (56, 136, 6, 4, True), (9, 134, 5, 5, False)):
         island(cv, x, y, r, 4, seed=sd, split=sp)
     for (x, y, r) in ((12, 44, 7), (56, 40, 5)):
         cv.disc(x, y, r, r * 0.45, 'white', 150)
