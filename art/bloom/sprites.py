@@ -739,6 +739,24 @@ def fx():
     cv.put(0, 0, 'gold'); cv.put(1, 1, 'gold'); cv.put(4, 0, 'gold'); cv.put(3, 1, 'gold'); cv.put(2, 1, 'ink'); cv.put(2, 2, 'ink')
     cv.put(0, 1, 'fire1'); cv.put(4, 1, 'fire1'); cv.put(1, 2, 'gold'); cv.put(3, 2, 'gold')
     sprite('bloom_fx_fly', cv)
+    # biome ambience
+    cv = Canvas(2, 1); cv.put(0, 0, 'sand_l'); cv.put(1, 0, 'sand')
+    sprite('bloom_fx_sand', cv)
+    cv = Canvas(3, 3); cv.put(1, 1, 'gem_l'); cv.put(0, 1, 'l4', 140); cv.put(2, 1, 'l4', 140); cv.put(1, 0, 'l4', 140); cv.put(1, 2, 'l4', 140)
+    sprite('bloom_fx_spore', cv)
+    cv = Canvas(5, 4)  # bee
+    cv.put(1, 0, 'white', 200); cv.put(2, 0, 'white', 200)
+    cv.rect(0, 1, 3, 2, 'honey'); cv.put(1, 1, 'ink'); cv.put(3, 1, 'ink'); cv.put(4, 2, 'ink'); cv.put(2, 2, 'ink')
+    sprite('bloom_fx_bee', cv)
+    cv = Canvas(2, 2); cv.put(0, 0, 'u3'); cv.put(1, 0, 'u2'); cv.put(0, 1, 'u2')
+    sprite('bloom_fx_ash', cv)
+    cv = Canvas(2, 2); cv.put(0, 0, 'fire2'); cv.put(1, 0, 'fire1'); cv.put(0, 1, 'fire1'); cv.put(1, 1, 'fire0')
+    sprite('bloom_fx_ember', cv)
+    cv = Canvas(5, 5); cv.put(2, 0, 'star_d'); cv.put(2, 4, 'star_d'); cv.put(0, 2, 'star_d'); cv.put(4, 2, 'star_d')
+    cv.put(2, 1, 'star'); cv.put(2, 3, 'star'); cv.put(1, 2, 'star'); cv.put(3, 2, 'star'); cv.put(2, 2, 'white')
+    sprite('bloom_fx_star', cv)
+    cv = Canvas(3, 3); cv.put(1, 1, 'gold_l'); cv.put(0, 1, 'l4', 120); cv.put(2, 1, 'l4', 120); cv.put(1, 0, 'l4', 120); cv.put(1, 2, 'l4', 120)
+    sprite('bloom_fx_firefly', cv)
 
 
 # ---------------------------------------------------------------- 1.0 content: new islands' props, items, buildings

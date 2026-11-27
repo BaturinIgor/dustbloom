@@ -19,6 +19,13 @@ struct EventReward {
     let skin: String?
 }
 
+struct FairOrder: Codable, Equatable {
+    let item: String
+    let n: Int
+    let gems: Int
+    let pts: Int
+}
+
 struct HeroSkin: Identifiable {
     let id: String
     let title: String
@@ -27,9 +34,9 @@ struct HeroSkin: Identifiable {
 
 enum BloomEvents {
     static let events: [BloomEvent] = [
-        BloomEvent(id: "fair", title: "Ярмарка", text: "Рынок платит в полтора раза больше", icon: "bloom_market"),
-        BloomEvent(id: "starfall", title: "Звездопад", text: "Сундуки и находки попадаются вдвое чаще", icon: "bloom_item_stardust"),
-        BloomEvent(id: "festival", title: "Цветочный фестиваль", text: "+25% добычи со всего", icon: "bloom_item_flower"),
+        BloomEvent(id: "fair", title: "Ярмарка", text: "Рынок платит в полтора раза больше, торговцы ждут заказы", icon: "bloom_market"),
+        BloomEvent(id: "starfall", title: "Звездопад", text: "С неба падают звёзды: собирай их. Сундуки и находки вдвое чаще", icon: "bloom_item_stardust"),
+        BloomEvent(id: "festival", title: "Цветочный фестиваль", text: "Расцветают золотые цветы: собирай их. +25% добычи со всего", icon: "bloom_item_flower"),
     ]
 
     /// Stars needed for each step of the track.
@@ -151,6 +158,60 @@ extension BloomGame {
                 showToast(BloomToast(title: tr("Новый облик!"), subtitle: tr(BloomEvents.skins.first { $0.id == sk }?.title ?? "")))
             }
         }
+    }
+
+    // MARK: - event rules: fair orders, falling stars, festival blossoms
+
+    /// Fair: three merchant orders a day, drawn from what the player already gathers.
+    var fairOrders: [FairOrder] { eventIs("fair") && s.fairDay == BloomMeta.dayKey() ? s.fairOrders : [] }
+
+    /// Draws today's orders once; call when the event panel opens.
+    func refreshFair() {
+        let day = BloomMeta.dayKey()
+        guard eventIs("fair"), s.fairDay != day else { return }
+        var rng = BloomMeta.SeededRNG(state: UInt64(day.filter(\.isNumber)) ?? 1)
+        let pool = BItem.allCases.filter { $0 != .lantern && ($0.price <= 1 || count($0) > 0) }
+        let picks = Array(pool.shuffled(using: &rng).prefix(3)).sorted { $0.price < $1.price }
+        s.fairOrders = picks.map { i in
+            let value = Double(Int.random(in: 90...170, using: &rng)) * Double(max(3, s.owned.count)) / 3
+            var n = max(2, min(60, Int(value / Double(i.price))))
+            if n > 10 { n = n / 5 * 5 }
+            return FairOrder(item: i.rawValue, n: n, gems: min(30, 6 + n * i.price / 25), pts: 80)
+        }
+        s.fairDay = day
+        s.fairDone = []
+    }
+
+    func fairOrderDone(_ i: Int) -> Bool { s.fairDay == BloomMeta.dayKey() && s.fairDone.contains(i) }
+
+    func deliver(_ i: Int) {
+        let list = fairOrders
+        guard i < list.count, !fairOrderDone(i), let item = BItem(rawValue: list[i].item), count(item) >= list[i].n else {
+            Sfx.play(.error); return
+        }
+        let o = list[i]
+        s.inv[item.rawValue, default: 0] -= o.n
+        s.gems += o.gems
+        s.fairDone.append(i)
+        addEventPoints(o.pts)
+        Analytics.shared.track("bloom_fair_order", ["item": o.item, "n": o.n, "done": s.fairDone.count])
+        Sfx.play(.coin)
+        showToast(BloomToast(title: tr("Заказ выполнен!"), subtitle: tr("+%@ росинок", o.gems)))
+        save()
+    }
+
+    /// Starfall star or festival blossom picked up in the world.
+    func eventPickup() -> (BItem?, Int) {
+        addEventPoints(20)
+        bump("event.pickup")
+        if eventIs("starfall") {
+            add(.stardust, 1)
+            return (.stardust, 1)
+        }
+        let c = 2 * coinUnit
+        addCoins(c)
+        add(.flower, 3)
+        return (nil, c)
     }
 
     // MARK: - hero skins

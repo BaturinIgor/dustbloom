@@ -217,6 +217,7 @@ struct EventView: View {
                 }
                 OutlinedText(text: tr("Звёзды дают: добыча, крафт, сундуки и задания дня"), size: 10.5, color: BUI.muted, fixed: false, lines: 2)
             }
+            if !game.fairOrders.isEmpty { fairOrders }
             HStack(spacing: 0) {
                 OutlinedText(text: tr("Бесплатно"), size: 12, color: BUI.cream).frame(width: 120)
                 Spacer(minLength: 0)
@@ -232,6 +233,42 @@ struct EventView: View {
                 }
                 .padding(.top, 4)
             }
+        }
+    }
+
+    /// Fair: today's three merchant orders.
+    private var fairOrders: some View {
+        VStack(spacing: 6) {
+            OutlinedText(text: tr("Заказы торговцев"), size: 13, color: BUI.gold)
+            ForEach(Array(game.fairOrders.enumerated()), id: \.offset) { i, o in
+                let item = BItem(rawValue: o.item) ?? .wood
+                let done = game.fairOrderDone(i)
+                let have = game.count(item)
+                let ready = !done && have >= o.n
+                HStack(spacing: 8) {
+                    PixelIcon(name: item.sprite, size: 26).frame(width: 30)
+                    VStack(alignment: .leading, spacing: 2) {
+                        OutlinedText(text: item.title, size: 12, fixed: false)
+                        OutlinedText(text: done ? tr("Готово") : "\(min(have, o.n)) / \(o.n)", size: 11, color: ready || done ? BUI.green : BUI.muted)
+                    }
+                    Spacer(minLength: 0)
+                    Button { game.deliver(i) } label: {
+                        HStack(spacing: 4) {
+                            PixelIcon(name: "bloom_item_gem", size: 16)
+                            OutlinedText(text: "\(o.gems)", size: 12)
+                        }
+                        .frame(width: 64, height: 22)
+                    }
+                    .buttonStyle(BloomButtonStyle(color: ready ? BUI.green : BUI.panelHi, edge: ready ? BUI.greenEdge : BUI.ink))
+                    .disabled(!ready)
+                    .opacity(done ? 0.5 : 1)
+                }
+                .padding(.horizontal, 10)
+                .frame(width: 300, height: 48)
+                .background(RoundedRectangle(cornerRadius: 12).fill(BUI.panelHi))
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(BUI.ink.opacity(0.6), lineWidth: 2))
+            }
+            OutlinedText(text: tr("Новые заказы каждый день, за каждый +80 звёзд"), size: 10.5, color: BUI.muted, fixed: false, lines: 2)
         }
     }
 

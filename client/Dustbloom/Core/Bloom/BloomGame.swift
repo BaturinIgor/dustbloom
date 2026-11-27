@@ -96,6 +96,9 @@ struct BloomSave: Codable {
     var slot = false
     var tut = 0                            // onboarding step, 99 = done
     var achieved: [String] = []            // Game Center achievements already sent
+    var fairDay: String?                   // day the fair orders were drawn for
+    var fairOrders: [FairOrder] = []
+    var fairDone: [Int] = []
 
     init() {}
 
@@ -146,6 +149,9 @@ struct BloomSave: Codable {
         // players who already had a save skip the tutorial
         tut = try c.decodeIfPresent(Int.self, forKey: .tut) ?? 99
         achieved = try c.decodeIfPresent([String].self, forKey: .achieved) ?? []
+        fairDay = try c.decodeIfPresent(String.self, forKey: .fairDay)
+        fairOrders = try c.decodeIfPresent([FairOrder].self, forKey: .fairOrders) ?? []
+        fairDone = try c.decodeIfPresent([Int].self, forKey: .fairDone) ?? []
     }
 }
 

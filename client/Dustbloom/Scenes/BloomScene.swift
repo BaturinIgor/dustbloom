@@ -110,6 +110,9 @@ final class BloomScene: SKScene {
         view.ignoresSiblingOrder = true
         view.isMultipleTouchEnabled = false
         if game != nil { setUp() }
+        NotificationCenter.default.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { _ in
+            MainActor.assumeIsolated { Music.resume() }
+        }
     }
 
     private func setUp() {
@@ -612,6 +615,282 @@ final class BloomScene: SKScene {
     private var shakeAmp: CGFloat = 0
     private func shake(_ a: CGFloat) { shakeAmp = max(shakeAmp, a) }
 
+    // MARK: - event pickups: falling stars (Starfall) and golden blossoms (Festival)
+
+    private var eventPicks: [SKSpriteNode] = []
+    private var eventPickTimer: TimeInterval = 10
+
+    private func updateEventPickups(_ dt: TimeInterval) {
+        let starfall = game.eventIs("starfall"), festival = game.eventIs("festival")
+        guard starfall || festival else { return }
+        for n in eventPicks where hypot(n.position.x - heroPos.x, n.position.y - heroPos.y - 3) < 9 {
+            collectEventPick(n)
+        }
+        eventPickTimer -= dt
+        guard eventPickTimer <= 0, eventPicks.count < 3 else { return }
+        eventPickTimer = Double.random(in: 14...22)
+        let hc = heroCell
+        var cell: Cell?
+        for _ in 0..<24 {
+            let c = Cell(x: hc.x + Int.random(in: -5...5), y: hc.y + Int.random(in: -4...4))
+            if let id = cellIsland[c], game.owned.contains(id), freeCell(c), c != hc { cell = c; break }
+        }
+        guard let c = cell else { return }
+        let p = basePoint(c)
+        let n = SKSpriteNode(texture: tex(starfall ? "bloom_fx_star" : "bloom_item_flower"))
+        n.anchorPoint = CGPoint(x: 0.5, y: 0.2)
+        n.zPosition = 500 - p.y
+        world.addChild(n)
+        eventPicks.append(n)
+        let glow = SKSpriteNode(texture: tex("bloom_fx_puff"))
+        glow.color = starfall ? UIColor(red: 1, green: 0.9, blue: 0.4, alpha: 1) : UIColor(red: 1, green: 0.8, blue: 0.3, alpha: 1)
+        glow.colorBlendFactor = 1
+        glow.alpha = 0.55
+        glow.setScale(2.2)
+        glow.zPosition = -1
+        glow.run(.repeatForever(.sequence([.fadeAlpha(to: 0.25, duration: 0.6), .fadeAlpha(to: 0.6, duration: 0.6)])))
+        n.addChild(glow)
+        let bob = SKAction.repeatForever(.sequence([.moveBy(x: 0, y: 1.5, duration: 0.5), .moveBy(x: 0, y: -1.5, duration: 0.5)]))
+        if starfall {
+            // streaks in from the upper right, lands with a puff
+            n.setScale(1.6)
+            n.position = CGPoint(x: p.x + 90, y: p.y + 110)
+            n.run(.sequence([.move(to: p, duration: 0.7), .run { [weak self] in
+                self?.puff(at: p, n: 6)
+                self?.shake(0.8)
+            }, bob]))
+            for i in 0..<8 {
+                run(.sequence([.wait(forDuration: Double(i) * 0.08), .run { [weak self, weak n] in
+                    guard let self, let n else { return }
+                    self.particle("bloom_fx_spark", at: n.position, v: CGVector(dx: 6, dy: 8), life: 0.4, gravity: false)
+                }]))
+            }
+            Sfx.play(.sparkle, volume: 0.5)
+        } else {
+            n.position = p
+            n.setScale(0.1)
+            n.color = UIColor(red: 1, green: 0.85, blue: 0.3, alpha: 1)
+            n.colorBlendFactor = 0.6
+            n.run(.sequence([.scale(to: 1.5, duration: 0.25), .scale(to: 1.3, duration: 0.1), bob]))
+            for _ in 0..<5 { petal(at: p) }
+        }
+        // a pickup nobody takes fades after a minute
+        n.run(.sequence([.wait(forDuration: 60), .run { [weak self, weak n] in
+            guard let self, let n else { return }
+            self.eventPicks.removeAll { $0 === n }
+            n.run(.sequence([.fadeOut(withDuration: 0.4), .removeFromParent()]))
+        }]), withKey: "expire")
+    }
+
+    private func collectEventPick(_ n: SKSpriteNode) {
+        eventPicks.removeAll { $0 === n }
+        n.removeAllActions()
+        n.run(.sequence([.group([.moveBy(x: 0, y: 10, duration: 0.2), .fadeOut(withDuration: 0.2)]), .removeFromParent()]))
+        for _ in 0..<8 { spark(at: n.position, spread: 12, gold: true) }
+        let (item, amount) = game.eventPickup()
+        if let item {
+            showPickup(item.rawValue, sprite: item.sprite, amount: amount, color: UIColor(red: 1, green: 0.9, blue: 0.5, alpha: 1))
+        } else {
+            showPickup("coin", sprite: "bloom_item_coin", amount: amount, color: UIColor(red: 1, green: 0.85, blue: 0.3, alpha: 1))
+        }
+        floatText(tr("+20 звёзд события"), at: CGPoint(x: heroPos.x, y: heroPos.y + 26), color: UIColor(red: 1, green: 0.85, blue: 0.2, alpha: 1), size: 5)
+        Sfx.play(.chest, volume: 0.7)
+        medium.impactOccurred()
+    }
+
+    // MARK: - fishing: a timing bar instead of hitting
+
+    private final class Fishing {
+        let r: Res
+        let bar = SKNode()
+        let marker = SKSpriteNode(color: .white, size: CGSize(width: 1.5, height: 9))
+        let bobber = SKSpriteNode(color: UIColor(red: 0.93, green: 0.25, blue: 0.3, alpha: 1), size: CGSize(width: 3, height: 3))
+        var zone: ClosedRange<CGFloat> = -6...6
+        var center: CGFloat = 0
+        var t: TimeInterval = 0
+        var speed: Double = 1
+        init(_ r: Res) { self.r = r }
+    }
+    private var fishing: Fishing?
+    private var fishCooldown: TimeInterval = 0
+    private let barW: CGFloat = 64
+
+    private func startFishing(_ r: Res) {
+        let f = Fishing(r)
+        fishing = f
+        if abs(r.node.position.x - heroPos.x) > 2 { facing = r.node.position.x > heroPos.x ? 1 : -1 }
+        heroSprite.xScale = facing
+        let half = barW / 2
+        let w = CGFloat.random(in: 12...16) - CGFloat(min(4, game.owned.count / 3))
+        f.center = CGFloat.random(in: (-half + w / 2 + 2)...(half - w / 2 - 2))
+        f.zone = (f.center - w / 2)...(f.center + w / 2)
+        f.speed = Double.random(in: 0.9...1.2)
+        let ink = UIColor(red: 0.17, green: 0.14, blue: 0.25, alpha: 1)
+        let frame = SKSpriteNode(color: ink, size: CGSize(width: barW + 4, height: 9))
+        let back = SKSpriteNode(color: UIColor(red: 0.24, green: 0.42, blue: 0.66, alpha: 1), size: CGSize(width: barW, height: 5))
+        let zone = SKSpriteNode(color: UIColor(red: 0.42, green: 0.82, blue: 0.4, alpha: 1), size: CGSize(width: w, height: 5))
+        zone.position.x = f.center
+        let gold = SKSpriteNode(color: UIColor(red: 1, green: 0.82, blue: 0.25, alpha: 1), size: CGSize(width: 5, height: 5))
+        gold.position.x = f.center
+        let fish = SKSpriteNode(texture: tex("bloom_item_fish"))
+        fish.position = CGPoint(x: -half - 10, y: 0)
+        for n in [frame, back, zone, gold, fish, f.marker] as [SKNode] { f.bar.addChild(n) }
+        if game.life("gather.pond") < 8 {
+            let hint = label(tr("Жми, когда стрелка в зелёном"), size: 4.5, color: .white)
+            hint.position = CGPoint(x: 0, y: 7)
+            f.bar.addChild(hint)
+        }
+        f.bar.position = CGPoint(x: heroPos.x, y: heroPos.y + 30)
+        f.bar.zPosition = 3100
+        f.bar.setScale(0.2)
+        world.addChild(f.bar)
+        f.bar.run(.scale(to: 1, duration: 0.15))
+        // the bobber sits on the pond and dips now and then
+        f.bobber.position = CGPoint(x: r.node.position.x + CGFloat.random(in: -3...3), y: r.node.position.y + 4)
+        f.bobber.zPosition = 2400
+        world.addChild(f.bobber)
+        f.bobber.run(.repeatForever(.sequence([.moveBy(x: 0, y: -1, duration: 0.4), .moveBy(x: 0, y: 1, duration: 0.4)])))
+        pickNode.run(.rotate(toAngle: 0.6, duration: 0.1))
+        Sfx.play(.plant, volume: 0.6)
+        light.impactOccurred()
+    }
+
+    private func updateFishing(_ dt: TimeInterval) {
+        guard let f = fishing else { return }
+        if (!demo && stickVec != .zero) || res[f.r.cell] !== f.r || game.panel != nil { endFishing(); return }
+        f.t += dt
+        // ping-pong across the bar, a little faster the longer you wait
+        let ph = f.t * f.speed * (1 + min(0.6, f.t * 0.06))
+        let u = abs(ph.truncatingRemainder(dividingBy: 2) - 1)
+        f.marker.position.x = (CGFloat(u) - 0.5) * barW
+        if demo, f.t > 0.9, abs(f.marker.position.x - f.center) < (Int(f.t * 10) % 3 == 0 ? 2 : 5) { reelIn() }
+    }
+
+    private func reelIn() {
+        guard let f = fishing else { return }
+        let x = f.marker.position.x
+        let p = f.r.node.position
+        let at = CGPoint(x: heroPos.x, y: heroPos.y + 26)
+        endFishing()
+        if abs(x - f.center) <= 2.5 {
+            floatText(tr("Идеально!"), at: at, color: UIColor(red: 1, green: 0.85, blue: 0.2, alpha: 1), size: 7)
+            for _ in 0..<10 { spark(at: p, spread: 14) }
+            destroy(f.r, mult: game.registerHit(now: now) * 2)
+            game.bump("fish.perfect")
+            if Int.random(in: 0..<5) == 0 { spawnChest(near: true) }
+            Sfx.play(.sparkle)
+            heavy.impactOccurred()
+        } else if f.zone.contains(x) {
+            floatText(tr("Поймал!"), at: at, color: UIColor(red: 0.6, green: 1, blue: 0.55, alpha: 1), size: 6)
+            destroy(f.r, mult: game.registerHit(now: now))
+            medium.impactOccurred()
+        } else {
+            floatText(tr("Сорвалась!"), at: at, color: UIColor(red: 1, green: 0.55, blue: 0.5, alpha: 1), size: 6)
+            for _ in 0..<6 {
+                particle("bloom_fx_spark", at: CGPoint(x: p.x, y: p.y + 4),
+                         v: CGVector(dx: CGFloat.random(in: -14...14), dy: CGFloat.random(in: 10...24)), life: 0.5)
+            }
+            Sfx.play(.error, volume: 0.6)
+            fishCooldown = now + 0.8
+        }
+    }
+
+    private func endFishing() {
+        guard let f = fishing else { return }
+        fishing = nil
+        f.bar.run(.sequence([.scale(to: 0.1, duration: 0.1), .removeFromParent()]))
+        f.bobber.removeAllActions()
+        f.bobber.run(.sequence([.fadeOut(withDuration: 0.15), .removeFromParent()]))
+        pickNode.run(.rotate(toAngle: -0.5, duration: 0.1))
+    }
+
+    // MARK: - biome ambience: weather particles and music follow the island under the hero
+
+    private var biomeIsland = -2
+    private var ambientTimer: TimeInterval = 0
+    private var ambientCount = 0
+
+    private func updateBiome(_ dt: TimeInterval) {
+        let id = cellIsland[Cell(x: Int(floor(heroPos.x / T)), y: Int(floor(heroPos.y / T)))] ?? biomeIsland
+        if id != biomeIsland {
+            biomeIsland = id
+            if !demo { Music.play(Music.track(forIsland: id)) }
+        }
+        guard game.owned.contains(id) else { return }
+        let rate: TimeInterval
+        switch id {
+        case 6: rate = 0.07
+        case 7, 8, 9, 10: rate = 0.3
+        case 11: rate = 0.18
+        default: return
+        }
+        ambientTimer += dt
+        guard ambientTimer > rate, ambientCount < 60 else { return }
+        ambientTimer = 0
+        let hw = size.width / zoom / 2 + 10, hh = size.height / zoom / 2 + 10
+        let c = cam.position
+        let p = CGPoint(x: c.x + CGFloat.random(in: -hw...hw), y: c.y + CGFloat.random(in: -hh...hh))
+        switch id {
+        case 6:  // wind carries sand from the left
+            ambient("bloom_fx_sand", at: CGPoint(x: c.x - hw, y: p.y), alpha: 0.8, life: 2.4, fadeIn: 0.1,
+                    move: .moveBy(x: hw * 2 + 20, y: CGFloat.random(in: -8...8), duration: 2.4), wobble: 2)
+        case 7:  // fireflies over the backwater
+            ambient("bloom_fx_firefly", at: p, alpha: 1, life: 4, fadeIn: 0.8,
+                    move: .moveBy(x: CGFloat.random(in: -14...14), y: CGFloat.random(in: -6...10), duration: 4), wobble: 4, pulse: true)
+        case 8:  // spores drift up
+            ambient("bloom_fx_spore", at: p, alpha: 0.9, life: 4, fadeIn: 0.8,
+                    move: .moveBy(x: CGFloat.random(in: -6...6), y: 26, duration: 4), wobble: 3, pulse: true)
+        case 9:  // bees buzz around the hero
+            let q = CGPoint(x: heroPos.x + CGFloat.random(in: -60...60), y: heroPos.y + CGFloat.random(in: -40...50))
+            ambient("bloom_fx_bee", at: q, alpha: 1, life: 3.5, fadeIn: 0.3,
+                    move: .moveBy(x: CGFloat.random(in: -40...40), y: CGFloat.random(in: -10...10), duration: 3.5), wobble: 3, flip: true)
+        case 10:  // ash falls, embers rise
+            if Bool.random() {
+                ambient("bloom_fx_ash", at: CGPoint(x: p.x, y: c.y + hh), alpha: 0.85, life: 4, fadeIn: 0.3,
+                        move: .moveBy(x: 18, y: -hh * 2, duration: 4), wobble: 4)
+            } else {
+                ambient("bloom_fx_ember", at: CGPoint(x: p.x, y: c.y - hh * 0.6 + CGFloat.random(in: 0...hh)), alpha: 1, life: 2.2, fadeIn: 0.2,
+                        move: .moveBy(x: CGFloat.random(in: -6...6), y: 30, duration: 2.2), wobble: 2)
+            }
+        case 11:  // stars twinkle, now and then one falls
+            if Int.random(in: 0..<14) == 0 {
+                ambient("bloom_fx_star", at: CGPoint(x: p.x, y: c.y + hh), alpha: 1, life: 1.4, fadeIn: 0.05,
+                        move: .moveBy(x: -60, y: -50, duration: 1.4), wobble: 0)
+            } else {
+                ambient("bloom_fx_star", at: p, alpha: 1, life: 1.6, fadeIn: 0.5, move: .moveBy(x: 0, y: 2, duration: 1.6),
+                        wobble: 0, pulse: true, small: true)
+            }
+        default: break
+        }
+    }
+
+    private func ambient(_ name: String, at p: CGPoint, alpha: CGFloat, life: Double, fadeIn: Double, move: SKAction,
+                         wobble: CGFloat, pulse: Bool = false, flip: Bool = false, small: Bool = false) {
+        let n = SKSpriteNode(texture: tex(name))
+        n.position = p
+        n.zPosition = 2600
+        n.alpha = 0
+        if small { n.setScale(CGFloat.random(in: 0.5...1)) }
+        world.addChild(n)
+        ambientCount += 1
+        var acts: [SKAction] = [move,
+                                .sequence([.fadeAlpha(to: alpha, duration: fadeIn), .wait(forDuration: max(0, life - fadeIn - 0.5)),
+                                           .fadeOut(withDuration: 0.5)])]
+        if wobble > 0 {
+            let w = SKAction.sequence([.moveBy(x: 0, y: wobble, duration: 0.5), .moveBy(x: 0, y: -wobble, duration: 0.5)])
+            w.timingMode = .easeInEaseOut
+            acts.append(.repeat(w, count: Int(life) + 1))
+        }
+        if pulse {
+            acts.append(.repeat(.sequence([.scale(by: 1.4, duration: 0.4), .scale(by: 1 / 1.4, duration: 0.4)]), count: Int(life / 0.8) + 1))
+        }
+        if flip {
+            acts.append(.repeat(.sequence([.scaleX(to: -1, duration: 0), .wait(forDuration: 0.6), .scaleX(to: 1, duration: 0),
+                                           .wait(forDuration: 0.6)]), count: Int(life / 1.2) + 1))
+        }
+        n.run(.sequence([.group(acts), .run { [weak self] in self?.ambientCount -= 1 }, .removeFromParent()]))
+    }
+
     // MARK: - input
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
@@ -660,6 +939,7 @@ final class BloomScene: SKScene {
     }
 
     private func tap(_ p: CGPoint) {
+        if fishing != nil { reelIn(); return }
         for (b, n) in buildingNodes.values where hypot(n.position.x - p.x, n.position.y + 7 - p.y) < 12 {
             game.panel = .building(b.kind)
             Sfx.play(.select)
@@ -684,7 +964,8 @@ final class BloomScene: SKScene {
             fpsFrames += 1; fpsClock += dt
             if fpsClock >= 2 { print(String(format: "[bloom] fps %.1f nodes %d", Double(fpsFrames) / fpsClock, world.children.count)); fpsFrames = 0; fpsClock = 0 }
         }
-        if demo { autopilot() }
+        if demo && fishing == nil { autopilot() }
+        updateFishing(dt)
         moveHero(dt)
         mine(dt)
         updateDrops(dt)
@@ -695,6 +976,8 @@ final class BloomScene: SKScene {
         game.tickCombo(now: now)
         updateCombo()
         updateGuide(dt)
+        updateBiome(dt)
+        updateEventPickups(dt)
 
         spawnTimer += dt
         if spawnTimer > game.respawnInterval {
@@ -817,7 +1100,13 @@ final class BloomScene: SKScene {
 
     private func mine(_ dt: TimeInterval) {
         hitTimer += dt
+        if fishing != nil { return }
         guard !swinging, hitTimer >= 0.3, let r = target() else { return }
+        if r.kind == .pond {
+            // ponds are fished, not hit: stand still next to one and the cast starts
+            if stickVec == .zero, now > fishCooldown { startFishing(r) }
+            return
+        }
         hitTimer = 0
         swinging = true
         if abs(r.node.position.x - heroPos.x) > 2 { facing = r.node.position.x > heroPos.x ? 1 : -1 }

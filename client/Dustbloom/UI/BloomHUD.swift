@@ -30,7 +30,7 @@ struct BloomView: View {
             scene.game = game
             BloomStore.shared.start(game: game)
             game.refreshDailies()
-            game.refreshEvent()
+            game.refreshEvent(); game.refreshFair()
             BloomGameCenter.shared.start(game)
             BloomGameCenter.shared.onSignedOut = { [weak g = game] in
                 g?.showToast(BloomToast(title: tr("Game Center"), subtitle: tr("Войди в Game Center в настройках iPhone")))
@@ -55,7 +55,7 @@ struct BloomView: View {
             #endif
         }
         .onChange(of: phase) { _, p in
-            if p != .active { game.save() } else { game.refreshDailies(); game.refreshEvent() }
+            if p != .active { game.save() } else { game.refreshDailies(); game.refreshEvent(); game.refreshFair() }
         }
     }
 }
@@ -1119,9 +1119,31 @@ struct FeedbackView: View {
                 .frame(maxWidth: .infinity, minHeight: 24)
             }
             .buttonStyle(BloomButtonStyle(color: BUI.panelHi, edge: BUI.ink))
+            HStack(spacing: 10) {
+                toggle("🎵", tr("Музыка"), musicOn) { musicOn.toggle(); Music.enabled = musicOn }
+                toggle("🔊", tr("Звуки"), soundOn) {
+                    soundOn.toggle()
+                    Sfx.master = soundOn ? 0.8 : 0
+                    UserDefaults.standard.set(Double(Sfx.master), forKey: "dustbloom.volume")
+                }
+            }
         }
         .frame(width: 322)
         .onAppear { if state == 2 { state = 0; text = "" } }
+    }
+
+    @State private var musicOn = Music.enabled
+    @State private var soundOn = Sfx.master > 0
+
+    private func toggle(_ icon: String, _ title: String, _ on: Bool, _ action: @escaping () -> Void) -> some View {
+        Button { action(); Sfx.play(.select) } label: {
+            HStack(spacing: 6) {
+                Text(icon).font(.system(size: 15)).opacity(on ? 1 : 0.45)
+                OutlinedText(text: title, size: 13, color: on ? BUI.cream : BUI.muted)
+            }
+            .frame(maxWidth: .infinity, minHeight: 22)
+        }
+        .buttonStyle(BloomButtonStyle(color: on ? BUI.green : BUI.panelHi, edge: on ? BUI.greenEdge : BUI.ink))
     }
 
     private func send() async {
