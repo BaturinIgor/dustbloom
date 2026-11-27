@@ -63,7 +63,9 @@ struct OutlinedText: View {
         .lineLimit(lines)
         .multilineTextAlignment(align)
         if fixed {
-            base.fixedSize()
+            // natural width when there is room, but never wider than the row it sits in:
+            // a long line shrinks a little instead of pushing cards and panels out of shape
+            base.minimumScaleFactor(0.6).fixedSize(horizontal: false, vertical: true)
         } else {
             base.minimumScaleFactor(0.5)
         }
