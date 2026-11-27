@@ -1224,7 +1224,7 @@ final class BloomScene: SKScene {
                 let sp: CGFloat = min(l * 4, 46) * CGFloat(dt)
                 let np = CGPoint(x: h.pos.x + d.dx / l * sp, y: h.pos.y + d.dy / l * sp)
                 let c = Cell(x: Int(floor(np.x / T)), y: Int(floor(np.y / T)))
-                if land.contains(c) { h.pos = np } else { h.target = nil; h.pos = CGPoint(x: h.pos.x + (heroPos.x - h.pos.x) * 0.1, y: h.pos.y + (heroPos.y - h.pos.y) * 0.1) }
+                if land.contains(c) { h.pos = np } else { h.target = nil }
                 if abs(d.dx) > 0.5 { h.node.xScale = d.dx > 0 ? 1 : -1 }
                 h.node.texture = tex("bloom_helper_\(h.color)_run_\(Int(h.clock * 8) % 2)")
             } else {
@@ -1235,6 +1235,13 @@ final class BloomScene: SKScene {
                 h.node.xScale = t.node.position.x > h.pos.x ? 1 : -1
                 h.node.run(.sequence([.moveBy(x: 0, y: 2, duration: 0.06), .moveBy(x: 0, y: -2, duration: 0.08)]))
                 applyHit(t, dmg: 1, mult: 1, dir: h.node.xScale)
+            }
+            if hypot(h.pos.x - heroPos.x, h.pos.y - heroPos.y) > 90 {
+                // lost behind water: hop back to the hero with a puff
+                puff(at: h.pos, n: 5)
+                h.pos = CGPoint(x: heroPos.x + CGFloat.random(in: -6...6), y: heroPos.y - 4)
+                h.target = nil
+                puff(at: h.pos, n: 5)
             }
             h.node.position = CGPoint(x: (h.pos.x * zoom).rounded() / zoom, y: (h.pos.y * zoom).rounded() / zoom)
             h.node.zPosition = 500 - h.pos.y
