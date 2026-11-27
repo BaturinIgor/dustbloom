@@ -1564,7 +1564,10 @@ final class BloomScene: SKScene {
         for id in owned { cands += cells(of: id).filter(freeCell) }
         cands = cands.filter { hypot(basePoint($0).x - heroPos.x, basePoint($0).y - heroPos.y) > (near ? 16 : 30) }
         if near { cands = cands.filter { hypot(basePoint($0).x - heroPos.x, basePoint($0).y - heroPos.y) < 70 } }
-        guard let c = cands.randomElement() else { return }
+        // keep it off the HUD: under the top bar, the right-hand buttons or the hotbar a tap
+        // lands on the button instead of the chest
+        let clear = cands.filter { !underHUD(basePoint($0)) }
+        guard let c = (clear.isEmpty ? cands : clear).randomElement() else { return }
         let n = SKSpriteNode(texture: tex("bloom_chest_closed"))
         n.anchorPoint = CGPoint(x: 0.5, y: 2 / 16)
         let p = basePoint(c)
@@ -1584,6 +1587,15 @@ final class BloomScene: SKScene {
         #endif
         for _ in 0..<8 { spark(at: CGPoint(x: p.x, y: p.y + 6), spread: 16, gold: false) }
         Sfx.play(.sparkle, volume: 0.6)
+    }
+
+    /// True when a world point shows under the SwiftUI HUD (top bar and goal, the right
+    /// column of round buttons, the build button and hotbar) with the camera where it is now.
+    private func underHUD(_ p: CGPoint) -> Bool {
+        guard let v = view else { return false }
+        let q = convertPoint(toView: world.convert(CGPoint(x: p.x, y: p.y + 8), to: self))
+        let w = v.bounds.width, h = v.bounds.height
+        return q.y < 210 || q.y > h - 220 || q.x < 28 || q.x > w - 28 || (q.x > w - 120 && q.y < 440)
     }
 
     private func checkChest() {
