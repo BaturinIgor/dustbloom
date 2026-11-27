@@ -1,0 +1,33 @@
+# Creates/updates the Bloom shop products in App Store Connect.
+# Runs only by hand (Actions tab -> "App Store products" -> Run workflow).
+# Needs repo secrets ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8 (full text of the .p8).
+name: App Store products
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Only print what would change"
+        type: boolean
+        default: false
+permissions:
+  contents: read
+jobs:
+  iap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -q pyjwt cryptography requests
+      - name: Create products
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+        run: |
+          umask 077
+          printf '%s\n' "$ASC_KEY_P8" > "$RUNNER_TEMP/key.p8"
+          ASC_KEY_PATH="$RUNNER_TEMP/key.p8" python3 tools/asc_iap.py ${{ inputs.dry_run && '--dry-run' || '' }}
+          rm -f "$RUNNER_TEMP/key.p8"
