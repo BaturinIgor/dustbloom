@@ -46,7 +46,11 @@ def main():
 
     # price: the game is free
     ps = soft(c, "GET", f"/v1/apps/{app_id}/appPriceSchedule")
-    if not (ps and ps.get("data")):
+    has_price = False
+    if ps and ps.get("data"):
+        mp = soft(c, "GET", f"/v1/appPriceSchedules/{ps['data']['id']}/manualPrices")
+        has_price = bool(mp and mp.get("data"))
+    if not has_price:
         print("price -> free")
         pts = c.all(f"/v1/apps/{app_id}/appPricePoints", {"filter[territory]": "USA"})
         free = next((p for p in pts if float(p["attributes"]["customerPrice"]) == 0), None)
@@ -111,15 +115,6 @@ def main():
     print("attach build", build["attributes"]["version"])
     soft(c, "PATCH", f"/v1/appStoreVersions/{vid}/relationships/build", {"data": {"type": "builds", "id": bid}})
 
-    # in-app purchases go to review together with the version
-    print("\nin-app purchases")
-    for p in c.all(f"/v1/apps/{app_id}/inAppPurchasesV2"):
-        st = p["attributes"].get("state")
-        print("  ", p["attributes"]["productId"], st)
-        if st == "READY_TO_SUBMIT":
-            soft(c, "POST", "/v1/inAppPurchaseSubmissions", {"data": {"type": "inAppPurchaseSubmissions",
-                 "relationships": {"inAppPurchaseV2": {"data": {"type": "inAppPurchases", "id": p["id"]}}}}})
-
     # Game Center on this version (leaderboards and achievements ship with it)
     print("\ngame center")
     gv = soft(c, "GET", f"/v1/appStoreVersions/{vid}/gameCenterAppVersion")
@@ -143,15 +138,42 @@ def main():
         soft(c, "POST", "/v1/reviewSubmissionItems", {"data": {"type": "reviewSubmissionItems",
              "relationships": {"reviewSubmission": {"data": {"type": "reviewSubmissions", "id": sid}},
                                "appStoreVersion": {"data": {"type": "appStoreVersions", "id": vid}}}}})
-    r = soft(c, "PATCH", f"/v1/reviewSubmissions/{sid}", {"data": {"type": "reviewSubmissions", "id": sid,
-             "attributes": {"submitted": True}}})
+
+    def submit_iaps():
+        left = []
+        for p in c.all(f"/v1/apps/{app_id}/inAppPurchasesV2"):
+            st = p["attributes"].get("state")
+            if st != "READY_TO_SUBMIT":
+                print("  ", p["attributes"]["productId"], st)
+                continue
+            ok = soft(c, "POST", "/v1/inAppPurchaseSubmissions", {"data": {"type": "inAppPurchaseSubmissions",
+                      "relationships": {"inAppPurchaseV2": {"data": {"type": "inAppPurchases", "id": p["id"]}}}}})
+            print("  ", p["attributes"]["productId"], "added" if ok else "FAILED")
+            if not ok:
+                left.append(p["attributes"]["productId"])
+        return left
+
+    print("\nin-app purchases (with the version in the open submission)")
+    left = submit_iaps()
     if a.dry_run:
         print("\n(dry run, nothing submitted)")
-    elif r and r.get("data", {}).get("attributes"):
-        print("\nSUBMITTED, state:", r["data"]["attributes"].get("state"))
-    else:
+        return
+    r = soft(c, "PATCH", f"/v1/reviewSubmissions/{sid}", {"data": {"type": "reviewSubmissions", "id": sid,
+             "attributes": {"submitted": True}}})
+    if not (r and r.get("data", {}).get("attributes")):
         print("\nnot submitted, see the errors above")
         sys.exit(1)
+    print("\nSUBMITTED, state:", r["data"]["attributes"].get("state"))
+    if left:
+        print("\nretry in-app purchases after the version went in")
+        left = submit_iaps()
+    if left:
+        # the purchases must go together with the version: take it back so they can be attached by hand
+        print("\npurchases still not attached:", left, "-> cancelling the submission")
+        soft(c, "PATCH", f"/v1/reviewSubmissions/{sid}", {"data": {"type": "reviewSubmissions", "id": sid,
+             "attributes": {"canceled": True}}})
+        sys.exit(1)
+    print("\nall done")
 
 
 if __name__ == "__main__":
