@@ -505,6 +505,83 @@ def item(name):
     sprite('bloom_item_' + name, cv)
 
 
+FINDS = {
+    # bugs (trees and bushes)
+    'ladybug': None, 'beetle': None, 'snail': None, 'firefly': None, 'moth': None,
+    # fossils (plain rocks)
+    'shell': None, 'bone': None, 'amber': None, 'trilobite': None, 'fern': None,
+    # gems (ore rocks and crystals)
+    'ruby': None, 'sapphire': None, 'emerald': None, 'topaz': None, 'amethyst': None,
+}
+
+
+def find(name):
+    cv = Canvas(12, 12)
+    gem = {'ruby': ('#e8394f', '#ff8a9a'), 'sapphire': ('#3d7fe0', '#9cc8ff'), 'emerald': ('#2fb36a', '#9af0b8'),
+           'topaz': ('#f0a020', '#ffe08a'), 'amethyst': ('#9a5ad8', '#dcb8ff')}
+    if name in gem:
+        c, l = gem[name]
+        widths = [2, 3, 4, 4, 3, 2, 1, 0]
+        for dy, w in enumerate(widths):
+            cv.rect(6 - w - (0 if w else 0), 2 + dy, 5 + w, 2 + dy, c)
+        cv.rect(4, 2, 7, 2, l); cv.rect(3, 3, 5, 3, l); cv.put(4, 3, 'white'); cv.rect(2, 5, 9, 5, l)
+    elif name == 'ladybug':
+        cv.disc(6, 7, 4, 3.6, 'berry'); cv.rect(6, 4, 6, 10, 'ink'); cv.disc(6, 3.5, 2, 1.4, 'ink')
+        for p in ((4, 6), (8, 6), (4, 9), (8, 9)):
+            cv.put(*p, 'ink')
+        cv.put(4, 5, 'berry_l')
+    elif name == 'beetle':
+        cv.disc(6, 7, 3.6, 4, '#2f9a8a'); cv.rect(6, 4, 6, 10, '#1f5e55'); cv.disc(6, 2.6, 1.8, 1.4, '#1f5e55')
+        cv.put(4, 5, '#9af0e0'); cv.put(2, 6, 'ink'); cv.put(10, 6, 'ink'); cv.put(2, 9, 'ink'); cv.put(10, 9, 'ink')
+    elif name == 'snail':
+        cv.disc(7, 6, 3.6, 3.6, 'd2'); cv.disc(7, 6, 2, 2, 'd3'); cv.put(7, 6, 'd1')
+        cv.rect(1, 9, 10, 10, 'cream'); cv.put(1, 7, 'cream'); cv.put(1, 8, 'cream'); cv.put(2, 6, 'ink')
+    elif name == 'firefly':
+        cv.disc(6, 6, 4.5, 4.5, 'gold_l', 120); cv.disc(6, 7, 2, 2.6, 'gold'); cv.disc(6, 4, 1.6, 1.4, 'ink')
+        cv.put(3, 5, 'water_l'); cv.put(9, 5, 'water_l')
+    elif name == 'moth':
+        cv.disc(3.6, 4.6, 2.8, 2.8, '#c9a0e8'); cv.disc(8.4, 4.6, 2.8, 2.8, '#c9a0e8')
+        cv.disc(4.2, 8.4, 2, 1.8, '#a77fd0'); cv.disc(7.8, 8.4, 2, 1.8, '#a77fd0')
+        cv.put(3, 4, 'white'); cv.put(8, 4, 'white'); cv.rect(6, 3, 6, 9, 'ink')
+    elif name == 'shell':
+        cv.disc(6, 7, 4.8, 4.6, 'cream')
+        for k, xx in enumerate((3, 5, 7, 9)):
+            cv.rect(xx, 4 if k in (1, 2) else 5, xx, 10, 'd3')
+        cv.rect(4, 10, 8, 11, 'd2')
+    elif name == 'bone':
+        cv.rect(3, 5, 8, 6, 'cream'); cv.disc(2.5, 4.5, 1.6, 1.6, 'cream'); cv.disc(2.5, 6.5, 1.6, 1.6, 'cream')
+        cv.disc(9.5, 4.5, 1.6, 1.6, 'cream'); cv.disc(9.5, 6.5, 1.6, 1.6, 'cream')
+    elif name == 'amber':
+        cv.disc(6, 6, 4.2, 4.4, '#f0a020'); cv.disc(5, 5, 2.4, 2.4, '#ffc860'); cv.put(6, 7, 'ink'); cv.put(7, 7, 'ink'); cv.put(4, 4, 'white')
+    elif name == 'trilobite':
+        cv.disc(6, 6, 3.6, 4.6, 'r2')
+        for yy in (3, 5, 7, 9):
+            cv.rect(3, yy, 9, yy, 'r1')
+        cv.rect(6, 2, 6, 10, 'r3')
+    elif name == 'fern':
+        cv.disc(6, 6, 4.8, 4.8, 'r1'); cv.rect(6, 2, 6, 10, 'l1')
+        for k in range(3, 10, 2):
+            cv.put(5, k, 'l2'); cv.put(4, k - 1, 'l2'); cv.put(7, k, 'l2'); cv.put(8, k - 1, 'l2')
+    cv.outline('ink')
+    sprite('bloom_find_' + name, cv)
+
+
+def ui_icons():
+    cv = Canvas(14, 14)  # talent tree
+    cv.rect(6, 8, 7, 13, 't1'); cv.put(5, 13, 't1'); cv.put(8, 13, 't1')
+    cv.disc(6.5, 6, 5.6, 5, 'l1'); cv.disc(5.5, 5, 3.6, 3, 'l2'); cv.put(4, 3, 'l4')
+    for p in ((4, 7), (9, 5), (7, 3)):
+        cv.put(*p, 'gold')
+    cv.outline('ink')
+    sprite('bloom_ui_tree', cv)
+    cv = Canvas(14, 14)  # album book
+    cv.rect(2, 2, 11, 12, 'canvas_r'); cv.rect(2, 2, 3, 12, 'brick_d'); cv.rect(4, 3, 10, 11, 'brick')
+    cv.disc(7, 7, 2, 2, 'gold'); cv.put(7, 6, 'gold_l')
+    cv.rect(4, 12, 11, 12, 'canvas_w')
+    cv.outline('ink')
+    sprite('bloom_ui_book', cv)
+
+
 def fx():
     cv = Canvas(3, 3); cv.put(1, 0, 'white'); cv.put(0, 1, 'white'); cv.put(1, 1, 'white'); cv.put(2, 1, 'white'); cv.put(1, 2, 'white')
     sprite('bloom_fx_spark', cv)
@@ -759,6 +836,9 @@ def build_all():
               'plank', 'cloth', 'crystal', 'flower'):
         item(n)
     fx()
+    for n in FINDS:
+        find(n)
+    ui_icons()
     world = dict(tile=T, islands=[], bridges=[])
     for isl in ISLANDS:
         for dust in (False, True):

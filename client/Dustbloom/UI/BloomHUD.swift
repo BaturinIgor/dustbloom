@@ -82,12 +82,17 @@ struct BloomHUD: View {
         ZStack {
             VStack(spacing: 0) {
                 topBar
-                HStack {
+                HStack(alignment: .top) {
                     GoalCard()
                     Spacer()
+                    VStack(spacing: 10) {
+                        RoundIconButton(icon: "bloom_ui_tree", badge: game.talentPoints) { game.panel = .talents }
+                        RoundIconButton(icon: "bloom_ui_book", badge: 0) { game.panel = .album }
+                    }
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
+                GoldenBanner()
                 Spacer()
                 HStack(alignment: .bottom) {
                     VStack(alignment: .leading, spacing: 12) {
@@ -103,7 +108,10 @@ struct BloomHUD: View {
             .animation(.spring(response: 0.3, dampingFraction: 0.75), value: game.toast)
             .animation(.spring(response: 0.25, dampingFraction: 0.8), value: game.nearby)
 
-            if let p = game.panel {
+            if game.panel == .talents {
+                TalentTreeView()
+                    .transition(.opacity.combined(with: .scale(scale: 1.05)))
+            } else if let p = game.panel {
                 Color.black.opacity(0.45).ignoresSafeArea()
                     .onTapGesture { game.panel = nil }
                     .transition(.opacity)
@@ -191,7 +199,7 @@ struct BloomHUD: View {
                 HStack(spacing: 6) {
                     OutlinedText(text: "Остров", size: 14)
                     PixelIcon(name: "bloom_item_coin", size: 20)
-                    OutlinedText(text: "\(isl.price)", size: 14, color: game.coins >= isl.price ? BUI.cream : BUI.red)
+                    OutlinedText(text: "\(game.islandPrice(id))", size: 14, color: game.coins >= game.islandPrice(id) ? BUI.cream : BUI.red)
                 }
             }
             .buttonStyle(BloomButtonStyle(color: BUI.green, edge: BUI.greenEdge))
@@ -281,6 +289,8 @@ struct PanelHost: View {
         case .building(let k): return k.title
         case .buy(let id): return game.island(id).name
         case .inventory: return "Рюкзак"
+        case .talents: return "Древо цветения"
+        case .album: return "Альбом находок"
         }
     }
 
@@ -293,6 +303,8 @@ struct PanelHost: View {
         case .building(let k): CraftList(kind: k)
         case .buy(let id): BuyView(id: id)
         case .inventory: InventoryGrid()
+        case .talents: EmptyView()
+        case .album: AlbumView()
         }
     }
 }
@@ -338,7 +350,7 @@ struct BuildList: View {
                     VStack(alignment: .leading, spacing: 4) {
                         OutlinedText(text: k.title, size: 15)
                         Text(k.blurb).font(DText.font(10.5)).foregroundStyle(BUI.cream.opacity(0.75))
-                        CostRow(cost: k.cost)
+                        CostRow(cost: game.cost(k))
                     }
                     Spacer(minLength: 0)
                     if game.isBuilt(k) {
@@ -372,7 +384,7 @@ struct CraftList: View {
                     VStack(alignment: .leading, spacing: 5) {
                         OutlinedText(text: "В работе: \(q.left)", size: 13)
                         TimelineView(.animation) { _ in
-                            let p = min(1, (game.progress[kind.rawValue] ?? 0) / r.seconds)
+                            let p = min(1, (game.progress[kind.rawValue] ?? 0) / game.secs(r))
                             ZStack(alignment: .leading) {
                                 Capsule().fill(BUI.ink).frame(height: 12)
                                 Capsule().fill(BUI.gold).frame(width: max(12, 200 * p), height: 12)
@@ -393,7 +405,7 @@ struct CraftList: View {
                     VStack(alignment: .leading, spacing: 4) {
                         OutlinedText(text: r.output.title, size: 14)
                         CostRow(cost: r.cost)
-                        Text(String(format: "%.0f с за штуку", r.seconds.rounded(.up)))
+                        Text(String(format: "%.0f с за штуку", game.secs(r).rounded(.up)))
                             .font(DText.font(10)).foregroundStyle(BUI.cream.opacity(0.7))
                     }
                     Spacer(minLength: 0)
@@ -426,7 +438,7 @@ struct MarketList: View {
                         HStack(spacing: 3) {
                             OutlinedText(text: "\(game.count(i)) шт · по", size: 11)
                             PixelIcon(name: "bloom_item_coin", size: 14)
-                            OutlinedText(text: "\(i.price)", size: 11, color: BUI.gold)
+                            OutlinedText(text: "\(game.sellPrice(i))", size: 11, color: BUI.gold)
                         }
                     }
                     Spacer(minLength: 0)
@@ -499,13 +511,13 @@ struct BuyView: View {
             HStack(spacing: 6) {
                 OutlinedText(text: "Купить за", size: 16)
                 PixelIcon(name: "bloom_item_coin", size: 22)
-                OutlinedText(text: "\(isl.price)", size: 16)
+                OutlinedText(text: "\(game.islandPrice(id))", size: 16)
             }
             .frame(maxWidth: .infinity)
         }
-        .buttonStyle(BloomButtonStyle(enabled: game.coins >= isl.price))
-        if game.coins < isl.price {
-            OutlinedText(text: "Не хватает \(isl.price - game.coins). Продай ресурсы на рынке", size: 11, color: BUI.red, fixed: false, lines: 2)
+        .buttonStyle(BloomButtonStyle(enabled: game.coins >= game.islandPrice(id)))
+        if game.coins < game.islandPrice(id) {
+            OutlinedText(text: "Не хватает \(game.islandPrice(id) - game.coins). Продай ресурсы на рынке", size: 11, color: BUI.red, fixed: false, lines: 2)
         }
     }
 }
@@ -574,9 +586,9 @@ struct NurseryView: View {
     var body: some View {
         Card {
             VStack(spacing: 8) {
-                OutlinedText(text: "Твои помощники: \(game.helpers.count)/\(BloomContent.maxHelpers)", size: 13)
+                OutlinedText(text: "Твои помощники: \(game.helpers.count)/\(game.maxHelpers)", size: 13)
                 HStack(spacing: 14) {
-                    ForEach(0..<BloomContent.maxHelpers, id: \.self) { i in
+                    ForEach(0..<game.maxHelpers, id: \.self) { i in
                         if i < game.helpers.count {
                             VStack(spacing: 2) {
                                 PixelIcon(name: "bloom_helper_\(game.helpers[i])_idle_0", size: 44)
@@ -593,7 +605,7 @@ struct NurseryView: View {
                     .font(DText.font(10.5)).foregroundStyle(BUI.cream.opacity(0.75)).multilineTextAlignment(.center)
             }
         }
-        if game.helpers.count < BloomContent.maxHelpers {
+        if game.helpers.count < game.maxHelpers {
             Card {
                 VStack(spacing: 8) {
                     CostRow(cost: game.helperCost)
@@ -604,5 +616,288 @@ struct NurseryView: View {
                 }
             }
         }
+    }
+}
+
+
+struct RoundIconButton: View {
+    let icon: String
+    var badge: Int
+    let action: () -> Void
+    var body: some View {
+        Button {
+            Sfx.play(.select)
+            action()
+        } label: {
+            ZStack(alignment: .topTrailing) {
+                ZStack {
+                    Circle().fill(BUI.ink.opacity(0.88)).frame(width: 50, height: 50)
+                    Circle().stroke(BUI.gold.opacity(badge > 0 ? 1 : 0.35), lineWidth: 2).frame(width: 46, height: 46)
+                    PixelIcon(name: icon, size: 32)
+                }
+                if badge > 0 {
+                    ZStack {
+                        Circle().fill(BUI.red).frame(width: 22, height: 22)
+                        Text("\(badge)").font(DText.font(12)).foregroundStyle(.white)
+                    }
+                    .offset(x: 4, y: -4)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+struct GoldenBanner: View {
+    @EnvironmentObject private var game: BloomGame
+    var body: some View {
+        if let until = game.goldenUntil {
+            TimelineView(.periodic(from: .now, by: 1)) { ctx in
+                let left = max(0, Int(until.timeIntervalSince(ctx.date).rounded(.up)))
+                HStack(spacing: 8) {
+                    PixelIcon(name: "bloom_item_coin", size: 22)
+                    OutlinedText(text: "ЗОЛОТОЙ ЧАС  ×2", size: 16, color: BUI.gold)
+                    OutlinedText(text: "0:\(String(format: "%02d", left))", size: 14)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 6)
+                .background(Capsule().fill(Color(red: 0.45, green: 0.25, blue: 0.05).opacity(0.9)))
+                .overlay(Capsule().stroke(BUI.gold, lineWidth: 2))
+            }
+            .padding(.top, 8)
+            .transition(.scale.combined(with: .opacity))
+        }
+    }
+}
+
+// MARK: - talent tree
+
+struct TalentTreeView: View {
+    @EnvironmentObject private var game: BloomGame
+    @State private var selected: String?
+    @State private var glow = false
+
+    var body: some View {
+        ZStack {
+            LinearGradient(colors: [Color(red: 0.10, green: 0.08, blue: 0.22), Color(red: 0.12, green: 0.20, blue: 0.20),
+                                    Color(red: 0.10, green: 0.25, blue: 0.14)], startPoint: .top, endPoint: .bottom)
+                .ignoresSafeArea()
+            // stars
+            Canvas { ctx, size in
+                var rng = SystemRandomNumberGenerator()
+                for i in 0..<60 {
+                    let x = CGFloat((i * 73) % 997) / 997 * size.width
+                    let y = CGFloat((i * 151) % 991) / 991 * size.height * 0.6
+                    let r: CGFloat = i % 7 == 0 ? 1.6 : 0.9
+                    _ = rng.next()
+                    ctx.fill(Path(ellipseIn: CGRect(x: x, y: y, width: r * 2, height: r * 2)), with: .color(.white.opacity(0.5)))
+                }
+            }
+            .ignoresSafeArea()
+            .allowsHitTesting(false)
+
+            VStack(spacing: 0) {
+                header
+                GeometryReader { geo in
+                    let lay = Layout(size: geo.size)
+                    ZStack {
+                        Canvas { ctx, _ in drawTree(ctx, lay) }
+                        ForEach(0..<5, id: \.self) { b in
+                            OutlinedText(text: BloomTalents.branches[b].title, size: 11, color: BloomTalents.branches[b].color)
+                                .position(x: lay.x(b), y: lay.y(4) - 44)
+                        }
+                        ForEach(BloomTalents.all) { t in
+                            node(t).position(x: lay.x(t.branch), y: lay.y(t.tier))
+                        }
+                    }
+                }
+                detail
+            }
+        }
+        .onAppear { withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) { glow = true } }
+    }
+
+    struct Layout {
+        let size: CGSize
+        func x(_ b: Int) -> CGFloat { size.width * (0.1 + CGFloat(b) * 0.2) }
+        var trunkTop: CGFloat { size.height - 36 }
+        func y(_ tier: Int) -> CGFloat {
+            let top: CGFloat = 70, bottom = size.height - 92
+            return bottom - CGFloat(tier) * (bottom - top) / 4
+        }
+    }
+
+    private var header: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                OutlinedText(text: "Древо цветения", size: 22, color: BUI.gold)
+                OutlinedText(text: "Очко таланта за каждый уровень", size: 11, color: BUI.cream.opacity(0.8))
+            }
+            Spacer()
+            HStack(spacing: 6) {
+                PixelIcon(name: "bloom_fx_spark", size: 16)
+                OutlinedText(text: "\(game.talentPoints)", size: 20, color: game.talentPoints > 0 ? BUI.gold : BUI.cream)
+            }
+            .padding(.horizontal, 12).frame(height: 38)
+            .background(Capsule().fill(BUI.ink.opacity(0.9)))
+            Button { game.panel = nil } label: {
+                ZStack {
+                    Circle().fill(BUI.ink).frame(width: 38, height: 38)
+                    Text("✕").font(DText.font(16)).foregroundStyle(BUI.cream)
+                }
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 8)
+    }
+
+    private func state(_ t: Talent) -> Int {   // 2 owned, 1 available, 0 locked
+        if game.hasT(t.id) { return 2 }
+        if (t.requires.map(game.hasT) ?? true) { return 1 }
+        return 0
+    }
+
+    private func drawTree(_ ctx: GraphicsContext, _ lay: Layout) {
+        let mid = lay.size.width / 2
+        // trunk
+        var trunk = Path()
+        trunk.move(to: CGPoint(x: mid - 16, y: lay.size.height))
+        trunk.addQuadCurve(to: CGPoint(x: mid - 6, y: lay.trunkTop - 10), control: CGPoint(x: mid - 4, y: lay.size.height - 20))
+        trunk.addLine(to: CGPoint(x: mid + 6, y: lay.trunkTop - 10))
+        trunk.addQuadCurve(to: CGPoint(x: mid + 16, y: lay.size.height), control: CGPoint(x: mid + 4, y: lay.size.height - 20))
+        trunk.closeSubpath()
+        ctx.fill(trunk, with: .color(Color(red: 0.45, green: 0.28, blue: 0.16)))
+        for b in 0..<5 {
+            let color = BloomTalents.branches[b].color
+            let ids = BloomTalents.branches[b].ids
+            // root branch from the trunk to the first node
+            var root = Path()
+            root.move(to: CGPoint(x: mid, y: lay.trunkTop - 6))
+            root.addQuadCurve(to: CGPoint(x: lay.x(b), y: lay.y(0)), control: CGPoint(x: lay.x(b), y: lay.trunkTop - 4))
+            let rootOn = game.hasT(ids[0])
+            ctx.stroke(root, with: .color(Color(red: 0.45, green: 0.28, blue: 0.16)), style: StrokeStyle(lineWidth: 7, lineCap: .round))
+            if rootOn { ctx.stroke(root, with: .color(color.opacity(0.9)), style: StrokeStyle(lineWidth: 3, lineCap: .round)) }
+            for k in 1..<5 {
+                let a = CGPoint(x: lay.x(b), y: lay.y(k - 1)), z = CGPoint(x: lay.x(b), y: lay.y(k))
+                var v = Path()
+                v.move(to: a)
+                let wig: CGFloat = (k + b) % 2 == 0 ? 14 : -14
+                v.addQuadCurve(to: z, control: CGPoint(x: a.x + wig, y: (a.y + z.y) / 2))
+                let on = game.hasT(ids[k])
+                ctx.stroke(v, with: .color(on ? color : Color(red: 0.25, green: 0.4, blue: 0.3).opacity(0.7)),
+                           style: StrokeStyle(lineWidth: on ? 5 : 4, lineCap: .round))
+                // leaves
+                let lp = CGPoint(x: a.x + wig * 0.55, y: (a.y + z.y) / 2)
+                let leaf = Path(ellipseIn: CGRect(x: lp.x + (wig > 0 ? 2 : -12), y: lp.y - 4, width: 10, height: 6))
+                ctx.fill(leaf, with: .color(on ? Color(red: 0.5, green: 0.9, blue: 0.4) : Color(red: 0.25, green: 0.45, blue: 0.3).opacity(0.7)))
+            }
+        }
+    }
+
+    private func node(_ t: Talent) -> some View {
+        let st = state(t)
+        let color = BloomTalents.branches[t.branch].color
+        let sel = selected == t.id
+        return Button {
+            selected = t.id
+            Sfx.play(.select)
+        } label: {
+            ZStack {
+                if st == 2 {
+                    Circle().fill(color.opacity(0.45)).frame(width: 66, height: 66).blur(radius: 6)
+                }
+                Circle().fill(st == 2 ? color : BUI.ink).frame(width: 52, height: 52)
+                Circle().stroke(st == 1 ? BUI.gold.opacity(glow ? 1 : 0.4) : (st == 2 ? Color.white.opacity(0.8) : Color.gray.opacity(0.4)),
+                                lineWidth: sel ? 4 : 2.5)
+                    .frame(width: 52, height: 52)
+                PixelIcon(name: t.icon, size: 30)
+                    .opacity(st == 0 ? 0.35 : 1)
+                    .saturation(st == 0 ? 0 : 1)
+                if st != 2 {
+                    ZStack {
+                        Circle().fill(st == 1 ? BUI.gold : Color.gray).frame(width: 20, height: 20)
+                        Text("\(t.cost)").font(DText.font(11)).foregroundStyle(BUI.ink)
+                    }
+                    .offset(x: 19, y: 19)
+                }
+            }
+            .scaleEffect(sel ? 1.12 : 1)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var detail: some View {
+        let t = BloomTalents.talent(selected ?? BloomTalents.all.first(where: { state($0) == 1 && !game.hasT($0.id) })?.id ?? "d1")
+        let st = state(t)
+        return HStack(spacing: 12) {
+            PixelIcon(name: t.icon, size: 40)
+                .frame(width: 56, height: 56)
+                .background(RoundedRectangle(cornerRadius: 12).fill(BloomTalents.branches[t.branch].color.opacity(0.35)))
+            VStack(alignment: .leading, spacing: 3) {
+                OutlinedText(text: t.title, size: 16, color: BloomTalents.branches[t.branch].color)
+                OutlinedText(text: t.text, size: 12, fixed: false, lines: 2)
+            }
+            Spacer(minLength: 0)
+            if st == 2 {
+                OutlinedText(text: "Изучено", size: 13, color: BUI.green).frame(width: 96)
+            } else if st == 0 {
+                OutlinedText(text: "Сначала нижний талант", size: 11, color: BUI.cream.opacity(0.7), fixed: false, lines: 2).frame(width: 96)
+            } else {
+                Button { game.learn(t) } label: {
+                    VStack(spacing: 0) {
+                        OutlinedText(text: "Изучить", size: 14)
+                        OutlinedText(text: "\(t.cost) очк.", size: 10, color: BUI.gold)
+                    }
+                }
+                .buttonStyle(BloomButtonStyle(color: BUI.orange, edge: BUI.orangeEdge, enabled: game.canLearn(t)))
+                .frame(width: 96)
+            }
+        }
+        .padding(12)
+        .background(RoundedRectangle(cornerRadius: 18).fill(BUI.panel))
+        .overlay(RoundedRectangle(cornerRadius: 18).stroke(BUI.ink, lineWidth: 3))
+        .padding(.horizontal, 12)
+        .padding(.bottom, 8)
+    }
+}
+
+// MARK: - album
+
+struct AlbumView: View {
+    @EnvironmentObject private var game: BloomGame
+    var body: some View {
+        ForEach(BloomAlbum.pages.indices, id: \.self) { pi in
+            let page = BloomAlbum.pages[pi]
+            let done = game.pageDone(pi)
+            Card {
+                VStack(spacing: 8) {
+                    HStack {
+                        OutlinedText(text: page.title, size: 15, color: done ? BUI.gold : BUI.cream)
+                        Spacer()
+                        OutlinedText(text: done ? "✓ " + page.bonus : page.bonus, size: 11, color: done ? BUI.green : BUI.cream.opacity(0.7))
+                    }
+                    HStack(spacing: 6) {
+                        ForEach(page.finds, id: \.id) { f in
+                            let n = game.finds[f.id] ?? 0
+                            VStack(spacing: 1) {
+                                ZStack {
+                                    RoundedRectangle(cornerRadius: 10).fill(BUI.ink.opacity(0.55)).frame(width: 54, height: 54)
+                                    if n > 0 {
+                                        PixelIcon(name: "bloom_find_" + f.id, size: 36)
+                                    } else {
+                                        PixelIcon(name: "bloom_find_" + f.id, size: 36).colorMultiply(.black).opacity(0.45)
+                                        OutlinedText(text: "?", size: 16, color: BUI.cream.opacity(0.6))
+                                    }
+                                }
+                                OutlinedText(text: n > 0 ? "×\(n)" : " ", size: 9)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        OutlinedText(text: "Находки иногда выпадают из деревьев, кустов и камней", size: 11, color: BUI.cream.opacity(0.7), fixed: false, lines: 2)
+            .padding(.top, 4)
     }
 }

@@ -62,7 +62,31 @@ struct BloomSave: Codable {
     var stats: [String: Int] = [:]
     var goal = 0
     var helpers: [String] = []
+    var talents: [String] = []
+    var finds: [String: Int] = [:]
     var savedAt = Date()
+
+    init() {}
+
+    /// Tolerant decoding: fields added later default instead of wiping the save.
+    init(from d: Decoder) throws {
+        let c = try d.container(keyedBy: CodingKeys.self)
+        inv = try c.decodeIfPresent([String: Int].self, forKey: .inv) ?? [:]
+        coins = try c.decodeIfPresent(Int.self, forKey: .coins) ?? 0
+        xp = try c.decodeIfPresent(Int.self, forKey: .xp) ?? 0
+        level = try c.decodeIfPresent(Int.self, forKey: .level) ?? 1
+        owned = try c.decodeIfPresent([Int].self, forKey: .owned) ?? [0]
+        buildings = try c.decodeIfPresent([PlacedBuilding].self, forKey: .buildings) ?? []
+        pick = try c.decodeIfPresent(Int.self, forKey: .pick) ?? 0
+        lucky = try c.decodeIfPresent(Bool.self, forKey: .lucky) ?? false
+        queues = try c.decodeIfPresent([String: CraftQueue].self, forKey: .queues) ?? [:]
+        stats = try c.decodeIfPresent([String: Int].self, forKey: .stats) ?? [:]
+        goal = try c.decodeIfPresent(Int.self, forKey: .goal) ?? 0
+        helpers = try c.decodeIfPresent([String].self, forKey: .helpers) ?? []
+        talents = try c.decodeIfPresent([String].self, forKey: .talents) ?? []
+        finds = try c.decodeIfPresent([String: Int].self, forKey: .finds) ?? [:]
+        savedAt = try c.decodeIfPresent(Date.self, forKey: .savedAt) ?? Date()
+    }
 }
 
 enum BloomPanel: Equatable {
@@ -70,6 +94,8 @@ enum BloomPanel: Equatable {
     case building(BuildKind)
     case buy(Int)
     case inventory
+    case talents
+    case album
 }
 
 struct BloomToast: Identifiable, Equatable {
@@ -134,7 +160,9 @@ final class BloomGame: ObservableObject {
     var xpNeed: Int { BloomContent.xpToNext(s.level) }
     var pickTier: Int { s.pick }
     var pickLucky: Bool { s.lucky }
-    var damage: Int { BloomContent.picks[s.pick].damage + (s.lucky ? 1 : 0) }
+    var damage: Int {
+        BloomContent.picks[s.pick].damage + (s.lucky ? 1 : 0) + (hasT("d1") ? 1 : 0) + (pageDone(2) ? 1 : 0)
+    }
     var owned: Set<Int> { Set(s.owned) }
     var buildings: [PlacedBuilding] { s.buildings }
 
@@ -156,14 +184,14 @@ final class BloomGame: ObservableObject {
 
     /// Registers a hit and returns the combo multiplier (x1...x5).
     func registerHit(now: TimeInterval) -> Int {
-        combo = now - lastHit <= BloomContent.comboWindow ? combo + 1 : 1
+        combo = now - lastHit <= comboWindow ? combo + 1 : 1
         lastHit = now
         if comboStep > (s.stats["combo"] ?? 0) { s.stats["combo"] = comboStep }
         return comboStep
     }
 
     func tickCombo(now: TimeInterval) {
-        if combo > 0 && now - lastHit > BloomContent.comboWindow { combo = 0 }
+        if combo > 0 && now - lastHit > comboWindow { combo = 0 }
     }
 
     /// Rolls the drops of a destroyed gatherable. Extra items for the combo.
@@ -173,18 +201,22 @@ final class BloomGame: ObservableObject {
             out.append((d.item, Int.random(in: d.min...d.max)))
         }
         if mult > 1, let first = out.first { out[0] = (first.0, first.1 + mult - 1) }
+        if hasT("d4"), Double.random(in: 0..<1) < 0.15 { out = out.map { ($0.0, $0.1 * 2) } }
+        if golden { out = out.map { ($0.0, $0.1 * 2) } }
         return out
     }
 
     /// Coins that fall out of a destroyed gatherable.
     func rollCoins(_ k: GatherKind, mult: Int) -> Int {
-        let chance = 0.28 + 0.06 * Double(mult - 1) + (k.isStone ? 0.1 : 0)
-        return Double.random(in: 0..<1) < chance ? Int.random(in: 1...(k.isStone ? 3 : 2)) : 0
+        let chance = (0.28 + 0.06 * Double(mult - 1) + (k.isStone ? 0.1 : 0)) * (hasT("t2") ? 1.5 : 1)
+        let n = Double.random(in: 0..<1) < chance ? Int.random(in: 1...(k.isStone ? 3 : 2)) : 0
+        return golden ? n * 2 : n
     }
 
     /// Returns new level if the xp made one.
     @discardableResult
-    func gainXP(_ n: Int) -> Int? {
+    func gainXP(_ n0: Int) -> Int? {
+        let n = pageDone(1) ? Int((Double(n0) * 1.15).rounded(.up)) : n0
         s.xp += n
         var up: Int?
         while s.xp >= BloomContent.xpToNext(s.level) {
@@ -193,7 +225,7 @@ final class BloomGame: ObservableObject {
             up = s.level
         }
         if let l = up {
-            showToast(BloomToast(title: "Уровень \(l)!", subtitle: BloomContent.levelUnlockText[l] ?? "Удар сильнее, добыча богаче"))
+            showToast(BloomToast(title: "Уровень \(l)!", subtitle: BloomContent.levelUnlockText[l] ?? "Новое очко таланта"))
             Sfx.play(.levelUp)
         }
         return up
@@ -201,12 +233,13 @@ final class BloomGame: ObservableObject {
 
     // MARK: - building
 
-    func canBuild(_ b: BuildKind) -> Bool { s.level >= b.unlockLevel && has(b.cost) && !isBuilt(b) }
+    func canBuild(_ b: BuildKind) -> Bool { s.level >= b.unlockLevel && has(cost(b)) && !isBuilt(b) }
+    func cost(_ b: BuildKind) -> Cost { hasT("c2") ? b.cost.map { ($0.0, Int((Double($0.1) * 0.8).rounded(.up))) } : b.cost }
     func isBuilt(_ b: BuildKind) -> Bool { s.buildings.contains { $0.kind == b } }
 
     func build(_ b: BuildKind) {
         guard canBuild(b), let cell = placeBuilding?(b) else { Sfx.play(.error); return }
-        pay(b.cost)
+        pay(cost(b))
         let pb = PlacedBuilding(kind: b, cell: cell)
         s.buildings.append(pb)
         panel = nil
@@ -243,15 +276,16 @@ final class BloomGame: ObservableObject {
             guard let q = s.queues[b.rawValue], q.left > 0,
                   let r = b.recipes.first(where: { $0.id == q.recipe }) else { continue }
             var p = (progress[b.rawValue] ?? 0) + dt
-            if p >= r.seconds {
-                p -= r.seconds
+            if p >= secs(r) {
+                p -= secs(r)
                 var nq = q
                 nq.left -= 1
                 if nq.left == 0 { p = 0 }
                 s.queues[b.rawValue] = nq
-                add(r.output, 1)
-                s.stats["craft." + r.output.rawValue, default: 0] += 1
-                onCrafted?(b, r.output, false)
+                let n = hasT("c3") && Double.random(in: 0..<1) < 0.2 ? 2 : 1
+                add(r.output, n)
+                s.stats["craft." + r.output.rawValue, default: 0] += n
+                onCrafted?(b, r.output, n > 1)
             }
             progress[b.rawValue] = p
         }
@@ -263,9 +297,9 @@ final class BloomGame: ObservableObject {
             guard var q = s.queues[b.rawValue], q.left > 0,
                   let r = b.recipes.first(where: { $0.id == q.recipe }) else { continue }
             let p = progress[b.rawValue] ?? 0
-            let done = min(q.left, Int((p + seconds) / r.seconds))
+            let done = min(q.left, Int((p + seconds) / secs(r)))
             q.left -= done
-            progress[b.rawValue] = q.left > 0 ? (p + seconds).truncatingRemainder(dividingBy: r.seconds) : 0
+            progress[b.rawValue] = q.left > 0 ? (p + seconds).truncatingRemainder(dividingBy: secs(r)) : 0
             add(r.output, done)
             s.queues[b.rawValue] = q
         }
@@ -279,7 +313,7 @@ final class BloomGame: ObservableObject {
         guard let p = nextPick, has(p.cost) else { Sfx.play(.error); return }
         pay(p.cost)
         s.pick += 1
-        s.lucky = Double.random(in: 0..<1) < BloomContent.luckyChance
+        s.lucky = Double.random(in: 0..<1) < luckyChance
         onCrafted?(.anvil, .iron_bar, s.lucky)
         showToast(BloomToast(title: s.lucky ? "Удачная ковка!" : p.title,
                            subtitle: s.lucky ? "\(p.title) +1 к удару" : "Удар: \(damage)"))
@@ -293,7 +327,7 @@ final class BloomGame: ObservableObject {
         let n = all ? count(i) : min(count(i), 1)
         guard n > 0 else { return }
         s.inv[i.rawValue] = count(i) - n
-        s.coins += n * i.price
+        s.coins += n * sellPrice(i)
         Sfx.playThrottled(.coin, gap: 0.05)
     }
 
@@ -303,8 +337,8 @@ final class BloomGame: ObservableObject {
 
     func buy(_ id: Int) {
         let isl = island(id)
-        guard !owned.contains(id), s.coins >= isl.price else { Sfx.play(.error); return }
-        s.coins -= isl.price
+        guard !owned.contains(id), s.coins >= islandPrice(id) else { Sfx.play(.error); return }
+        s.coins -= islandPrice(id)
         s.owned.append(id)
         panel = nil
         nearby = nil
@@ -377,8 +411,12 @@ final class BloomGame: ObservableObject {
     // MARK: - helpers
 
     var helpers: [String] { s.helpers }
-    var helperCost: Cost { BloomContent.helperCost(s.helpers.count) }
-    var canGrowHelper: Bool { s.helpers.count < BloomContent.maxHelpers && has(helperCost) }
+    var helperCost: Cost {
+        let c = BloomContent.helperCost(s.helpers.count)
+        return hasT("h1") ? c.map { ($0.0, Int((Double($0.1) * 0.7).rounded(.up))) } : c
+    }
+    var maxHelpers: Int { BloomContent.maxHelpers + (hasT("h4") ? 1 : 0) }
+    var canGrowHelper: Bool { s.helpers.count < maxHelpers && has(helperCost) }
 
     func growHelper() {
         guard canGrowHelper else { Sfx.play(.error); return }
@@ -391,6 +429,72 @@ final class BloomGame: ObservableObject {
         Sfx.play(.levelUp)
         panel = nil
         save()
+    }
+
+    // MARK: - talents
+
+    @Published var goldenUntil: Date?
+    var golden: Bool { (goldenUntil ?? .distantPast) > Date() }
+    var onTalentsChanged: (() -> Void)?
+
+    func hasT(_ id: String) -> Bool { s.talents.contains(id) }
+    var talentPoints: Int {
+        max(0, (s.level - 1) - s.talents.reduce(0) { $0 + BloomTalents.talent($1).cost })
+    }
+    func canLearn(_ t: Talent) -> Bool {
+        !hasT(t.id) && (t.requires.map(hasT) ?? true) && talentPoints >= t.cost
+    }
+    func learn(_ t: Talent) {
+        guard canLearn(t) else { Sfx.play(.error); return }
+        s.talents.append(t.id)
+        Sfx.play(.levelUp)
+        onTalentsChanged?()
+        save()
+    }
+
+    var comboWindow: Double { BloomContent.comboWindow + (hasT("d3") ? 0.4 : 0) }
+    var critChance: Double { BloomContent.critChance + (hasT("d2") ? 0.06 : 0) }
+    var luckyChance: Double { BloomContent.luckyChance + (hasT("c4") ? 0.25 : 0) }
+    func secs(_ r: Recipe) -> Double { r.seconds * (hasT("c1") ? 0.75 : 1) * (hasT("c5") ? 0.7 : 1) }
+    func sellPrice(_ i: BItem) -> Int { hasT("t1") ? Int((Double(i.price) * 1.25).rounded(.up)) : i.price }
+    func islandPrice(_ id: Int) -> Int {
+        let p = island(id).price
+        return hasT("t4") ? Int((Double(p) * 0.8).rounded()) : p
+    }
+    var chestChance: Double { BloomContent.chestChance * (hasT("t3") ? 2 : 1) * (golden ? 2 : 1) }
+    var respawnInterval: Double { hasT("b2") ? 2.2 / 1.4 : 2.2 }
+    var flowerFactor: Int { hasT("b1") ? 2 : 1 }
+    var goldenDuration: Double { GoldenHour.duration * (hasT("b4") ? 1.5 : 1) }
+    var helperSpeed: CGFloat { hasT("h2") ? 1.4 : 1 }
+    var helperDamage: Int { hasT("h3") ? 2 : 1 }
+    var runSpeed: CGFloat { pageDone(0) ? 1.15 : 1 }
+
+    // MARK: - album
+
+    var finds: [String: Int] { s.finds }
+    func pageDone(_ i: Int) -> Bool { BloomAlbum.pages[i].finds.allSatisfy { (s.finds[$0.id] ?? 0) > 0 } }
+
+    /// Maybe a rare find from a destroyed gatherable: (id, isNew).
+    func rollFind(_ k: GatherKind) -> (String, Bool)? {
+        let chance = BloomAlbum.baseChance * (hasT("t5") ? 2 : 1) * (golden ? 1.5 : 1)
+        guard Double.random(in: 0..<1) < chance else { return nil }
+        let page = BloomAlbum.page(for: k)
+        let f = BloomAlbum.pages[page].finds.randomElement()!.id
+        let isNew = (s.finds[f] ?? 0) == 0
+        s.finds[f, default: 0] += 1
+        if isNew {
+            let got = BloomAlbum.pages[page].finds.filter { (s.finds[$0.id] ?? 0) > 0 }.count
+            if pageDone(page) {
+                showToast(BloomToast(title: "Страница «\(BloomAlbum.pages[page].title)» собрана!", subtitle: BloomAlbum.pages[page].bonus))
+                Sfx.play(.victory)
+            } else {
+                showToast(BloomToast(title: "Находка: \(BloomAlbum.title(f))", subtitle: "\(BloomAlbum.pages[page].title): \(got)/5"))
+            }
+        } else {
+            s.coins += BloomAlbum.duplicateCoins
+        }
+        s.stats["finds", default: 0] += 1
+        return (f, isNew)
     }
 
     // MARK: - toasts (one at a time, the rest wait their turn)
