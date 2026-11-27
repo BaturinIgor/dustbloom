@@ -82,6 +82,12 @@ struct BloomHUD: View {
         ZStack {
             VStack(spacing: 0) {
                 topBar
+                HStack {
+                    GoalCard()
+                    Spacer()
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
                 Spacer()
                 HStack(alignment: .bottom) {
                     VStack(alignment: .leading, spacing: 12) {
@@ -283,6 +289,7 @@ struct PanelHost: View {
         case .build: BuildList()
         case .building(.market): MarketList()
         case .building(.anvil): AnvilView()
+        case .building(.nursery): NurseryView()
         case .building(let k): CraftList(kind: k)
         case .buy(let id): BuyView(id: id)
         case .inventory: InventoryGrid()
@@ -515,6 +522,86 @@ struct InventoryGrid: View {
                 }
                 .frame(width: 70, height: 64)
                 .background(RoundedRectangle(cornerRadius: 12).fill(BUI.panelHi))
+            }
+        }
+    }
+}
+
+
+/// Current goal under the level bar. Glows and pulses when it can be claimed.
+struct GoalCard: View {
+    @EnvironmentObject private var game: BloomGame
+    @State private var pulse = false
+
+    var body: some View {
+        if let g = game.goal {
+            let done = game.goalDone
+            Button {
+                if done { game.claimGoal() }
+            } label: {
+                HStack(spacing: 8) {
+                    PixelIcon(name: g.icon, size: 26)
+                        .frame(width: 34, height: 34)
+                        .background(RoundedRectangle(cornerRadius: 8).fill(BUI.ink.opacity(0.5)))
+                    VStack(alignment: .leading, spacing: 3) {
+                        OutlinedText(text: g.title, size: 12)
+                        if done {
+                            OutlinedText(text: "Забрать награду!", size: 11, color: BUI.gold)
+                        } else {
+                            ZStack(alignment: .leading) {
+                                Capsule().fill(BUI.ink).frame(width: 110, height: 9)
+                                Capsule().fill(BUI.gold)
+                                    .frame(width: max(9, 110 * CGFloat(game.goalProgress) / CGFloat(max(1, g.target))), height: 9)
+                                OutlinedText(text: "\(game.goalProgress)/\(g.target)", size: 8).frame(width: 110)
+                            }
+                        }
+                    }
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 6)
+                .background(RoundedRectangle(cornerRadius: 12).fill(done ? BUI.greenEdge.opacity(0.95) : BUI.ink.opacity(0.8)))
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(done ? BUI.gold : Color.clear, lineWidth: 2))
+                .scaleEffect(done && pulse ? 1.06 : 1)
+            }
+            .buttonStyle(.plain)
+            .onAppear { withAnimation(.easeInOut(duration: 0.6).repeatForever(autoreverses: true)) { pulse = true } }
+        }
+    }
+}
+
+struct NurseryView: View {
+    @EnvironmentObject private var game: BloomGame
+    var body: some View {
+        Card {
+            VStack(spacing: 8) {
+                OutlinedText(text: "Твои помощники: \(game.helpers.count)/\(BloomContent.maxHelpers)", size: 13)
+                HStack(spacing: 14) {
+                    ForEach(0..<BloomContent.maxHelpers, id: \.self) { i in
+                        if i < game.helpers.count {
+                            VStack(spacing: 2) {
+                                PixelIcon(name: "bloom_helper_\(game.helpers[i])_idle_0", size: 44)
+                                OutlinedText(text: BloomContent.helperNames[game.helpers[i]] ?? "", size: 10)
+                            }
+                        } else {
+                            RoundedRectangle(cornerRadius: 10).fill(BUI.ink.opacity(0.4))
+                                .frame(width: 52, height: 60)
+                                .overlay(OutlinedText(text: "?", size: 20, color: BUI.cream.opacity(0.5)))
+                        }
+                    }
+                }
+                Text("Блумлинги сами бегут к ближайшему дереву или камню и добывают для тебя")
+                    .font(DText.font(10.5)).foregroundStyle(BUI.cream.opacity(0.75)).multilineTextAlignment(.center)
+            }
+        }
+        if game.helpers.count < BloomContent.maxHelpers {
+            Card {
+                VStack(spacing: 8) {
+                    CostRow(cost: game.helperCost)
+                    Button { game.growHelper() } label: {
+                        OutlinedText(text: "Вырастить блумлинга", size: 15).frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(BloomButtonStyle(enabled: game.canGrowHelper))
+                }
             }
         }
     }

@@ -59,6 +59,9 @@ struct BloomSave: Codable {
     var pick = 0
     var lucky = false
     var queues: [String: CraftQueue] = [:]
+    var stats: [String: Int] = [:]
+    var goal = 0
+    var helpers: [String] = []
     var savedAt = Date()
 }
 
@@ -100,9 +103,11 @@ final class BloomGame: ObservableObject {
     var onIslandBought: ((Int) -> Void)?
     var onBuildingPlaced: ((PlacedBuilding) -> Void)?
     var onCrafted: ((BuildKind, BItem, Bool) -> Void)?
+    var onGoalClaimed: (() -> Void)?
+    var onHelperAdded: ((String) -> Void)?
     var placeBuilding: ((BuildKind) -> Cell?)?
 
-    private let key = "bloom.save.v1"
+    private let key = "bloom.save.v2"
     private var lastHit: TimeInterval = 0
 
     init() {
@@ -116,6 +121,7 @@ final class BloomGame: ObservableObject {
         if args.contains("-bloomRich") {
             for i in BItem.allCases { s.inv[i.rawValue, default: 0] += 40 }
             s.coins += 1000
+            s.level = max(s.level, 4)
         }
     }
 
@@ -135,7 +141,10 @@ final class BloomGame: ObservableObject {
     func has(_ c: Cost, times: Int = 1) -> Bool { c.allSatisfy { count($0.0) >= $0.1 * times } }
     private func pay(_ c: Cost, times: Int = 1) { for (i, n) in c { s.inv[i.rawValue, default: 0] -= n * times } }
 
-    func add(_ i: BItem, _ n: Int) { s.inv[i.rawValue, default: 0] += n }
+    func add(_ i: BItem, _ n: Int) {
+        s.inv[i.rawValue, default: 0] += n
+        s.stats["item." + i.rawValue, default: 0] += n
+    }
     func addCoins(_ n: Int) { s.coins += n }
 
     /// Items to show in the hotbar, in content order.
@@ -149,6 +158,7 @@ final class BloomGame: ObservableObject {
     func registerHit(now: TimeInterval) -> Int {
         combo = now - lastHit <= BloomContent.comboWindow ? combo + 1 : 1
         lastHit = now
+        if comboStep > (s.stats["combo"] ?? 0) { s.stats["combo"] = comboStep }
         return comboStep
     }
 
@@ -240,6 +250,7 @@ final class BloomGame: ObservableObject {
                 if nq.left == 0 { p = 0 }
                 s.queues[b.rawValue] = nq
                 add(r.output, 1)
+                s.stats["craft." + r.output.rawValue, default: 0] += 1
                 onCrafted?(b, r.output, false)
             }
             progress[b.rawValue] = p
@@ -299,6 +310,86 @@ final class BloomGame: ObservableObject {
         nearby = nil
         onIslandBought?(id)
         showToast(BloomToast(title: isl.name, subtitle: "Остров расцвёл!"))
+        save()
+    }
+
+    // MARK: - stats & goals
+
+    func gathered(_ k: GatherKind) {
+        let key: String
+        switch k {
+        case .tree, .pine: key = "gather.tree"
+        case .rock, .rock_iron, .rock_gold, .crystal: key = "gather.rock"
+        case .bush_berry, .bush_cotton: key = "gather.bush"
+        }
+        s.stats[key, default: 0] += 1
+    }
+
+    func stat(_ key: String) -> Int {
+        switch key {
+        case "islands": return s.owned.count
+        case "level": return s.level
+        case "pick": return s.pick
+        case "helpers": return s.helpers.count
+        default:
+            if key.hasPrefix("build."), let b = BuildKind(rawValue: String(key.dropFirst(6))) { return isBuilt(b) ? 1 : 0 }
+            return s.stats[key] ?? 0
+        }
+    }
+
+    var goal: Goal? { s.goal < BloomContent.goals.count ? BloomContent.goals[s.goal] : nil }
+    var goalProgress: Int { goal.map { min($0.target, stat($0.key)) } ?? 0 }
+    var goalDone: Bool { goal.map { stat($0.key) >= $0.target } ?? false }
+
+    func claimGoal() {
+        guard let g = goal, goalDone else { return }
+        s.goal += 1
+        s.coins += g.coins
+        Sfx.play(.victory)
+        onGoalClaimed?()
+        showToast(BloomToast(title: "Цель выполнена!", subtitle: "+\(g.coins) монет" + (g.xp > 0 ? ", +\(g.xp) опыта" : "")))
+        if g.xp > 0 { gainXP(g.xp) }
+        save()
+    }
+
+    // MARK: - chests
+
+    /// Loot of a treasure chest: coins and a few items of the islands you own.
+    func openChest() -> (coins: Int, items: [(BItem, Int)]) {
+        s.stats["chest", default: 0] += 1
+        let tier = s.owned.count
+        let coins = Int.random(in: 10...20) + tier * 8
+        var pool: [BItem] = [.wood, .stone, .berry, .flower]
+        if s.owned.contains(1) || s.owned.contains(3) { pool.append(.cotton) }
+        if s.owned.contains(2) { pool += [.iron_ore, .brick] }
+        if s.owned.contains(4) { pool += [.gold_ore, .iron_bar] }
+        if s.owned.contains(5) { pool.append(.crystal) }
+        var items: [(BItem, Int)] = []
+        for i in pool.shuffled().prefix(3) {
+            let n = [.crystal, .gold_ore, .iron_bar].contains(i) ? Int.random(in: 1...2) : Int.random(in: 3...6)
+            items.append((i, n))
+        }
+        gainXP(6 + tier * 2)
+        Sfx.play(.chest)
+        return (coins, items)
+    }
+
+    // MARK: - helpers
+
+    var helpers: [String] { s.helpers }
+    var helperCost: Cost { BloomContent.helperCost(s.helpers.count) }
+    var canGrowHelper: Bool { s.helpers.count < BloomContent.maxHelpers && has(helperCost) }
+
+    func growHelper() {
+        guard canGrowHelper else { Sfx.play(.error); return }
+        pay(helperCost)
+        let free = BloomContent.helperColors.filter { !s.helpers.contains($0) }
+        let c = free.randomElement() ?? "pink"
+        s.helpers.append(c)
+        onHelperAdded?(c)
+        showToast(BloomToast(title: "Новый помощник!", subtitle: (BloomContent.helperNames[c] ?? "Блумлинг") + " будет добывать с тобой"))
+        Sfx.play(.levelUp)
+        panel = nil
         save()
     }
 

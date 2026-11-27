@@ -148,6 +148,75 @@ def hero(frame):
     sprite('bloom_hero_' + frame, cv)
 
 
+HELPER_COLORS = {
+    'pink': ('#ffc9d8', '#f394b0'), 'sun': ('#ffe58a', '#f2b84a'),
+    'sky': ('#bfe6ff', '#86c2ef'), 'plum': ('#e2c4ff', '#b48ae6'),
+}
+
+
+def helper(color, frame):
+    """Small Bloomling helper (12x16), same family as the hero."""
+    body, shade = HELPER_COLORS[color]
+    cv = Canvas(12, 16)
+    x, y = 6, 16 - BASE - 1
+    bob = 1 if frame in ('idle_1', 'run_1') else 0
+    lf = -1 if frame == 'run_0' else 0
+    rf = -1 if frame == 'run_1' else 0
+    by = y - bob
+    cv.rect(x - 3, y + lf, x - 2, y + lf, shade)
+    cv.rect(x + 2, y + rf, x + 3, y + rf, shade)
+    cv.disc(x, by - 4, 4, 3.8, body)
+    for yy in range(by - 4, by):
+        cv.put(x + 3, yy, shade)
+    cv.rect(x - 2, by - 1, x + 2, by - 1, shade)
+    cv.put(x - 2, by - 6, 'white')
+    cv.put(x - 1, by - 4, 'ink'); cv.put(x + 1, by - 4, 'ink')
+    cv.put(x - 3, by - 3, 'cheek'); cv.put(x + 3, by - 3, 'cheek')
+    cv.rect(x, by - 9, x, by - 8, 'l0')
+    cv.put(x - 1, by - 9, 'l2'); cv.put(x - 2, by - 10, 'l2'); cv.put(x + 1, by - 10, 'l3'); cv.put(x + 2, by - 10, 'l3')
+    cv.outline('ink')
+    sprite('bloom_helper_%s_%s' % (color, frame), cv)
+
+
+def chest(open_):
+    cv = Canvas(16, 16)
+    x, y = 8, 16 - BASE - 1
+    cv.rect(x - 6, y - 7, x + 6, y, 't1')
+    cv.rect(x - 6, y - 7, x + 6, y - 7, 't2')
+    for xx in (x - 6, x + 6):
+        cv.rect(xx, y - 7, xx, y, 'gold_d')
+    cv.rect(x - 6, y - 3, x + 6, y - 3, 'gold_d')
+    if open_:
+        cv.rect(x - 5, y - 9, x + 5, y - 8, 'gold')            # treasure glow
+        cv.put(x - 3, y - 10, 'gold_l'); cv.put(x + 2, y - 10, 'gold_l'); cv.put(x, y - 11, 'white')
+        cv.rect(x - 6, y - 14, x + 6, y - 12, 't1'); cv.rect(x - 6, y - 14, x + 6, y - 14, 't2')
+    else:
+        cv.rect(x - 6, y - 11, x + 6, y - 8, 't1'); cv.rect(x - 6, y - 11, x + 6, y - 11, 't2')
+        cv.rect(x - 6, y - 8, x + 6, y - 8, 'gold_d')
+        cv.rect(x - 1, y - 9, x + 1, y - 6, 'gold'); cv.put(x, y - 7, 'ink')
+        cv.put(x - 4, y - 10, 'd3')
+    cv.outline('ink')
+    sprite('bloom_chest_%s' % ('open' if open_ else 'closed'), cv)
+
+
+def nursery():
+    cv = Canvas(22, 24)
+    x, y = 11, 24 - BASE - 1
+    # flower pots on a little wooden stand with a leaf roof
+    cv.rect(x - 9, y - 3, x + 9, y, 't1'); cv.rect(x - 9, y - 3, x + 9, y - 3, 't2')
+    for px_ in (x - 6, x, x + 6):
+        cv.rect(px_ - 2, y - 7, px_ + 2, y - 4, 'brick'); cv.rect(px_ - 2, y - 7, px_ + 2, y - 7, 'brick_l')
+        cv.rect(px_, y - 10, px_, y - 8, 'l1'); cv.put(px_ - 1, y - 10, 'l3'); cv.put(px_ + 1, y - 11, 'l2')
+    cv.put(x - 6, y - 12, 'berry_l'); cv.put(x, y - 12, 'gold'); cv.put(x + 6, y - 12, 'water_l')
+    cv.rect(x - 9, y - 18, x - 8, y - 4, 't0'); cv.rect(x + 8, y - 18, x + 9, y - 4, 't0')
+    for i in range(-10, 11):
+        h = 3 - abs(i) // 5
+        cv.rect(x + i, y - 19 - h, x + i, y - 17, 'l2' if i % 3 else 'l1')
+    cv.rect(x - 10, y - 19, x + 10, y - 19, 'l3')
+    cv.outline('ink')
+    sprite('bloom_nursery', cv)
+
+
 def pick(tier):
     """Pickaxe, handle bottom at the canvas bottom centre, head on top."""
     head = [('r1', 'r3'), ('r1', 'r3'), ('bar', 'bar_l'), ('gold', 'gold_l')][tier]
@@ -681,7 +750,10 @@ def build_all():
     for c, n in (('#ffffff', 'white'), ('berry_l', 'pink'), ('gold', 'yellow'), ('water_l', 'blue')):
         flower(c, n)
     tuft(); shadow(); cloud_shadow(); cracks(); stump('tree'); stump('pine')
-    furnace(0); furnace(1); anvil(); market(); loom()
+    furnace(0); furnace(1); anvil(); market(); loom(); nursery(); chest(False); chest(True)
+    for c in HELPER_COLORS:
+        for f in ('idle_0', 'idle_1', 'run_0', 'run_1'):
+            helper(c, f)
     bridge(True); bridge(False); sign()
     for n in ('wood', 'stone', 'iron_ore', 'gold_ore', 'berry', 'cotton', 'coin', 'brick', 'iron_bar', 'gold_bar',
               'plank', 'cloth', 'crystal', 'flower'):

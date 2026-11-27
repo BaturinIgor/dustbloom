@@ -188,6 +188,12 @@ final class BloomScene: SKScene {
         game.onBuildingPlaced = { [weak self] b in self?.addBuildingNode(b, animated: true) }
         game.onIslandBought = { [weak self] id in self?.bloom(id) }
         game.onCrafted = { [weak self] k, item, lucky in self?.crafted(k, item, lucky) }
+        game.onGoalClaimed = { [weak self] in self?.goalFX() }
+        game.onHelperAdded = { [weak self] c in self?.addHelper(c, animated: true) }
+        for c in game.helpers { addHelper(c, animated: false) }
+        if ProcessInfo.processInfo.arguments.contains("-bloomDemo") {
+            run(.sequence([.wait(forDuration: 6), .run { [weak self] in self?.spawnChest(near: true) }]))
+        }
     }
 
     private func spawnPoint() -> CGPoint {
@@ -668,6 +674,8 @@ final class BloomScene: SKScene {
         moveHero(dt)
         mine(dt)
         updateDrops(dt)
+        updateHelpers(dt)
+        checkChest()
         game.tick(dt: dt)
         game.tickCombo(now: now)
         updateCombo()
@@ -810,7 +818,41 @@ final class BloomScene: SKScene {
     private func hit(_ r: Res) {
         guard res[r.cell] === r else { return }
         let mult = game.registerHit(now: now)
-        r.hp -= game.damage
+        let crit = Double.random(in: 0..<1) < BloomContent.critChance + 0.02 * Double(mult - 1)
+        let dmg = crit ? game.damage * 2 + 1 : game.damage
+        if crit { critFX(r) }
+        applyHit(r, dmg: dmg, mult: mult, dir: facing)
+    }
+
+    private func critFX(_ r: Res) {
+        let p = CGPoint(x: r.node.position.x, y: r.node.position.y + r.node.size.height * 0.6)
+        let l = label("КРИТ!", size: 7, color: UIColor(red: 1, green: 0.85, blue: 0.2, alpha: 1))
+        l.position = CGPoint(x: p.x, y: p.y + 6)
+        l.zPosition = 3200
+        world.addChild(l)
+        let s0 = l.xScale
+        l.setScale(s0 * 2.2)
+        l.zRotation = CGFloat.random(in: -0.15...0.15)
+        l.run(.sequence([.scale(to: s0 * 0.9, duration: 0.09), .scale(to: s0, duration: 0.06),
+                         .group([.moveBy(x: 0, y: 10, duration: 0.5), .sequence([.wait(forDuration: 0.3), .fadeOut(withDuration: 0.2)])]),
+                         .removeFromParent()]))
+        let flash = SKSpriteNode(texture: tex("bloom_fx_puff"))
+        flash.position = p
+        flash.zPosition = 3150
+        flash.color = UIColor(red: 1, green: 0.95, blue: 0.6, alpha: 1)
+        flash.colorBlendFactor = 1
+        world.addChild(flash)
+        flash.run(.sequence([.group([.scale(to: 5, duration: 0.16), .fadeOut(withDuration: 0.16)]), .removeFromParent()]))
+        for _ in 0..<10 { spark(at: p, spread: 22) }
+        shake(2.2)
+        heavy.impactOccurred()
+        Sfx.play(.skill, volume: 0.7)
+    }
+
+    private func applyHit(_ r: Res, dmg: Int, mult: Int, dir: CGFloat) {
+        guard res[r.cell] === r else { return }
+        let facing = dir
+        r.hp -= dmg
         let hp = CGPoint(x: r.node.position.x - facing * 3, y: r.node.position.y + r.node.size.height * 0.45)
         r.node.removeAction(forKey: "hit")
         r.node.run(.sequence([
@@ -894,10 +936,11 @@ final class BloomScene: SKScene {
         let c = game.rollCoins(r.kind, mult: mult)
         if c > 0 { emit(nil, c, from: p) }
         game.gainXP(r.kind.xp)
+        game.gathered(r.kind)
     }
 
-    private func emit(_ item: BItem?, _ total: Int, from p: CGPoint) {
-        let pieces = min(total, 4)
+    private func emit(_ item: BItem?, _ total: Int, from p: CGPoint, maxPieces: Int = 4, spread: CGFloat = 12) {
+        let pieces = min(total, maxPieces)
         var left = total
         for i in 0..<pieces {
             let amount = i == pieces - 1 ? left : max(1, total / pieces)
@@ -908,7 +951,7 @@ final class BloomScene: SKScene {
             n.position = p
             world.addChild(n)
             let a = CGFloat.random(in: 0..<(2 * .pi))
-            let dist = CGFloat.random(in: 5...12)
+            let dist = CGFloat.random(in: 5...spread)
             let dest = CGPoint(x: p.x + cos(a) * dist, y: p.y + sin(a) * dist * 0.6)
             let up = CGFloat.random(in: 10...16)
             let dur = 0.38
@@ -932,7 +975,7 @@ final class BloomScene: SKScene {
                 collect(d)
                 continue
             }
-            if dist < 46 {
+            if dist < 110 {
                 d.speed = min(260, d.speed + 520 * CGFloat(dt))
                 let step = min(dist, d.speed * CGFloat(dt))
                 d.node.position.x += dx / dist * step
@@ -1013,6 +1056,7 @@ final class BloomScene: SKScene {
     }
 
     private func respawnOne() {
+        if chest == nil, Double.random(in: 0..<1) < BloomContent.chestChance { spawnChest() }
         let owned = game.owned.sorted()
         let counts = Dictionary(grouping: res.values, by: { $0.island }).mapValues(\.count)
         let candidates = owned.filter { (counts[$0] ?? 0) < game.island($0).cap }
@@ -1050,6 +1094,154 @@ final class BloomScene: SKScene {
         if n != game.nearby { game.nearby = n }
     }
 
+    // MARK: - treasure chests
+
+    private var chest: (cell: Cell, node: SKSpriteNode)?
+
+    private func spawnChest(near: Bool = false) {
+        let owned = game.owned.sorted()
+        var cands: [Cell] = []
+        for id in owned { cands += cells(of: id).filter(freeCell) }
+        cands = cands.filter { hypot(basePoint($0).x - heroPos.x, basePoint($0).y - heroPos.y) > (near ? 16 : 30) }
+        if near { cands = cands.filter { hypot(basePoint($0).x - heroPos.x, basePoint($0).y - heroPos.y) < 70 } }
+        guard let c = cands.randomElement() else { return }
+        let n = SKSpriteNode(texture: tex("bloom_chest_closed"))
+        n.anchorPoint = CGPoint(x: 0.5, y: 2 / 16)
+        let p = basePoint(c)
+        n.position = p
+        n.zPosition = 500 - p.y
+        world.addChild(n)
+        pop(n, delay: 0)
+        n.run(.repeatForever(.sequence([.wait(forDuration: 1.2), .scaleX(to: 1.12, y: 0.9, duration: 0.08),
+                                        .scaleX(to: 0.95, y: 1.1, duration: 0.08), .scale(to: 1, duration: 0.1)])), withKey: "wiggle")
+        n.run(.repeatForever(.sequence([.run { [weak self] in
+            self?.particle("bloom_fx_spark", at: CGPoint(x: p.x + CGFloat.random(in: -6...6), y: p.y + CGFloat.random(in: 4...12)),
+                           v: CGVector(dx: 0, dy: 8), life: 0.6, gravity: false)
+        }, .wait(forDuration: 0.25)])))
+        chest = (c, n)
+        for _ in 0..<8 { spark(at: CGPoint(x: p.x, y: p.y + 6), spread: 16, gold: false) }
+        Sfx.play(.sparkle, volume: 0.6)
+    }
+
+    private func checkChest() {
+        guard let ch = chest, hypot(ch.node.position.x - heroPos.x, ch.node.position.y - heroPos.y) < 11 else { return }
+        chest = nil
+        let n = ch.node
+        let p = n.position
+        n.removeAllActions()
+        n.run(.sequence([
+            .scaleX(to: 1.3, y: 0.75, duration: 0.08), .scaleX(to: 0.9, y: 1.2, duration: 0.08),
+            .run { [weak self] in
+                guard let self else { return }
+                n.texture = self.tex("bloom_chest_open")
+                let loot = self.game.openChest()
+                self.emit(nil, loot.coins, from: CGPoint(x: p.x, y: p.y + 6), maxPieces: 12, spread: 22)
+                for (i, k) in loot.items { self.emit(i, k, from: CGPoint(x: p.x, y: p.y + 6), maxPieces: 3, spread: 20) }
+                for _ in 0..<24 { self.spark(at: CGPoint(x: p.x, y: p.y + 10), spread: 30, gold: true) }
+                self.shake(3)
+                self.heavy.impactOccurred()
+                self.floatText("Сундук!", at: CGPoint(x: p.x, y: p.y + 22), color: UIColor(red: 1, green: 0.85, blue: 0.3, alpha: 1), size: 7, rise: 14)
+            },
+            .scale(to: 1, duration: 0.12),
+            .wait(forDuration: 2.5), .fadeOut(withDuration: 0.4), .removeFromParent(),
+        ]))
+    }
+
+    // MARK: - goals
+
+    private func goalFX() {
+        for i in 0..<28 {
+            let a = CGFloat(i) / 28 * 2 * .pi
+            particle(i % 2 == 0 ? "bloom_fx_petal" : "bloom_fx_spark", at: CGPoint(x: heroPos.x, y: heroPos.y + 10),
+                     v: CGVector(dx: cos(a) * 34, dy: sin(a) * 34 + 14), life: 0.8)
+        }
+        shake(2)
+        heavy.impactOccurred()
+    }
+
+    // MARK: - helpers (Bloomlings)
+
+    private final class Helper {
+        let color: String
+        let node = SKSpriteNode()
+        let shadow = SKSpriteNode()
+        var pos: CGPoint
+        weak var target: Res?
+        var hitTimer: TimeInterval = 0
+        var clock: TimeInterval = 0
+        init(color: String, pos: CGPoint) { self.color = color; self.pos = pos }
+    }
+    private var helpers: [Helper] = []
+
+    private func addHelper(_ color: String, animated: Bool) {
+        let h = Helper(color: color, pos: CGPoint(x: heroPos.x + CGFloat.random(in: -10...10), y: heroPos.y - 6))
+        h.node.texture = tex("bloom_helper_\(color)_idle_0")
+        h.node.size = h.node.texture!.size()
+        h.node.anchorPoint = CGPoint(x: 0.5, y: 2 / 16)
+        h.shadow.texture = tex("bloom_shadow")
+        h.shadow.size = CGSize(width: 9, height: 3)
+        h.shadow.zPosition = -800
+        world.addChild(h.shadow)
+        world.addChild(h.node)
+        helpers.append(h)
+        if animated {
+            pop(h.node, delay: 0)
+            for _ in 0..<14 { petal(at: CGPoint(x: h.pos.x, y: h.pos.y + 6)) }
+            shake(2)
+        }
+    }
+
+    private func updateHelpers(_ dt: TimeInterval) {
+        let heroTarget = target()
+        for (i, h) in helpers.enumerated() {
+            h.clock += dt
+            h.hitTimer += dt
+            if let t = h.target, res[t.cell] !== t { h.target = nil }
+            if h.target == nil {
+                var best: Res?
+                var bd: CGFloat = 70
+                let taken = Set(helpers.compactMap { $0.target.map { ObjectIdentifier($0) } })
+                for r in res.values where r !== heroTarget && !taken.contains(ObjectIdentifier(r)) {
+                    let d = hypot(r.node.position.x - heroPos.x, r.node.position.y - heroPos.y)
+                    if d < bd { bd = d; best = r }
+                }
+                h.target = best
+            }
+            var goal: CGPoint
+            var working = false
+            if let t = h.target {
+                let side: CGFloat = h.pos.x < t.node.position.x ? -7 : 7
+                goal = CGPoint(x: t.node.position.x + side, y: t.node.position.y)
+                working = hypot(goal.x - h.pos.x, goal.y - h.pos.y) < 2.5
+            } else {
+                let a = CGFloat(i) * 2.1 + 2.4
+                goal = CGPoint(x: heroPos.x + cos(a) * 14, y: heroPos.y + sin(a) * 9)
+            }
+            let d = CGVector(dx: goal.x - h.pos.x, dy: goal.y - h.pos.y)
+            let l = hypot(d.dx, d.dy)
+            let moving = l > 2.5
+            if moving {
+                let sp: CGFloat = min(l * 4, 46) * CGFloat(dt)
+                let np = CGPoint(x: h.pos.x + d.dx / l * sp, y: h.pos.y + d.dy / l * sp)
+                let c = Cell(x: Int(floor(np.x / T)), y: Int(floor(np.y / T)))
+                if land.contains(c) { h.pos = np } else { h.target = nil; h.pos = CGPoint(x: h.pos.x + (heroPos.x - h.pos.x) * 0.1, y: h.pos.y + (heroPos.y - h.pos.y) * 0.1) }
+                if abs(d.dx) > 0.5 { h.node.xScale = d.dx > 0 ? 1 : -1 }
+                h.node.texture = tex("bloom_helper_\(h.color)_run_\(Int(h.clock * 8) % 2)")
+            } else {
+                h.node.texture = tex("bloom_helper_\(h.color)_idle_\(Int(h.clock * 2) % 2)")
+            }
+            if working, let t = h.target, h.hitTimer > 0.9 {
+                h.hitTimer = 0
+                h.node.xScale = t.node.position.x > h.pos.x ? 1 : -1
+                h.node.run(.sequence([.moveBy(x: 0, y: 2, duration: 0.06), .moveBy(x: 0, y: -2, duration: 0.08)]))
+                applyHit(t, dmg: 1, mult: 1, dir: h.node.xScale)
+            }
+            h.node.position = CGPoint(x: (h.pos.x * zoom).rounded() / zoom, y: (h.pos.y * zoom).rounded() / zoom)
+            h.node.zPosition = 500 - h.pos.y
+            h.shadow.position = CGPoint(x: h.node.position.x, y: h.node.position.y - 0.5)
+        }
+    }
+
     // MARK: - demo autopilot (video capture without touching the screen)
 
     private var demoPause: TimeInterval = 0
@@ -1061,8 +1253,15 @@ final class BloomScene: SKScene {
     private func autopilot() {
         if game.panel != nil { stickVec = .zero; return }
         if now < demoPause { stickVec = .zero; return }
-        if !game.isBuilt(.furnace) && game.canBuild(.furnace) {
-            game.build(.furnace); demoPause = now + 1; return
+        if game.goalDone { game.claimGoal(); demoPause = now + 1.2; return }
+        for k in [BuildKind.furnace, .market, .anvil, .nursery] where !game.isBuilt(k) && game.canBuild(k) {
+            game.build(k); demoPause = now + 1; return
+        }
+        if game.isBuilt(.nursery) && game.canGrowHelper {
+            game.panel = .building(.nursery)
+            demoPause = now + 1.8
+            run(.sequence([.wait(forDuration: 0.8), .run { [weak self] in self?.game.growHelper() }]))
+            return
         }
         if !game.isBuilt(.market) && game.canBuild(.market) {
             game.build(.market); demoPause = now + 1; return
@@ -1093,6 +1292,7 @@ final class BloomScene: SKScene {
                 break
             }
         }
+        if goal == nil, let ch = chest { goal = ch.node.position }
         if goal == nil, target() == nil {
             let hc = heroCell
             goal = res.values.min { a, b in
