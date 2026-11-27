@@ -243,6 +243,10 @@ final class BloomGame: ObservableObject {
             s.coins += 50000
             s.tut = 99
         }
+        // -bloomAll: every island (biome checks and store screenshots)
+        if args.contains("-bloomAll") {
+            for id in 0..<world.islands.count where !s.owned.contains(id) { s.owned.append(id) }
+        }
         #endif
     }
 

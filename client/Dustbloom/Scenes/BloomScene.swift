@@ -213,7 +213,13 @@ final class BloomScene: SKScene {
 
     private func spawnPoint() -> CGPoint {
         // centre of the start island, nearest free cell
-        let cs = cells(of: 0)
+        var start = 0
+        #if DEBUG
+        // -bloomSpawn 10: start on another owned island (biome checks, screenshots)
+        let forced = UserDefaults.standard.integer(forKey: "bloomSpawn")
+        if forced > 0, game.owned.contains(forced) { start = forced }
+        #endif
+        let cs = cells(of: start)
         let cx = CGFloat(cs.map(\.x).reduce(0, +)) / CGFloat(cs.count)
         let cy = CGFloat(cs.map(\.y).reduce(0, +)) / CGFloat(cs.count)
         let best = cs.filter { res[$0] == nil && buildingNodes[$0] == nil }

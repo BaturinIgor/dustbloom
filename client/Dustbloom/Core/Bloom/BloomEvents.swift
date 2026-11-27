@@ -76,6 +76,10 @@ enum BloomEvents {
         return Int((Double(days) / 7).rounded(.down))
     }
     static func current(_ d: Date = Date()) -> BloomEvent {
+        #if DEBUG
+        // -bloomEvent starfall: force an event for checks and screenshots
+        if let id = UserDefaults.standard.string(forKey: "bloomEvent"), let e = events.first(where: { $0.id == id }) { return e }
+        #endif
         let i = weekIndex(d)
         return events[((i % events.count) + events.count) % events.count]
     }
