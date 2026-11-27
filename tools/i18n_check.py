@@ -5,7 +5,10 @@ import glob, json, re, sys
 root = "client/Dustbloom"
 keys = set()
 for f in glob.glob(root + "/**/*.swift", recursive=True):
-    keys |= set(re.findall(r'\btr\("((?:[^"\\]|\\.)*)"', open(f).read()))
+    src = open(f).read()
+    keys |= set(re.findall(r'\btr\("((?:[^"\\]|\\.)*)"', src))
+    # data tables translated at display time: title:/text: literals with Cyrillic
+    keys |= {k for k in re.findall(r'\b(?:title|text): "((?:[^"\\]|\\.)*)"', src) if re.search('[А-Яа-яЁё]', k)}
 b = json.load(open(root + "/Core/Bloom/bloom_balance.json"))
 w = json.load(open(root + "/Core/Bloom/bloom_world.json"))
 keys |= {g["title"] for g in b["goals"]} | {i["name"] for i in w["islands"]}

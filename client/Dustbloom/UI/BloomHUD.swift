@@ -29,6 +29,8 @@ struct BloomView: View {
         .onAppear {
             scene.game = game
             BloomStore.shared.start(game: game)
+            game.refreshDailies()
+            game.onRebirth = { NotificationCenter.default.post(name: .bloomRebirth, object: nil) }
             game.onAskReview = {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
                     if let ws = UIApplication.shared.connectedScenes.first as? UIWindowScene {
@@ -41,15 +43,21 @@ struct BloomView: View {
             #if DEBUG
             // App Store screenshots: -bloomPanel build|talents|shop|album opens one panel
             if let name = UserDefaults.standard.string(forKey: "bloomPanel") {
-                let p: BloomPanel? = ["build": .build, "talents": .talents, "shop": .shop, "album": .album][name]
+                let p: BloomPanel? = ["build": .build, "talents": .talents, "shop": .shop, "album": .album,
+                                      "daily": .daily, "spring": .spring][name]
                 DispatchQueue.main.asyncAfter(deadline: .now() + 3) { game.panel = p }
             }
             #endif
         }
         .onChange(of: phase) { _, p in
-            if p != .active { game.save() }
+            if p != .active { game.save() } else { game.refreshDailies() }
         }
     }
+}
+
+extension Notification.Name {
+    /// A new spring: the whole Bloom view (scene + game) is rebuilt from the fresh save.
+    static let bloomRebirth = Notification.Name("bloomRebirth")
 }
 
 extension BloomView {
@@ -118,10 +126,14 @@ struct BloomHUD: View {
                     GoalCard()
                     Spacer()
                     VStack(spacing: 10) {
+                        RoundIconButton(icon: "bloom_ui_calendar", badge: game.dailyReadyCount) { game.panel = .daily }
                         RoundIconButton(icon: "bloom_ui_tree", badge: game.talentPoints) { game.panel = .talents }
                         RoundIconButton(icon: "bloom_ui_book", badge: 0) { game.panel = .album }
                         ShopButton()
                         RoundIconButton(icon: "bloom_ui_mail", badge: 0) { game.panel = .feedback }
+                        if game.canRebirth || game.springs > 0 {
+                            RoundIconButton(icon: "bloom_ui_spring", badge: 0, dot: game.canRebirth) { game.panel = .spring }
+                        }
                     }
                 }
                 .padding(.horizontal, 16)
@@ -349,6 +361,8 @@ struct PanelHost: View {
         case .album: return tr("Альбом находок")
         case .shop: return tr("Лавка")
         case .feedback: return tr("Написать нам")
+        case .daily: return tr("Календарь")
+        case .spring: return tr("Новая весна")
         }
     }
 
@@ -365,6 +379,8 @@ struct PanelHost: View {
         case .album: AlbumView()
         case .shop: ShopView()
         case .feedback: FeedbackView()
+        case .daily: DailyView()
+        case .spring: SpringView()
         }
     }
 }

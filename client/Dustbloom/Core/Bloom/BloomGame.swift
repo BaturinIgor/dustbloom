@@ -73,6 +73,17 @@ struct BloomSave: Codable {
     var jarTick = 0
     var fertUntil: Date?
     var adReadyAt: Date?
+    // daily & rebirth (BloomMeta.swift)
+    var life: [String: Int] = [:]          // lifetime counters, survive a new spring
+    var loginDay = 0                       // next calendar day to claim (0...6, cycles)
+    var loginClaimedOn: String?
+    var dailyDate: String?
+    var dailies: [DailyQuest] = []
+    var dailyBonus = false
+    var springs = 0                        // how many times the world was reborn
+    var seeds = 0                          // eternal seeds to spend
+    var eternal: [String: Int] = [:]       // eternal upgrade levels
+    var bestLevel = 1
 
     init() {}
 
@@ -101,6 +112,16 @@ struct BloomSave: Codable {
         jarTick = try c.decodeIfPresent(Int.self, forKey: .jarTick) ?? 0
         fertUntil = try c.decodeIfPresent(Date.self, forKey: .fertUntil)
         adReadyAt = try c.decodeIfPresent(Date.self, forKey: .adReadyAt)
+        life = try c.decodeIfPresent([String: Int].self, forKey: .life) ?? stats
+        loginDay = try c.decodeIfPresent(Int.self, forKey: .loginDay) ?? 0
+        loginClaimedOn = try c.decodeIfPresent(String.self, forKey: .loginClaimedOn)
+        dailyDate = try c.decodeIfPresent(String.self, forKey: .dailyDate)
+        dailies = try c.decodeIfPresent([DailyQuest].self, forKey: .dailies) ?? []
+        dailyBonus = try c.decodeIfPresent(Bool.self, forKey: .dailyBonus) ?? false
+        springs = try c.decodeIfPresent(Int.self, forKey: .springs) ?? 0
+        seeds = try c.decodeIfPresent(Int.self, forKey: .seeds) ?? 0
+        eternal = try c.decodeIfPresent([String: Int].self, forKey: .eternal) ?? [:]
+        bestLevel = try c.decodeIfPresent(Int.self, forKey: .bestLevel) ?? level
     }
 }
 
@@ -113,6 +134,8 @@ enum BloomPanel: Equatable {
     case album
     case shop
     case feedback
+    case daily
+    case spring
 }
 
 struct BloomToast: Identifiable, Equatable {
@@ -128,7 +151,7 @@ final class BloomGame: ObservableObject {
 
     /// Not @Published: crafting progress ticks every frame, the HUD must only
     /// redraw on real changes, so `s` publishes from willSet and progress lives apart.
-    private(set) var s = BloomSave() { willSet { objectWillChange.send() } }
+    var s = BloomSave() { willSet { objectWillChange.send() } }
     /// Seconds into the current item of each queue (not published).
     private(set) var progress: [String: Double] = [:]
     @Published var panel: BloomPanel? {
@@ -201,7 +224,13 @@ final class BloomGame: ObservableObject {
 
     func add(_ i: BItem, _ n: Int) {
         s.inv[i.rawValue, default: 0] += n
-        s.stats["item." + i.rawValue, default: 0] += n
+        bump("item." + i.rawValue, n)
+    }
+
+    /// Counts toward goals (this spring) and dailies/achievements (lifetime).
+    func bump(_ key: String, _ n: Int = 1) {
+        s.stats[key, default: 0] += n
+        s.life[key, default: 0] += n
     }
     func addCoins(_ n: Int) { s.coins += n }
 
@@ -233,13 +262,15 @@ final class BloomGame: ObservableObject {
         if mult > 1, let first = out.first { out[0] = (first.0, first.1 + (mult - 1) / BloomBalance.shared.comboBonusDiv) }
         if hasT("d4"), Double.random(in: 0..<1) < 0.15 { out = out.map { ($0.0, $0.1 * 2) } }
         if golden { out = out.map { ($0.0, $0.1 * 2) } }
+        let extra = eternalBonus("loot")
+        if extra > 0 { out = out.map { ($0.0, $0.1 + (Double.random(in: 0..<1) < extra ? 1 : 0)) } }
         if passActive { out = out.map { ($0.0, $0.1 + (Double.random(in: 0..<1) < BloomBalance.shared.shop.passDrop ? 1 : 0)) } }
         return out
     }
 
     /// Coins that fall out of a destroyed gatherable.
     func rollCoins(_ k: GatherKind, mult: Int) -> Int {
-        let chance = (BloomBalance.shared.coinChance + 0.06 * Double(mult - 1) + (k.isStone ? 0.1 : 0)) * (hasT("t2") ? 1.5 : 1)
+        let chance = (BloomBalance.shared.coinChance + 0.06 * Double(mult - 1) + (k.isStone ? 0.1 : 0)) * (hasT("t2") ? 1.5 : 1) * eternalMult("coins")
         let n = Double.random(in: 0..<1) < chance ? Int.random(in: 1...(k.isStone ? 3 : 2)) : 0
         return golden ? n * 2 : n
     }
@@ -249,6 +280,7 @@ final class BloomGame: ObservableObject {
     func gainXP(_ n0: Int) -> Int? {
         var n = pageDone(1) ? Int((Double(n0) * 1.15).rounded(.up)) : n0
         if passActive { n = Int((Double(n) * (1 + BloomBalance.shared.shop.passXP)).rounded(.up)) }
+        n = Int((Double(n) * eternalMult("xp")).rounded(.up))
         s.xp += n
         var up: Int?
         while s.xp >= BloomContent.xpToNext(s.level) {
@@ -256,6 +288,7 @@ final class BloomGame: ObservableObject {
             s.level += 1
             up = s.level
         }
+        if s.level > s.bestLevel { s.bestLevel = s.level }
         if let l = up {
             Analytics.shared.track("bloom_level", ["level": l, "minutes": playMinutes])
             showToast(BloomToast(title: tr("Уровень %@!", l), subtitle: BloomContent.levelUnlockText[l] ?? tr("Новое очко таланта")))
@@ -318,7 +351,7 @@ final class BloomGame: ObservableObject {
                 s.queues[b.rawValue] = nq
                 let n = hasT("c3") && Double.random(in: 0..<1) < 0.2 ? 2 : 1
                 add(r.output, n)
-                s.stats["craft." + r.output.rawValue, default: 0] += n
+                bump("craft." + r.output.rawValue, n)
                 onCrafted?(b, r.output, n > 1)
             }
             progress[b.rawValue] = p
@@ -365,6 +398,7 @@ final class BloomGame: ObservableObject {
         let used = min(n, Int((Double(coins) / sellPrice(i)).rounded(.up)))
         s.inv[i.rawValue] = count(i) - used
         s.coins += coins
+        bump("sold", coins)
         Sfx.playThrottled(.coin, gap: 0.05)
     }
 
@@ -399,7 +433,7 @@ final class BloomGame: ObservableObject {
         case .rock, .rock_iron, .rock_gold, .crystal: key = "gather.rock"
         case .bush_berry, .bush_cotton: key = "gather.bush"
         }
-        s.stats[key, default: 0] += 1
+        bump(key)
     }
 
     func stat(_ key: String) -> Int {
@@ -435,7 +469,7 @@ final class BloomGame: ObservableObject {
 
     /// Loot of a treasure chest: coins and a few items of the islands you own.
     func openChest() -> (coins: Int, items: [(BItem, Int)]) {
-        s.stats["chest", default: 0] += 1
+        bump("chest")
         let tier = s.owned.count
         let bb = BloomBalance.shared
         let coins = Int.random(in: bb.chestCoinsMin...bb.chestCoinsMax) + tier * bb.chestCoinsPerIsland
@@ -502,13 +536,13 @@ final class BloomGame: ObservableObject {
     var comboWindow: Double { BloomContent.comboWindow + (hasT("d3") ? 0.4 : 0) }
     var critChance: Double { BloomContent.critChance + (hasT("d2") ? 0.06 : 0) }
     var luckyChance: Double { BloomContent.luckyChance + (hasT("c4") ? 0.25 : 0) }
-    func secs(_ r: Recipe) -> Double { r.seconds * (hasT("c1") ? 0.75 : 1) * (hasT("c5") ? 0.7 : 1) }
+    func secs(_ r: Recipe) -> Double { r.seconds * (hasT("c1") ? 0.75 : 1) * (hasT("c5") ? 0.7 : 1) / eternalMult("craft") }
     /// What the market pays for `n` of an item (market rate, Торговец talent).
     func sellValue(_ i: BItem, _ n: Int) -> Int {
-        Int(Double(n * i.price) * BloomBalance.shared.sellRate * (hasT("t1") ? 1.25 : 1))
+        Int(Double(n * i.price) * BloomBalance.shared.sellRate * (hasT("t1") ? 1.25 : 1) * eternalMult("coins"))
     }
     /// Price of one, for display (at least 1 when a stack would pay something).
-    func sellPrice(_ i: BItem) -> Double { Double(i.price) * BloomBalance.shared.sellRate * (hasT("t1") ? 1.25 : 1) }
+    func sellPrice(_ i: BItem) -> Double { Double(i.price) * BloomBalance.shared.sellRate * (hasT("t1") ? 1.25 : 1) * eternalMult("coins") }
     func islandPrice(_ id: Int) -> Int {
         let pr = BloomBalance.shared.islandPrices
         let p = id < pr.count ? pr[id] : island(id).price
@@ -521,6 +555,7 @@ final class BloomGame: ObservableObject {
         if hasT("b2") { iv /= 1.4 }
         if s.founder { iv /= 1 + b.shop.founderRegrow }
         if fertActive { iv /= b.shop.fertilizerMult }
+        iv /= eternalMult("regrow")
         return iv
     }
     var flowerFactor: Int { hasT("b1") ? 2 : 1 }
@@ -643,7 +678,7 @@ final class BloomGame: ObservableObject {
         } else {
             s.coins += BloomAlbum.duplicateCoins
         }
-        s.stats["finds", default: 0] += 1
+        bump("finds")
         return (f, isNew)
     }
 

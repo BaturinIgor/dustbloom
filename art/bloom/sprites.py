@@ -638,6 +638,27 @@ def ui_icons():
     cv.disc(6.5, 7.6, 1.6, 1.4, 'berry'); cv.put(6, 7, 'berry_l')
     cv.outline('ink')
     sprite('bloom_ui_mail', cv)
+    cv = Canvas(14, 14)  # calendar: daily gifts and quests
+    cv.rect(1, 3, 12, 12, 'canvas_w'); cv.rect(1, 3, 12, 5, 'berry'); cv.rect(1, 3, 12, 3, 'berry_l')
+    cv.put(4, 1, 'r1'); cv.put(4, 2, 'r1'); cv.put(9, 1, 'r1'); cv.put(9, 2, 'r1')
+    for y in (7, 10):
+        for x in (3, 6, 9):
+            cv.put(x, y, 'u1')
+    cv.rect(8, 9, 10, 11, 'gold'); cv.put(9, 10, 'gold_l')
+    cv.outline('ink')
+    sprite('bloom_ui_calendar', cv)
+    cv = Canvas(14, 14)  # new spring: a sprout from a glowing seed
+    cv.disc(6.5, 10.5, 4, 2.6, 'd2'); cv.disc(6.5, 10, 3, 1.8, 'd3')
+    cv.rect(6, 4, 7, 9, 'l2')
+    cv.disc(4, 4, 2.4, 1.6, 'l3'); cv.disc(9, 3, 2.4, 1.6, 'l3'); cv.put(3, 4, 'l4'); cv.put(10, 3, 'l4')
+    cv.put(2, 1, 'gold_l'); cv.put(11, 7, 'gold_l'); cv.put(1, 8, 'gold')
+    cv.outline('ink')
+    sprite('bloom_ui_spring', cv)
+    cv = Canvas(10, 10)  # eternal seed (rebirth currency)
+    cv.disc(4.5, 5, 3.6, 4.2, 'gold_d'); cv.disc(4.3, 4.8, 2.8, 3.4, 'gold'); cv.put(3, 3, 'gold_l'); cv.put(3, 4, 'gold_l')
+    cv.put(5, 0, 'l3'); cv.put(6, 0, 'l2')
+    cv.outline('ink')
+    sprite('bloom_item_seed', cv)
 
 
 def fx():
