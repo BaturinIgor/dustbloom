@@ -4,7 +4,7 @@ Paste into App Store Connect → the app → version page. Limits: name 30, subt
 
 ## English (U.S.) — primary
 
-**Name:** DUSTBLOOM: Farm Wars _(current; suggestion: "DUSTBLOOM: Island Bloom")_
+**Name:** DUSTBLOOM: Island Bloom
 **Subtitle:** Turn dust into blooming isles
 **Promotional text:** Chop, mine and craft your way across 6 dusty islands. Every island you buy bursts into flowers. Cozy pixel adventure, no timers, no pressure.
 **Keywords:** island,craft,pixel,cozy,idle,gather,mine,forge,adventure,casual,sandbox,survival,offline,farm,build
