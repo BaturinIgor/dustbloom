@@ -20,6 +20,9 @@ final class BloomScene: SKScene {
         let t = SKTexture(imageNamed: n)
         t.filteringMode = .nearest
         texCache[n] = t
+        #if DEBUG
+        if logFPS && now > 1 { print("[tex] late \(n)") }
+        #endif
         return t
     }
 
@@ -73,7 +76,7 @@ final class BloomScene: SKScene {
     private var hitTimer: TimeInterval = 0
     private var chestFreeAt: TimeInterval = 0
     private var swinging = false
-    private var comboLabel: SKLabelNode?
+    private var comboLabel: SKNode?
 
     // input
     private var stickTouch: UITouch?
@@ -122,7 +125,18 @@ final class BloomScene: SKScene {
         built = true
         let burst = ["bloom_fx_puff", "bloom_fx_leaf", "bloom_fx_chip", "bloom_fx_spark", "bloom_fx_petal", "bloom_item_coin"]
             + BItem.allCases.map(\.sprite) + GatherKind.allCases.flatMap { $0.isTree ? [$0.stump] : [] }
-        SKTexture.preload(burst.map(tex)) {}
+        // everything a gather/break/pickup can show for the first time: a texture is sent to
+        // the GPU on its first draw, which stalled the frame where a crack, stump or puff appeared
+        let fx = ["ash", "bee", "chip", "ember", "firefly", "fly", "leaf", "petal", "puff", "sand", "spark", "spore", "star"].map { "bloom_fx_" + $0 }
+        let heroTex = ["idle_0", "idle_1", "run_0", "run_1", "run_2", "run_3"].map { game.heroPrefix + $0 }
+        let helperTex = Set(game.helpers + (game.isFounder ? ["gold"] : [])).flatMap { c in
+            ["idle_0", "idle_1", "run_0", "run_1"].map { "bloom_helper_\(c)_" + $0 }
+        }
+        let props = GatherKind.allCases.map(\.sprite) + ["bloom_crack_1", "bloom_crack_2", "bloom_chest_closed", "bloom_chest_open",
+                     "bloom_shadow", "bloom_tuft", "bloom_flower_white", "bloom_flower_pink", "bloom_flower_yellow", "bloom_flower_blue"]
+            + (0...5).map { "bloom_pick_\($0)" } + BloomAlbum.pages.flatMap { $0.finds.map { "bloom_find_" + $0.id } }
+        SKTexture.preload(Array(Set(burst + fx + heroTex + helperTex + props)).map(tex)) {}
+        warmTextures()
         addChild(world)
         cam.setScale(1 / zoom)
         addChild(cam)
@@ -579,8 +593,71 @@ final class BloomScene: SKScene {
         return l
     }
 
+    /// Text drawn once into a texture and reused. An SKLabelNode rasterizes and uploads a
+    /// new texture for every string it shows, which stalled the frame of every pickup,
+    /// combo and crit; these keep a small cache, so play shows only textures already on the GPU.
+    private var textCache: [String: SKTexture] = [:]
+
+    private func textTexture(_ s: String, size: CGFloat, color: UIColor) -> SKTexture {
+        let key = "\(s)|\(size)|\(color.hashValue)"
+        if let t = textCache[key] { return t }
+        let f = UIFont(name: "Rubik-Bold", size: size * zoom) ?? .boldSystemFont(ofSize: size * zoom)
+        let attrs: [NSAttributedString.Key: Any] = [.font: f, .foregroundColor: color,
+                                                    .strokeColor: UIColor(red: 0.17, green: 0.14, blue: 0.25, alpha: 1), .strokeWidth: -5]
+        let str = NSAttributedString(string: s, attributes: attrs)
+        let pad: CGFloat = 2
+        let w = ceil(str.size().width) + pad * 2, h = ceil(f.ascender - f.descender) + pad * 2
+        let fmt = UIGraphicsImageRendererFormat()
+        fmt.scale = 2
+        let img = UIGraphicsImageRenderer(size: CGSize(width: w, height: h), format: fmt).image { _ in
+            str.draw(at: CGPoint(x: pad, y: pad))
+        }
+        let t = SKTexture(image: img)
+        t.filteringMode = .linear
+        textCache[key] = t
+        #if DEBUG
+        if logFPS && now > 1 { print("[tex] late text \(s)") }
+        #endif
+        return t
+    }
+
+    /// Same look as `label`, baseline at y = 0. Digits and signs are separate cached glyphs,
+    /// so "+17" after "+16" needs no new texture.
+    private func textSprite(_ s: String, size: CGFloat, color: UIColor, alignLeft: Bool = false, glyphs: Bool = false) -> SKNode {
+        let f = UIFont(name: "Rubik-Bold", size: size * zoom) ?? .boldSystemFont(ofSize: size * zoom)
+        let parts = glyphs ? s.map(String.init) : [s]
+        let node = SKNode()
+        var x: CGFloat = 0
+        var sprites: [SKSpriteNode] = []
+        for part in parts {
+            let t = textTexture(part, size: size, color: color)
+            let sp = SKSpriteNode(texture: t)
+            // the 2 pt padding sits on every side; glyphs overlap by it so the outline joins up
+            sp.anchorPoint = CGPoint(x: 0, y: (2 - f.descender) / t.size().height)
+            sp.position = CGPoint(x: x - 2, y: 0)
+            x += t.size().width - 4
+            sprites.append(sp)
+            node.addChild(sp)
+        }
+        if !alignLeft { for sp in sprites { sp.position.x -= x / 2 } }
+        node.setScale(1 / zoom)
+        return node
+    }
+
+    /// Glyphs and words that show up mid-play, drawn at load so the first pickup or crit is smooth too.
+    private func warmTextures() {
+        let colors = [UIColor.white, UIColor(red: 1, green: 0.9, blue: 0.5, alpha: 1), UIColor(red: 1, green: 0.85, blue: 0.3, alpha: 1),
+                      UIColor(red: 1, green: 0.7, blue: 0.8, alpha: 1)]
+        var ts: [SKTexture] = []
+        for c in colors { for ch in "+0123456789" { ts.append(textTexture(String(ch), size: 5.5, color: c)) } }
+        let gold = UIColor(red: 1, green: 0.82, blue: 0.25, alpha: 1)
+        for ch in "×0123456789" { ts.append(textTexture(String(ch), size: 7, color: gold)) }
+        ts.append(textTexture(tr("КРИТ!"), size: 7, color: UIColor(red: 1, green: 0.85, blue: 0.2, alpha: 1)))
+        SKTexture.preload(ts) {}
+    }
+
     private func floatText(_ s: String, at p: CGPoint, color: UIColor = .white, size: CGFloat = 6, rise: CGFloat = 12) {
-        let l = label(s, size: size, color: color)
+        let l = textSprite(s, size: size, color: color)
         l.position = p
         l.zPosition = 3000
         world.addChild(l)
@@ -1190,7 +1267,7 @@ final class BloomScene: SKScene {
 
     private func critFX(_ r: Res) {
         let p = CGPoint(x: r.node.position.x, y: r.node.position.y + r.node.size.height * 0.6)
-        let l = label(tr("КРИТ!"), size: 7, color: UIColor(red: 1, green: 0.85, blue: 0.2, alpha: 1))
+        let l = textSprite(tr("КРИТ!"), size: 7, color: UIColor(red: 1, green: 0.85, blue: 0.2, alpha: 1))
         l.position = CGPoint(x: p.x, y: p.y + 6)
         l.zPosition = 3200
         world.addChild(l)
@@ -1358,10 +1435,13 @@ final class BloomScene: SKScene {
     private func showPickup(_ key: String, sprite: String, amount: Int, color: UIColor) {
         // still on screen: bump the number in place instead of building a new label
         if let old = pickupLabels[key], now - old.at < 0.6, old.node.parent != nil,
-           let l = old.node.childNode(withName: "n") as? SKLabelNode {
+           let l = old.node.childNode(withName: "n") {
             let total = old.total + amount
-            let fresh = label("+\(total)", size: 5.5, color: color)
-            l.attributedText = fresh.attributedText
+            let fresh = textSprite("+\(total)", size: 5.5, color: color, alignLeft: true, glyphs: true)
+            fresh.name = "n"
+            fresh.position = l.position
+            l.removeFromParent()
+            old.node.addChild(fresh)
             old.node.removeAllActions()
             old.node.alpha = 1
             old.node.setScale(1)
@@ -1380,9 +1460,8 @@ final class BloomScene: SKScene {
         ic.setScale(0.6)
         ic.position = CGPoint(x: -6, y: 2.5)
         n.addChild(ic)
-        let l = label("+\(total)", size: 5.5, color: color)
+        let l = textSprite("+\(total)", size: 5.5, color: color, alignLeft: true, glyphs: true)
         l.name = "n"
-        l.horizontalAlignmentMode = .left
         l.position = CGPoint(x: -1.5, y: 0)
         n.addChild(l)
         hero.addChild(n)
@@ -1412,7 +1491,7 @@ final class BloomScene: SKScene {
             let text = "×\(step)"
             if comboLabel == nil || comboLabel?.name != text {
                 comboLabel?.removeFromParent()
-                let l = label(text, size: 7, color: UIColor(red: 1, green: 0.82, blue: 0.25, alpha: 1))
+                let l = textSprite(text, size: 7, color: UIColor(red: 1, green: 0.82, blue: 0.25, alpha: 1), glyphs: true)
                 l.name = text
                 l.zPosition = 3100
                 hero.addChild(l)
