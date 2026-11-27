@@ -418,13 +418,18 @@ struct CostRow: View {
     let cost: Cost
     var times = 1
     var body: some View {
-        HStack(spacing: 8) {
-            ForEach(cost.indices, id: \.self) { i in
-                let (item, n) = cost[i]
-                HStack(spacing: 2) {
-                    PixelIcon(name: item.sprite, size: 18)
-                    OutlinedText(text: "\(game.count(item))/\(n * times)", size: 11,
-                                 color: game.count(item) >= n * times ? BUI.cream : BUI.red)
+        // two per line: three costs in one line made cards wider than the panel
+        VStack(alignment: .leading, spacing: 3) {
+            ForEach(Array(stride(from: 0, to: cost.count, by: 2)), id: \.self) { row in
+                HStack(spacing: 8) {
+                    ForEach(row..<min(row + 2, cost.count), id: \.self) { i in
+                        let (item, n) = cost[i]
+                        HStack(spacing: 2) {
+                            PixelIcon(name: item.sprite, size: 18)
+                            OutlinedText(text: "\(game.count(item))/\(n * times)", size: 11,
+                                         color: game.count(item) >= n * times ? BUI.cream : BUI.red)
+                        }
+                    }
                 }
             }
         }

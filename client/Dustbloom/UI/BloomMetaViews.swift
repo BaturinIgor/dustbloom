@@ -40,7 +40,7 @@ struct DailyView: View {
         let done = game.loginDone(i)
         let isNext = i == cur && game.loginReady
         let icon = r.chest ? "bloom_chest_closed" : r.golden ? "bloom_item_coin" : r.gems > 0 ? "bloom_item_gem" : "bloom_item_coin"
-        let amount = r.golden ? tr("Золотой час") : r.gems > 0 ? "\(r.gems)" : (r.coins * game.coinUnit).short
+        let amount = r.golden ? tr("Золотой час") : r.gems > 0 ? (r.chest ? "\(r.gems) + " + tr("Сундук") : "\(r.gems)") : (r.coins * game.coinUnit).short
         return VStack(spacing: 3) {
             OutlinedText(text: tr("День %@", i + 1), size: 10, color: isNext ? BUI.gold : BUI.muted)
             ZStack {

@@ -12,7 +12,7 @@ final class BloomTests: XCTestCase {
 
     func testWorldLoadsAndStartIslandIsFree() {
         let w = BloomWorld.load()
-        XCTAssertEqual(w.islands.count, 6)
+        XCTAssertEqual(w.islands.count, 12)
         XCTAssertEqual(w.islands[0].price, 0)
         XCTAssertTrue(w.islands.dropFirst().allSatisfy { $0.price > 0 })
         for b in w.bridges {
@@ -41,9 +41,9 @@ final class BloomTests: XCTestCase {
 
     func testBalanceFileLoads() {
         let b = BloomBalance.shared
-        XCTAssertEqual(b.islandPrices.count, 6)
-        XCTAssertEqual(b.goals.count, 27)
-        XCTAssertEqual(BloomContent.picks.count, 4)
+        XCTAssertEqual(b.islandPrices.count, 12)
+        XCTAssertEqual(b.goals.count, 46)
+        XCTAssertEqual(BloomContent.picks.count, 6)
         XCTAssertTrue(GatherKind.allCases.allSatisfy { b.gather[$0] != nil })
         XCTAssertFalse(BuildKind.furnace.recipes.isEmpty)
         XCTAssertEqual(BuildKind.loom.recipes.map(\.id), ["cloth"])
