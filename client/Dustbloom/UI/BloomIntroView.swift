@@ -12,7 +12,7 @@ struct BloomIntroView: View {
     @State private var finished = false
     private let artW: CGFloat = 66, artH: CGFloat = 142
     private let minTime: TimeInterval = 2.2
-    private let autoGo: TimeInterval = 4.5
+    private let autoGo: TimeInterval = 2.5
     private let tips = [tr("Острова просыпаются…"), tr("Бей по камням в ритм: комбо даёт больше"),
                         tr("Золотой час удваивает всю добычу"), tr("Блумлинги помогают добывать")]
 
@@ -78,6 +78,9 @@ struct BloomIntroView: View {
         // (and an onChange inside it then never fires) while the scene loads
         .task(id: ready) {
             guard ready else { return }
+            #if DEBUG
+            if UserDefaults.standard.bool(forKey: "bloomHoldIntro") { return }  // store screenshot of the intro
+            #endif
             let wait = max(0, start.addingTimeInterval(minTime + autoGo).timeIntervalSinceNow)
             try? await Task.sleep(for: .seconds(wait))
             if !Task.isCancelled { finish() }

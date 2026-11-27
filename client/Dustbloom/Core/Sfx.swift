@@ -38,6 +38,8 @@ enum Sfx {
         // session setup can block for a moment: keep it off the main thread
         DispatchQueue.global(qos: .userInitiated).async {
             try? AVAudioSession.sharedInstance().setCategory(.ambient, options: [.mixWithOthers])
+            // activate once here, so play() doesn't activate it on the main thread every time
+            try? AVAudioSession.sharedInstance().setActive(true)
         }
         for s in Sound.allCases {
             guard let url = Bundle.main.url(forResource: s.rawValue, withExtension: "wav") else { continue }
