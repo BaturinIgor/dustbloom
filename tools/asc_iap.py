@@ -8,7 +8,8 @@
 The key never goes into the repo. Products already in App Store Connect are
 left alone (only missing localizations / price / availability are filled in).
 """
-import argparse, json, os, sys, time
+import argparse
+import hashlib, json, os, sys, time
 
 import jwt
 import requests
@@ -17,6 +18,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from iap_locales import table as locale_table  # noqa: E402
 
 API = "https://api.appstoreconnect.apple.com"
+REVIEW_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "store", "review")
 BUNDLE_ID = "game.dustbloom.app"
 
 # productId, type, USD price, reference name, ru (name, description), en (name, description)
@@ -165,8 +167,29 @@ def main():
                     "inAppPurchase": {"data": {"type": "inAppPurchases", "id": iap_id}},
                     "availableTerritories": {"data": [{"type": "territories", "id": t} for t in territories]}}}})
             print("  available in", len(territories), "territories")
+        # review screenshot: where the purchase appears in the game
+        try:
+            shot = c.req("GET", f"/v2/inAppPurchases/{iap_id}/appStoreReviewScreenshot").get("data")
+        except SystemExit:
+            shot = None
+        if not shot:
+            name = "event.png" if pid == "bloom.eventpass" else "shop.png"
+            data = open(os.path.join(REVIEW_DIR, name), "rb").read()
+            j = c.req("POST", "/v1/inAppPurchaseAppStoreReviewScreenshots", {"data": {
+                "type": "inAppPurchaseAppStoreReviewScreenshots",
+                "attributes": {"fileName": name, "fileSize": len(data)},
+                "relationships": {"inAppPurchaseV2": {"data": {"type": "inAppPurchases", "id": iap_id}}}}})["data"]
+            for op in j["attributes"].get("uploadOperations") or []:
+                hdr = {h["name"]: h["value"] for h in op.get("requestHeaders", [])}
+                r = c.s.request(op["method"], op["url"], data=data[op["offset"]:op["offset"] + op["length"]], headers=hdr)
+                if r.status_code >= 400:
+                    raise SystemExit(f"upload {name} -> {r.status_code} {r.text[:300]}")
+            c.req("PATCH", f"/v1/inAppPurchaseAppStoreReviewScreenshots/{j['id']}", {"data": {
+                "type": "inAppPurchaseAppStoreReviewScreenshots", "id": j["id"],
+                "attributes": {"uploaded": True, "sourceFileChecksum": hashlib.md5(data).hexdigest()}}})
+            print("  review screenshot", name)
 
-    print("\ndone. Still needed per product before review: a review screenshot (in-game shop).")
+    print("\ndone.")
 
 
 if __name__ == "__main__":
