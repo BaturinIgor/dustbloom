@@ -214,6 +214,13 @@ final class BloomScene: SKScene {
         if ProcessInfo.processInfo.arguments.contains("-bloomDemo") {
             run(.sequence([.wait(forDuration: 6), .run { [weak self] in self?.spawnChest(near: true) }]))
         }
+        #if DEBUG
+        // -bloomChests N: several chests at once, to check each one opens
+        let nChests = UserDefaults.standard.integer(forKey: "bloomChests")
+        if nChests > 0 {
+            run(.sequence([.wait(forDuration: 4), .run { [weak self] in for _ in 0..<nChests { self?.spawnChest(near: true) } }]))
+        }
+        #endif
     }
 
     private func spawnPoint() -> CGPoint {
@@ -1493,6 +1500,9 @@ final class BloomScene: SKScene {
                            v: CGVector(dx: 0, dy: 8), life: 0.6, gravity: false)
         }, .wait(forDuration: 0.25)])))
         chests.append((c, n))
+        #if DEBUG
+        print("[chest] spawned, \(chests.count) out")
+        #endif
         for _ in 0..<8 { spark(at: CGPoint(x: p.x, y: p.y + 6), spread: 16, gold: false) }
         Sfx.play(.sparkle, volume: 0.6)
     }
@@ -1504,6 +1514,9 @@ final class BloomScene: SKScene {
 
     private func openChest(at i: Int) {
         let ch = chests.remove(at: i)
+        #if DEBUG
+        print("[chest] opened, \(chests.count) left")
+        #endif
         let n = ch.node
         let p = n.position
         n.removeAllActions()

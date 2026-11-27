@@ -81,7 +81,10 @@ struct BloomIntroView: View {
             #if DEBUG
             if UserDefaults.standard.bool(forKey: "bloomHoldIntro") { return }  // store screenshot of the intro
             #endif
-            let wait = max(0, start.addingTimeInterval(minTime + autoGo).timeIntervalSinceNow)
+            var wait = max(0, start.addingTimeInterval(minTime + autoGo).timeIntervalSinceNow)
+            #if DEBUG
+            if UserDefaults.standard.string(forKey: "bloomPanel") != nil { wait = 0 }  // panel layout checks
+            #endif
             try? await Task.sleep(for: .seconds(wait))
             if !Task.isCancelled { finish() }
         }

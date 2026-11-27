@@ -864,8 +864,9 @@ struct TalentTreeView: View {
                     ZStack {
                         Canvas { ctx, _ in drawTree(ctx, lay) }
                         ForEach(0..<5, id: \.self) { b in
+                            // a column wide minus a gap, so the outer titles keep the same margin as the nodes
                             OutlinedText(text: BloomTalents.branches[b].title, size: 11, color: BloomTalents.branches[b].color, fixed: false)
-                                .frame(width: lay.size.width * 0.2 - 4)
+                                .frame(width: lay.size.width * 0.2 - 12)
                                 .position(x: lay.x(b), y: lay.y(4) - 44)
                         }
                         ForEach(BloomTalents.all) { t in
@@ -1000,7 +1001,8 @@ struct TalentTreeView: View {
                 .background(RoundedRectangle(cornerRadius: 12).fill(BloomTalents.branches[t.branch].color.opacity(0.35)))
             VStack(alignment: .leading, spacing: 3) {
                 OutlinedText(text: t.title, size: 16, color: BloomTalents.branches[t.branch].color, fixed: false, align: .leading)
-                OutlinedText(text: t.text, size: 12, fixed: false, lines: 2)
+                OutlinedText(text: t.text, size: 12, fixed: false, lines: 2, align: .leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
             Spacer(minLength: 0)
             if st == 2 {
@@ -1011,7 +1013,9 @@ struct TalentTreeView: View {
                 Button { game.learn(t) } label: {
                     VStack(spacing: 0) {
                         OutlinedText(text: tr("Изучить"), size: 14)
-                        OutlinedText(text: tr("%@ очк.", t.cost), size: 10, color: BUI.gold)
+                        // dark on the orange button: an outline at this size smeared the digits together
+                        Text(tr("%@ очк.", t.cost)).font(DText.font(11)).foregroundStyle(BUI.ink)
+                            .lineLimit(1).minimumScaleFactor(0.7)
                     }
                 }
                 .buttonStyle(BloomButtonStyle(color: BUI.orange, edge: BUI.orangeEdge, enabled: game.canLearn(t)))
