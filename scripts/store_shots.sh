@@ -17,7 +17,7 @@ shot() {  # lang name wait args...
   xcrun simctl launch "$DEV" $APP -bloomLang "$lang" "$@" >/dev/null
   sleep "$wait"
   mkdir -p "$ROOT/store/screenshots/$lang"
-  xcrun simctl io "$DEV" screenshot "$ROOT/store/screenshots/$lang/$name.png" >/dev/null
+  xcrun simctl io "$DEV" screenshot --mask=ignored "$ROOT/store/screenshots/$lang/$name.png" >/dev/null
 }
 
 for L in "${LANGS[@]}"; do
@@ -39,7 +39,7 @@ if [ "${PREVIEW:-1}" = 1 ]; then
   mkdir -p "$ROOT/store/preview"
   xcrun simctl launch "$DEV" $APP -bloomLang en -bloomDemo -bloomShowcase -bloomAll -bloomSpawn 7 -bloomEvent festival >/dev/null
   sleep 9
-  xcrun simctl io "$DEV" recordVideo --codec h264 --force /tmp/bloom_raw.mp4 & REC=$!
+  xcrun simctl io "$DEV" recordVideo --codec h264 --mask=ignored --force /tmp/bloom_raw.mp4 & REC=$!
   sleep 32; kill -INT $REC; wait $REC || true
   xcrun simctl terminate "$DEV" $APP 2>/dev/null || true
   ffmpeg -y -loglevel error -i /tmp/bloom_raw.mp4 -f lavfi -i anullsrc=r=44100:cl=stereo -t 30 \

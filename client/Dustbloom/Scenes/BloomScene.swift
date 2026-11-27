@@ -1779,7 +1779,7 @@ final class BloomScene: SKScene {
         let keepWood = saving && !game.isBuilt(.nursery) ? 28 : 8
         let keepBerry = saving ? 12 + game.helpers.count * 10 + 10 : 0
         let keepFlower = saving ? 4 + game.helpers.count * 4 : 0
-        if game.isBuilt(.market), now > demoMarketAt, game.count(.wood) - keepWood + game.count(.berry) - keepBerry > 16 {
+        if game.isBuilt(.market), now > demoMarketAt, !ProcessInfo.processInfo.arguments.contains("-bloomShowcase"), game.count(.wood) - keepWood + game.count(.berry) - keepBerry > 16 {
             demoMarketAt = now + 20
             game.panel = .building(.market)
             demoPause = now + 1.6
