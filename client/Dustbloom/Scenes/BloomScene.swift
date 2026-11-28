@@ -245,6 +245,15 @@ final class BloomScene: SKScene {
         if UserDefaults.standard.object(forKey: "bloomDig") != nil || ProcessInfo.processInfo.arguments.contains("-bloomDig") {
             run(.sequence([.wait(forDuration: 4), .run { [weak self] in self?.spawnDigSpot(near: true); self?.spawnDigSpot(near: true) }]))
         }
+        // -bloomHP N: start with N half-hearts, to try hurt and faint
+        let startHP = UserDefaults.standard.integer(forKey: "bloomHP")
+        if startHP > 0 { game.hp = min(startHP, game.maxHP) }
+        // -bloomFoes N [-bloomFoeKind slime|beetle|toad|bat]: N foes near the hero after 3 s
+        let nFoes = UserDefaults.standard.integer(forKey: "bloomFoes")
+        if nFoes > 0 {
+            let k = UserDefaults.standard.string(forKey: "bloomFoeKind")
+            run(.sequence([.wait(forDuration: 3), .run { [weak self] in for _ in 0..<nFoes { self?.spawnFoe(kind: k, near: true) } }]))
+        }
         // -bloomChests N: several chests at once, to check each one opens
         let nChests = UserDefaults.standard.integer(forKey: "bloomChests")
         if nChests > 0 {
@@ -2290,7 +2299,7 @@ final class BloomScene: SKScene {
         let id: String, hp: Int, speed: CGFloat, dmg: Int, xp: Int, flies: Bool, frame: Double
     }
     private static let foeKinds: [String: FoeKind] = [
-        "slime": FoeKind(id: "slime", hp: 6, speed: 20, dmg: 1, xp: 3, flies: false, frame: 0.28),
+        "slime": FoeKind(id: "slime", hp: 4, speed: 20, dmg: 1, xp: 3, flies: false, frame: 0.28),
         "beetle": FoeKind(id: "beetle", hp: 12, speed: 17, dmg: 2, xp: 5, flies: false, frame: 0.16),
         "toad": FoeKind(id: "toad", hp: 16, speed: 28, dmg: 2, xp: 7, flies: false, frame: 0.35),
         "bat": FoeKind(id: "bat", hp: 10, speed: 34, dmg: 2, xp: 6, flies: true, frame: 0.12),
@@ -2347,12 +2356,12 @@ final class BloomScene: SKScene {
         for f in foes { moveFoe(f, dt) }
     }
 
-    private func spawnFoe() {
+    private func spawnFoe(kind forced: String? = nil, near: Bool = false) {
         let cands = game.owned.flatMap { id in cells(of: id).filter(freeCell).map { ($0, id) } }.filter {
             let d = hypot(basePoint($0.0).x - heroPos.x, basePoint($0.0).y - heroPos.y)
-            return d > 50 && d < 120
+            return near ? (d > 30 && d < 70) : (d > 50 && d < 120)
         }
-        guard let pick = cands.randomElement(), let kind = Self.foeKinds[foeKind(forIsland: pick.1)] else { return }
+        guard let pick = cands.randomElement(), let kind = Self.foeKinds[forced ?? foeKind(forIsland: pick.1)] else { return }
         let p = basePoint(pick.0)
         let t0 = tex("bloom_foe_\(kind.id)_0")
         let n = SKSpriteNode(texture: t0)
@@ -2367,7 +2376,7 @@ final class BloomScene: SKScene {
         world.addChild(n)
         n.run(.repeatForever(.animate(with: [t0, tex("bloom_foe_\(kind.id)_1")], timePerFrame: kind.frame)), withKey: "anim")
         // tougher on later islands
-        let hp = Int((Double(kind.hp) * (1 + Double(pick.1) * 0.55)).rounded())
+        let hp = Int((Double(kind.hp) * (1 + Double(pick.1) * 0.4)).rounded())
         foes.append(Foe(kind: kind, node: n, shadow: sh, island: pick.1, hp: hp, pos: p))
         // rises out of the dust
         n.setScale(0.1); n.alpha = 0
@@ -2441,6 +2450,7 @@ final class BloomScene: SKScene {
         let crit = Double.random(in: 0..<1) < game.critChance
         let dmg = crit ? game.damage * 2 + 1 : game.damage
         f.hp -= dmg
+        if logFPS { print("[foe] hit \(f.kind.id) for \(dmg)\(crit ? " crit" : ""), hp left \(f.hp)") }
         let dx = f.pos.x - heroPos.x, dy = f.pos.y - heroPos.y, d = max(0.1, hypot(dx, dy))
         f.knock = CGVector(dx: dx / d * 140, dy: dy / d * 140)
         f.stunUntil = now + 0.35
@@ -2458,6 +2468,7 @@ final class BloomScene: SKScene {
     }
 
     private func killFoe(_ f: Foe) {
+        if logFPS { print("[foe] killed \(f.kind.id)") }
         foes.removeAll { $0 === f }
         let p = f.pos
         f.node.removeAllActions()
@@ -2481,6 +2492,7 @@ final class BloomScene: SKScene {
         lastHurt = now
         regenClock = 0
         game.hp = max(0, game.hp - f.kind.dmg)
+        if logFPS { print("[foe] \(f.kind.id) hurts hero: hp \(game.hp)/\(game.maxHP)") }
         // push the hero back and the foe away
         let dx = heroPos.x - f.pos.x, dy = heroPos.y - f.pos.y, d = max(0.1, hypot(dx, dy))
         vel = CGVector(dx: dx / d * 120, dy: dy / d * 120)
@@ -2497,6 +2509,7 @@ final class BloomScene: SKScene {
 
     /// Out of hearts: the hero flops, then wakes up at home with full health. Nothing is lost.
     private func faint() {
+        if logFPS { print("[foe] hero fainted") }
         fainted = true
         vel = .zero
         hero.removeAction(forKey: "blink")
@@ -2511,6 +2524,14 @@ final class BloomScene: SKScene {
                 self.cam.position = self.heroPos
                 self.hero.zRotation = 0
                 self.game.hp = self.game.maxHP
+                // wake up in peace: anything waiting at home crumbles back into dust
+                for f in self.foes where hypot(f.pos.x - self.heroPos.x, f.pos.y - self.heroPos.y) < 90 {
+                    self.foes.removeAll { $0 === f }
+                    self.puff(at: f.pos, n: 6)
+                    f.node.run(.sequence([.group([.scale(to: 0.1, duration: 0.15), .fadeOut(withDuration: 0.15)]), .removeFromParent()]))
+                    f.shadow.run(.sequence([.fadeOut(withDuration: 0.15), .removeFromParent()]))
+                }
+                self.foeTimer = max(self.foeTimer, 20)
                 self.fainted = false
                 self.hurtUntil = self.now + 2
                 self.puff(at: self.heroPos, n: 8)
