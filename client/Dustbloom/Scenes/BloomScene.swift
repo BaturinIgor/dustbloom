@@ -230,6 +230,7 @@ final class BloomScene: SKScene {
         goldOverlay.size = CGSize(width: 3000, height: 3000)
         goldOverlay.blendMode = .add
         goldOverlay.alpha = 0
+        goldOverlay.isHidden = true
         goldOverlay.zPosition = 4000
         cam.addChild(goldOverlay)
         setUpLife()
@@ -297,20 +298,26 @@ final class BloomScene: SKScene {
         return CGPoint(x: CGFloat(best.x) * T + 8, y: CGFloat(best.y) * T + 6)
     }
 
+    /// Light glints on the water. Each one picks a new spot around the camera every cycle, so 40
+    /// glints give the same sparkle on screen that 160 spread over the whole map did.
     private func buildWater() {
-        for _ in 0..<160 {
+        for _ in 0..<40 {
             let w = CGFloat(Int.random(in: 3...5))
             let n = SKSpriteNode(color: UIColor(red: 0.62, green: 0.9, blue: 0.98, alpha: 1), size: CGSize(width: w, height: 1))
-            n.position = CGPoint(x: CGFloat.random(in: -120...600), y: CGFloat.random(in: -120...470)).rounded
             n.zPosition = -1100
             n.alpha = 0
             world.addChild(n)
             let d = Double.random(in: 2.5...4.5)
             n.run(.repeatForever(.sequence([
+                .run { [weak self, weak n] in
+                    guard let self, let n else { return }
+                    let hw = self.size.width / self.zoom / 2 + 10, hh = self.size.height / self.zoom / 2 + 10
+                    n.position = CGPoint(x: self.cam.position.x + CGFloat.random(in: -hw...hw),
+                                         y: self.cam.position.y + CGFloat.random(in: -hh...hh)).rounded
+                },
                 .wait(forDuration: Double.random(in: 0...3)),
                 .group([.sequence([.fadeAlpha(to: 0.7, duration: d / 2), .fadeAlpha(to: 0, duration: d / 2)]),
                         .moveBy(x: 3, y: 0, duration: d)]),
-                .moveBy(x: -3, y: 0, duration: 0),
             ])))
         }
     }
@@ -473,11 +480,7 @@ final class BloomScene: SKScene {
         world.addChild(n)
         res[c] = Res(kind: k, cell: c, island: island, node: n, shadow: sh)
         if k.isTree || (k.isSoft && k != .pond) {
-            let a: CGFloat = k.isSoft ? 0.03 : 0.022
-            let d = Double.random(in: 1.4...1.9)
-            n.zRotation = -a
-            n.run(.sequence([.wait(forDuration: Double.random(in: 0...1.5)),
-                             .repeatForever(.sequence([.rotate(toAngle: a, duration: d), .rotate(toAngle: -a, duration: d)]))]))
+            sway(n, phase: CGFloat.random(in: 0...(2 * .pi)), amp: k.isSoft ? 0.03 : 0.022, period: CGFloat.random(in: 2.8...3.8))
         }
         if delay >= 0 { pop(n, delay: delay); pop(sh, delay: delay) }
     }
@@ -488,7 +491,7 @@ final class BloomScene: SKScene {
         n.setScale(0.8)
         n.zPosition = 500 - n.position.y
         world.addChild(n)
-        n.run(.repeatForever(.sequence([.rotate(toAngle: 0.15, duration: 0.9), .rotate(toAngle: -0.15, duration: 0.9)])))
+        sway(n, phase: CGFloat.random(in: 0...(2 * .pi)), amp: 0.15, period: 3.6)
         flowers[c] = n
         if delay >= 0 { pop(n, delay: delay, to: 0.8) }
     }
@@ -2065,29 +2068,36 @@ final class BloomScene: SKScene {
         nightOverlay.color = tint
         nightOverlay.alpha = night * 0.3          // never dark enough to hide what you are doing
         heroLight.alpha = night * 0.55
-        for g in nightLights { g.alpha = night * 0.8 }
+        for g in nightLights { g.alpha = night * 0.8; g.isHidden = night < 0.01 }
+        // a screen-sized sprite still costs a full-screen blend at alpha 0: skip it by day
+        nightOverlay.isHidden = night < 0.01
+        heroLight.isHidden = night < 0.01
     }
 
     /// Grass and flowers that lean in the wind. One loop moves only those inside the camera,
     /// instead of a forever-action on every tuft of every island (that cost frames on big farms).
-    private var swayers: [(node: SKNode, phase: CGFloat)] = []
+    private var swayers: [(node: SKNode, phase: CGFloat, amp: CGFloat, speed: CGFloat)] = []
     private var swayClock: TimeInterval = 0
 
-    private func sway(_ n: SKNode, phase: CGFloat) {
-        swayers.append((n, phase))
+    /// Grass, flowers, bushes and trees lean in the wind from one loop that only touches what the
+    /// camera sees. A forever-rotate action on every one of them on every island cost frame time
+    /// for hundreds of nodes nobody was looking at. `period` is a full lean there and back.
+    private func sway(_ n: SKNode, phase: CGFloat, amp: CGFloat = 0.09, period: CGFloat = 3.2) {
+        swayers.append((n, phase, amp, 2 * .pi / period))
     }
 
     private func updateSway(_ dt: TimeInterval) {
         swayClock += dt
-        let hw = size.width / zoom / 2 + 16, hh = size.height / zoom / 2 + 24
+        let hw = size.width / zoom / 2 + 24, hh = size.height / zoom / 2 + 40
         let c = cam.position
-        let w = CGFloat(swayClock) * .pi / 1.6      // a full lean there and back in 3.2 s
+        let t = CGFloat(swayClock)
         var i = 0
         while i < swayers.count {
-            let (n, ph) = swayers[i]
-            if n.parent == nil { swayers.swapAt(i, swayers.count - 1); swayers.removeLast(); continue }
-            if abs(n.position.x - c.x) < hw, abs(n.position.y - c.y) < hh {
-                n.zRotation = 0.09 * sin(w + ph * 2)
+            let e = swayers[i]
+            if e.node.parent == nil { swayers.swapAt(i, swayers.count - 1); swayers.removeLast(); continue }
+            // a node busy with its own actions (a hit shake, a fall, a pop-in) is left alone
+            if abs(e.node.position.x - c.x) < hw, abs(e.node.position.y - c.y) < hh, !e.node.hasActions() {
+                e.node.zRotation = e.amp * sin(t * e.speed + e.phase)
             }
             i += 1
         }
@@ -3069,6 +3079,7 @@ final class BloomScene: SKScene {
         }
         goldenLeft = d
         game.goldenUntil = Date().addingTimeInterval(d)
+        goldOverlay.isHidden = false
         goldOverlay.run(.fadeAlpha(to: 0.16, duration: 0.8))
         world.run(.sequence([.wait(forDuration: 0.2), .run { [weak self] in self?.spawnChest(near: true) }]))
         shake(2)
@@ -3081,7 +3092,7 @@ final class BloomScene: SKScene {
         goldenLeft = 0
         goldenNext = GoldenHour.every
         game.goldenUntil = nil
-        goldOverlay.run(.fadeAlpha(to: 0, duration: 1.2))
+        goldOverlay.run(.sequence([.fadeAlpha(to: 0, duration: 1.2), .hide()]))
     }
 
     private func talentsChanged() {
