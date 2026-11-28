@@ -2535,7 +2535,7 @@ final class BloomScene: SKScene {
         f.hp -= dmg
         if logFPS { print("[foe] hit \(f.kind.id) for \(dmg)\(crit ? " crit" : ""), hp left \(f.hp)") }
         let dx = f.pos.x - heroPos.x, dy = f.pos.y - heroPos.y, d = max(0.1, hypot(dx, dy))
-        f.knock = CGVector(dx: dx / d * 140 / f.scale, dy: dy / d * 140 / f.scale)
+        f.knock = CGVector(dx: dx / d * (f.boss ? 20 : 140 / f.scale), dy: dy / d * (f.boss ? 20 : 140 / f.scale))
         f.stunUntil = now + 0.35
         f.node.run(.sequence([.colorize(with: .white, colorBlendFactor: 0.85, duration: 0),
                               .colorize(with: f.boss ? UIColor(red: 0.55, green: 0.2, blue: 0.35, alpha: 1) : .white,
@@ -2940,7 +2940,9 @@ final class BloomScene: SKScene {
     private func bossSlam(_ b: Foe) {
         slamRingUntil = now + 0.95
         b.stunUntil = now + 1.1
-        let r: CGFloat = 30
+        // wide enough that anyone in melee reach is inside: at 30 a hero standing at the boss sat right
+        // on the edge (26-31) and was hit only half the time
+        let r: CGFloat = 38
         // a pre-drawn sprite: the first SKShapeNode stalled the frame for ~1 s building its pipeline
         let ring = SKSpriteNode(texture: slamRingTexture)
         ring.size = CGSize(width: r * 2, height: r * 2)
@@ -2962,7 +2964,10 @@ final class BloomScene: SKScene {
                                 self.shake(4.5)
                                 self.buzz(self.heavy)
                                 Sfx.play(.boss, volume: 0.6)
-                                let dx = self.heroPos.x - b.pos.x, dy = (self.heroPos.y - b.pos.y) / 0.6
+                                // judged where the ring was drawn: the boss gets nudged by hits during the
+                                // wind-up, and judging from it let a hero standing in the ring go unhurt
+                                let dx = self.heroPos.x - ring.position.x, dy = (self.heroPos.y - ring.position.y) / 0.6
+                                if self.logFPS { print(String(format: "[foe] slam: hero at %.0f (ring %.0f), grace %.1f s", hypot(dx, dy), r, max(0, self.hurtUntil - self.now))) }
                                 if hypot(dx, dy) < r, self.now >= self.hurtUntil, !self.fainted { self.hurtHero(b) }
                             },
                             .fadeOut(withDuration: 0.2), .removeFromParent()]))
