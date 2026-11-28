@@ -27,6 +27,9 @@ struct BloomBalance {
     var comboWindow = 1.1, hitsPerStep = 5, maxCombo = 5, comboBonusDiv = 1
     var islandPrices: [Int] = []
     var picks: [(damage: Int, cost: Cost)] = []
+    var axes: [(bonus: Int, cost: Cost)] = []
+    var shovelCost: Cost = []
+    var digEvery = 40.0, digMax = 2
     var buildings: [BuildKind: Build] = [:]
     var recipes: [String: Craft] = [:]
     var helperCost: [(BItem, Int, Int)] = []
@@ -87,6 +90,10 @@ struct BloomBalance {
         }
         islandPrices = ((j["islandPrices"] as? [Any]) ?? []).compactMap { i($0) }
         picks = ((j["picks"] as? [[String: Any]]) ?? []).map { (i($0["damage"]) ?? 1, cost($0["cost"])) }
+        axes = ((j["axes"] as? [[String: Any]]) ?? []).map { (i($0["bonus"]) ?? 0, cost($0["cost"])) }
+        if let sh = j["shovel"] as? [String: Any] {
+            shovelCost = cost(sh["cost"]); digEvery = d(sh["every"]) ?? digEvery; digMax = i(sh["max"]) ?? digMax
+        }
         for (k, v) in (j["buildings"] as? [String: [String: Any]]) ?? [:] {
             if let b = BuildKind(rawValue: k) { buildings[b] = Build(level: i(v["level"]) ?? 1, cost: cost(v["cost"])) }
         }

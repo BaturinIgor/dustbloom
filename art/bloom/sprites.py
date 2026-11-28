@@ -1400,6 +1400,7 @@ def build_all():
     content2()
     hero_skins()
     meta_icons()
+    tools2()
     world = dict(tile=T, islands=[], bridges=[])
     for isl in ISLANDS:
         for dust in (False, True):
@@ -1469,3 +1470,47 @@ if __name__ == '__main__':
     print(len(SPRITES), 'sprites')
     if len(sys.argv) > 1:
         preview(world, sys.argv[1])
+
+
+# ---------------------------------------------------------------- tools 2: axes, shovel, dig spot
+def axe(tier):
+    """Axe 1 stone, 2 iron, 3 gold, 4 crystal. Same 13x14 frame as the picks (handle at the bottom centre)."""
+    a, b = [None, ('r1', 'r3'), ('bar', 'bar_l'), ('gold', 'gold_l'), ('cloth', 'water_l')][tier]
+    cv = Canvas(13, 14)
+    for k in range(11):
+        cv.put(6, 12 - k, 't1' if tier < 3 else 'd3')
+    cv.put(6, 12, 't0')
+    cv.rect(7, 1, 10, 5, a); cv.rect(11, 2, 11, 6, a); cv.put(11, 1, a)
+    cv.rect(8, 1, 10, 1, b); cv.rect(11, 2, 11, 3, b)
+    cv.rect(4, 2, 5, 3, a)
+    if tier == 4:
+        cv.put(9, 3, 'white')
+    cv.outline('ink')
+    sprite('bloom_axe_%d' % tier, cv)
+
+
+def shovel():
+    cv = Canvas(13, 14)
+    for k in range(8):
+        cv.put(6, 12 - k, 't1')
+    cv.rect(5, 12, 7, 12, 't0')
+    cv.rect(4, 1, 8, 4, 'bar'); cv.rect(5, 0, 7, 0, 'bar'); cv.rect(5, 1, 7, 1, 'bar_l'); cv.put(4, 4, 'bar_d'); cv.put(8, 4, 'bar_d')
+    cv.outline('ink')
+    sprite('bloom_shovel', cv)
+
+
+def dig_spot():
+    """A soft mound with a cross: something is buried here."""
+    cv = Canvas(16, 10)
+    cv.disc(8, 6, 6.5, 3.2, 'd2'); cv.disc(8, 5.5, 5, 2.4, 'd3'); cv.put(5, 4, 'd4') if 'd4' in C else None
+    for k in range(-2, 3):
+        cv.put(8 + k, 5 + k, 'brick_d'); cv.put(8 + k, 5 - k, 'brick_d')
+    cv.put(3, 2, 'gold_l'); cv.put(13, 3, 'gold_l')
+    cv.outline('ink')
+    sprite('bloom_dig', cv)
+
+
+def tools2():
+    for t in range(1, 5):
+        axe(t)
+    shovel(); dig_spot()

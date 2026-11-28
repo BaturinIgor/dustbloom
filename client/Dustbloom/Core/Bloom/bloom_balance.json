@@ -1000,5 +1000,77 @@
   "max": 5,
   "bonusDiv": 2
  },
- "sellRate": 0.4
+ "sellRate": 0.4,
+ "axes": [
+  {
+   "bonus": 0,
+   "cost": []
+  },
+  {
+   "bonus": 1,
+   "cost": [
+    [
+     "stone",
+     20
+    ],
+    [
+     "wood",
+     30
+    ]
+   ]
+  },
+  {
+   "bonus": 2,
+   "cost": [
+    [
+     "iron_bar",
+     12
+    ],
+    [
+     "wood",
+     40
+    ]
+   ]
+  },
+  {
+   "bonus": 4,
+   "cost": [
+    [
+     "gold_bar",
+     12
+    ],
+    [
+     "iron_bar",
+     10
+    ]
+   ]
+  },
+  {
+   "bonus": 6,
+   "cost": [
+    [
+     "crystal",
+     10
+    ],
+    [
+     "gold_bar",
+     15
+    ]
+   ]
+  }
+ ],
+ "shovel": {
+  "cost": [
+   [
+    "iron_bar",
+    8
+   ],
+   [
+    "wood",
+    25
+   ]
+  ],
+  "every": 40,
+  "max": 2
+ }
 }

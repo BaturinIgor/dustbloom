@@ -394,7 +394,7 @@ final class BloomScene: SKScene {
     }
 
     private func freeCell(_ c: Cell) -> Bool {
-        res[c] == nil && buildingNodes[c] == nil && flowers[c] == nil && !chests.contains(where: { $0.cell == c }) && !nearBridge.contains(c) && land.contains(c) && !bridgeCells.contains(c)
+        res[c] == nil && buildingNodes[c] == nil && flowers[c] == nil && !chests.contains(where: { $0.cell == c }) && !digSpots.contains(where: { $0.cell == c }) && !nearBridge.contains(c) && land.contains(c) && !bridgeCells.contains(c)
     }
 
     private func randomKind(_ id: Int) -> GatherKind {
@@ -525,7 +525,8 @@ final class BloomScene: SKScene {
     private func crafted(_ k: BuildKind, _ item: BItem, _ lucky: Bool) {
         happeningMeter += 2
         if k == .anvil {
-            pickNode.texture = tex("bloom_pick_\(game.pickTier)")
+            heldTool = "bloom_pick_\(game.pickTier)"
+            pickNode.texture = tex(heldTool)
             for _ in 0..<(lucky ? 26 : 12) { spark(at: CGPoint(x: heroPos.x, y: heroPos.y + 10), spread: lucky ? 22 : 12, gold: true) }
             buzz(heavy)
             return
@@ -1112,6 +1113,7 @@ final class BloomScene: SKScene {
         updateGolden(dt)
         updateHelpers(dt)
         checkChest()
+        updateDig(dt)
         game.tick(dt: dt)
         game.tickCombo(now: now)
         updateCombo()
@@ -1275,6 +1277,9 @@ final class BloomScene: SKScene {
         }
         hitTimer = 0
         swinging = true
+        // the right tool for the job: an axe on trees once you have one
+        let tool = r.kind.isTree && game.axeTier > 0 ? "bloom_axe_\(game.axeTier)" : "bloom_pick_\(game.pickTier)"
+        if heldTool != tool { heldTool = tool; pickNode.texture = tex(tool) }
         if abs(r.node.position.x - heroPos.x) > 2 { facing = r.node.position.x > heroPos.x ? 1 : -1 }
         heroSprite.xScale = facing
         pickNode.run(.sequence([
@@ -1291,7 +1296,8 @@ final class BloomScene: SKScene {
         guard res[r.cell] === r else { return }
         let mult = game.registerHit(now: now)
         let crit = Double.random(in: 0..<1) < game.critChance + 0.02 * Double(mult - 1)
-        let dmg = crit ? game.damage * 2 + 1 : game.damage
+        let base = game.damage + (r.kind.isTree ? game.axeBonus : 0)
+        let dmg = crit ? base * 2 + 1 : base
         if crit { critFX(r) }
         heroHits += 1
         if game.hasT("d5"), heroHits % 15 == 0 { quake(dmg: dmg, mult: mult) }
@@ -2154,6 +2160,100 @@ final class BloomScene: SKScene {
         groundBirds.removeAll { $0 === b }
         b.run(.sequence([away, .removeFromParent()]))
         Sfx.playThrottled(.select, gap: 0.3, volume: 0.25)
+    }
+
+    // MARK: - dig spots: buried treasure for the shovel
+
+    private var heldTool = ""
+    private var digSpots: [(cell: Cell, node: SKSpriteNode)] = []
+    private var digTimer: TimeInterval = 20
+    private var digHintAt: TimeInterval = 0
+    private var digging = false
+
+    private func updateDig(_ dt: TimeInterval) {
+        digTimer -= dt
+        if digTimer <= 0 {
+            digTimer = BloomBalance.shared.digEvery * Double.random(in: 0.8...1.3)
+            if digSpots.count < BloomBalance.shared.digMax, game.level >= 3 { spawnDigSpot() }
+        }
+        guard !digging, !swinging, fishing == nil, stickVec == .zero,
+              let i = digSpots.firstIndex(where: { hypot($0.node.position.x - heroPos.x, $0.node.position.y - heroPos.y) < 13 }) else { return }
+        if !game.hasShovel {
+            if now > digHintAt {
+                digHintAt = now + 5
+                floatText(tr("Нужна лопата: наковальня"), at: CGPoint(x: heroPos.x, y: heroPos.y + 28), color: UIColor(red: 1, green: 0.85, blue: 0.3, alpha: 1), size: 5.5)
+            }
+            return
+        }
+        dig(at: i)
+    }
+
+    private func spawnDigSpot() {
+        let cands = game.owned.flatMap { id in cells(of: id).filter(freeCell).map { ($0, id) } }
+            .filter { !underHUD(basePoint($0.0)) && hypot(basePoint($0.0).x - heroPos.x, basePoint($0.0).y - heroPos.y) > 30 }
+        guard let pick = cands.randomElement() else { return }
+        let c = pick.0
+        let n = SKSpriteNode(texture: tex("bloom_dig"))
+        n.anchorPoint = CGPoint(x: 0.5, y: 0.2)
+        let p = basePoint(c)
+        n.position = p
+        n.zPosition = -850
+        n.userData = ["island": pick.1]
+        world.addChild(n)
+        pop(n, delay: 0)
+        n.run(.repeatForever(.sequence([.wait(forDuration: 1.6), .run { [weak self] in
+            self?.particle("bloom_fx_spark", at: CGPoint(x: p.x + CGFloat.random(in: -5...5), y: p.y + 4), v: CGVector(dx: 0, dy: 9), life: 0.5, gravity: false)
+        }])))
+        digSpots.append((c, n))
+    }
+
+    private func dig(at i: Int) {
+        digging = true
+        let spot = digSpots[i]
+        let p = spot.node.position
+        facing = p.x >= heroPos.x ? 1 : -1
+        heroSprite.xScale = facing
+        heldTool = "bloom_shovel"
+        pickNode.texture = tex(heldTool)
+        var acts: [SKAction] = []
+        for k in 0..<3 {
+            acts += [.rotate(toAngle: 0.7, duration: 0.08), .rotate(toAngle: -1.4, duration: 0.07),
+                     .run { [weak self] in
+                         guard let self else { return }
+                         self.puff(at: p, n: 4)
+                         for _ in 0..<3 {
+                             self.particle("bloom_fx_chip", at: CGPoint(x: p.x, y: p.y + 2),
+                                           v: CGVector(dx: CGFloat.random(in: -14...14), dy: CGFloat.random(in: 10...22)), life: 0.45)
+                         }
+                         spot.node.run(.sequence([.scaleX(to: 1.15, y: 0.8, duration: 0.05), .scale(to: 1 - CGFloat(k) * 0.2, duration: 0.08)]))
+                         self.buzz(self.light, 0.6)
+                         Sfx.playThrottled(.till, gap: 0.05, volume: 0.6)
+                     },
+                     .rotate(toAngle: -0.5, duration: 0.1)]
+        }
+        acts.append(.run { [weak self] in self?.finishDig(spot) })
+        pickNode.run(.sequence(acts))
+    }
+
+    private func finishDig(_ spot: (cell: Cell, node: SKSpriteNode)) {
+        digging = false
+        digSpots.removeAll { $0.cell == spot.cell }
+        let p = spot.node.position
+        spot.node.removeAllActions()
+        spot.node.run(.sequence([.fadeOut(withDuration: 0.2), .removeFromParent()]))
+        let id = (spot.node.userData?["island"] as? Int) ?? 0
+        let kind = randomKind(id)
+        let r = game.digReward(kind)
+        emit(nil, r.coins, from: p, maxPieces: 6, spread: 16)
+        for (item, n) in r.items { emit(item, n, from: p, maxPieces: 4, spread: 16) }
+        if r.gem { showPickup("gem", sprite: "bloom_item_gem", amount: 1, color: UIColor(red: 0.6, green: 0.9, blue: 1, alpha: 1)) }
+        if let (f, isNew) = game.rollFind(kind) { findFX(f, isNew: isNew, at: p) }
+        for _ in 0..<10 { spark(at: CGPoint(x: p.x, y: p.y + 6), spread: 20, gold: true) }
+        shake(1.8)
+        buzz(medium)
+        Sfx.play(.chest, volume: 0.7)
+        happeningMeter += 2
+        heldTool = ""
     }
 
     // MARK: - golden hour (our own event: everything turns gold, drops double)

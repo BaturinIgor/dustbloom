@@ -585,6 +585,44 @@ struct AnvilView: View {
         } else {
             OutlinedText(text: tr("Лучшая кирка уже у тебя"), size: 14).padding(12)
         }
+        // axe: its own line of upgrades, only for trees
+        Card {
+            VStack(spacing: 10) {
+                HStack(spacing: 12) {
+                    PixelIcon(name: "bloom_axe_\(max(1, game.nextAxe == nil ? game.axeTier : game.axeTier + 1))", size: 44)
+                    VStack(alignment: .leading, spacing: 4) {
+                        OutlinedText(text: game.nextAxe?.title ?? BloomGame.axeTitles[game.axeTier], size: 14)
+                        OutlinedText(text: tr("Деревья: +%@ к удару", game.nextAxe?.bonus ?? game.axeBonus), size: 12)
+                        if let a = game.nextAxe { CostRow(cost: a.cost) }
+                    }
+                    Spacer(minLength: 0)
+                }
+                if game.nextAxe != nil {
+                    Button { game.forgeAxe() } label: { OutlinedText(text: tr("Выковать"), size: 15).frame(maxWidth: .infinity) }
+                        .buttonStyle(BloomButtonStyle(color: BUI.orange, edge: BUI.orangeEdge, enabled: game.has(game.nextAxe!.cost)))
+                }
+            }
+        }
+        // shovel: one purchase, opens dig spots
+        Card {
+            VStack(spacing: 10) {
+                HStack(spacing: 12) {
+                    PixelIcon(name: "bloom_shovel", size: 44)
+                    VStack(alignment: .leading, spacing: 4) {
+                        OutlinedText(text: tr("Лопата"), size: 14)
+                        OutlinedText(text: tr("Копай бугорки с крестиком: монеты, ресурсы, иногда кристалл"), size: 11, color: BUI.muted, fixed: false, lines: 2, align: .leading)
+                        if !game.hasShovel { CostRow(cost: BloomBalance.shared.shovelCost) }
+                    }
+                    Spacer(minLength: 0)
+                }
+                if game.hasShovel {
+                    OutlinedText(text: tr("Уже у тебя"), size: 13, color: BUI.green)
+                } else {
+                    Button { game.forgeShovel() } label: { OutlinedText(text: tr("Выковать"), size: 15).frame(maxWidth: .infinity) }
+                        .buttonStyle(BloomButtonStyle(color: BUI.orange, edge: BUI.orangeEdge, enabled: game.has(BloomBalance.shared.shovelCost)))
+                }
+            }
+        }
     }
 }
 

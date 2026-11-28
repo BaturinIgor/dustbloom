@@ -100,6 +100,8 @@ struct BloomSave: Codable {
     var fairDay: String?                   // day the fair orders were drawn for
     var fairOrders: [FairOrder] = []
     var fairDone: [Int] = []
+    var axe = 0                            // 0 = no axe yet
+    var shovel = false
 
     init() {}
 
@@ -153,6 +155,8 @@ struct BloomSave: Codable {
         fairDay = try c.decodeIfPresent(String.self, forKey: .fairDay)
         fairOrders = try c.decodeIfPresent([FairOrder].self, forKey: .fairOrders) ?? []
         fairDone = try c.decodeIfPresent([Int].self, forKey: .fairDone) ?? []
+        axe = try c.decodeIfPresent(Int.self, forKey: .axe) ?? 0
+        shovel = try c.decodeIfPresent(Bool.self, forKey: .shovel) ?? false
     }
 }
 
@@ -459,6 +463,51 @@ final class BloomGame: ObservableObject {
                            subtitle: s.lucky ? tr("%@ +1 к удару", p.title) : tr("Удар: %@", damage)))
         Sfx.play(s.lucky ? .victory : .chest)
         save()
+    }
+
+    // MARK: - tools: axe (extra damage on trees) and shovel (dig up buried spots)
+
+    static let axeTitles = [tr("Без топора"), tr("Каменный топор"), tr("Железный топор"), tr("Золотой топор"), tr("Хрустальный топор")]
+    var axeTier: Int { s.axe }
+    var hasShovel: Bool { s.shovel }
+    var nextAxe: (title: String, bonus: Int, cost: Cost)? {
+        let a = BloomBalance.shared.axes
+        guard s.axe + 1 < a.count else { return nil }
+        return (Self.axeTitles[min(s.axe + 1, Self.axeTitles.count - 1)], a[s.axe + 1].bonus, a[s.axe + 1].cost)
+    }
+    /// Extra damage the axe adds on trees and palms.
+    var axeBonus: Int { BloomBalance.shared.axes.indices.contains(s.axe) ? BloomBalance.shared.axes[s.axe].bonus : 0 }
+
+    func forgeAxe() {
+        guard let a = nextAxe, has(a.cost) else { Sfx.play(.error); return }
+        pay(a.cost)
+        s.axe += 1
+        onCrafted?(.anvil, .iron_bar, false)
+        showToast(BloomToast(title: a.title, subtitle: tr("Деревья: +%@ к удару", a.bonus)))
+        Sfx.play(.chest)
+        Analytics.shared.track("bloom_tool", ["tool": "axe", "tier": s.axe])
+        save()
+    }
+
+    func forgeShovel() {
+        let c = BloomBalance.shared.shovelCost
+        guard !s.shovel, has(c) else { Sfx.play(.error); return }
+        pay(c)
+        s.shovel = true
+        onCrafted?(.anvil, .iron_bar, false)
+        showToast(BloomToast(title: tr("Лопата"), subtitle: tr("Ищи бугорки с крестиком и копай клады")))
+        Sfx.play(.chest)
+        Analytics.shared.track("bloom_tool", ["tool": "shovel"])
+        save()
+    }
+
+    /// What a dug-up spot gives: coins, a pile of the island's goods, sometimes a gem.
+    func digReward(_ k: GatherKind) -> (coins: Int, items: [(BItem, Int)], gem: Bool) {
+        bump("dig", 1)
+        let coins = Int.random(in: 6...12) + level * 2 + owned.count * 3
+        let gem = Double.random(in: 0..<1) < 0.12
+        if gem { s.gems += 1 }
+        return (coins, roll(k, mult: 3), gem)
     }
 
     // MARK: - market
