@@ -34,26 +34,38 @@ enum ShopProduct: String, CaseIterable, Identifiable {
         }
     }
     /// Shown until StoreKit returns the local price.
-    var fallbackPrice: String {
+    /// US price, used until StoreKit returns the local one (before App Store Connect has the product,
+    /// or offline). Formatted for the device's locale: "$1.99" in English, "1,99 $" in Russian.
+    var fallbackUSD: Decimal {
         switch self {
-        case .founder: return "4,99 $"
-        case .pass: return "7,99 $"
-        case .jar: return "2,99 $"
-        case .starter: return "0,99 $"
-        case .slot: return "1,99 $"
-        case .eventPass: return "2,99 $"
-        case .brave: return "1,99 $"
-        case .crafter: return "4,99 $"
-        case .digger: return "2,99 $"
-        case .islandPack: return "2,99 $"
-        case .friend: return "3,99 $"
-        case .level10: return "4,99 $"
-        case .level20: return "9,99 $"
-        case .gemsS: return "0,99 $"
-        case .gemsM: return "4,99 $"
-        case .gemsL: return "9,99 $"
-        case .gemsXL: return "19,99 $"
+        case .founder: return 4.99
+        case .pass: return 7.99
+        case .jar: return 2.99
+        case .starter: return 0.99
+        case .slot: return 1.99
+        case .eventPass: return 2.99
+        case .brave: return 1.99
+        case .crafter: return 4.99
+        case .digger: return 2.99
+        case .islandPack: return 2.99
+        case .friend: return 3.99
+        case .level10: return 4.99
+        case .level20: return 9.99
+        case .gemsS: return 0.99
+        case .gemsM: return 4.99
+        case .gemsL: return 9.99
+        case .gemsXL: return 19.99
         }
+    }
+    var fallbackPrice: String {
+        let f = NumberFormatter()
+        f.numberStyle = .currency
+        f.currencyCode = "USD"
+        // the game's language, with the device's region when they agree ("en" alone formats as "$1.99")
+        let region = Locale.current.region?.identifier
+        f.locale = Locale.current.language.languageCode?.identifier == Loc.lang ? .current
+            : Locale(identifier: Loc.lang == "en" ? "en_US" : (region.map { "\(Loc.lang)_\($0)" } ?? Loc.lang))
+        return f.string(from: fallbackUSD as NSDecimalNumber) ?? "$\(fallbackUSD)"
     }
     var badge: String? {
         switch self {
