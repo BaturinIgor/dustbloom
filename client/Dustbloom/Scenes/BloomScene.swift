@@ -240,6 +240,10 @@ final class BloomScene: SKScene {
         if let h = UserDefaults.standard.string(forKey: "bloomHappening") {
             run(.sequence([.wait(forDuration: 5), .run { [weak self] in self?.fireHappening(h) }]))
         }
+        // -bloomDig: two dig spots next to the hero right away
+        if UserDefaults.standard.object(forKey: "bloomDig") != nil || ProcessInfo.processInfo.arguments.contains("-bloomDig") {
+            run(.sequence([.wait(forDuration: 4), .run { [weak self] in self?.spawnDigSpot(near: true); self?.spawnDigSpot(near: true) }]))
+        }
         // -bloomChests N: several chests at once, to check each one opens
         let nChests = UserDefaults.standard.integer(forKey: "bloomChests")
         if nChests > 0 {
@@ -987,12 +991,13 @@ final class BloomScene: SKScene {
     }
 
     private func ambient(_ name: String, at p: CGPoint, alpha: CGFloat, life: Double, fadeIn: Double, move: SKAction,
-                         wobble: CGFloat, pulse: Bool = false, flip: Bool = false, small: Bool = false) {
+                         wobble: CGFloat, pulse: Bool = false, flip: Bool = false, small: Bool = false, glow: CGFloat = 0) {
         let n = SKSpriteNode(texture: tex(name))
         n.position = p
-        n.zPosition = 2600
+        n.zPosition = glow > 0 ? 3960 : 2600   // night lights sit above the night tint
         n.alpha = 0
         if small { n.setScale(CGFloat.random(in: 0.5...1)) }
+        if glow > 0 { n.setScale(glow); n.blendMode = .add }
         world.addChild(n)
         ambientCount += 1
         var acts: [SKAction] = [move,
@@ -1199,8 +1204,10 @@ final class BloomScene: SKScene {
                                          .fadeOut(withDuration: 0.3)]), .removeFromParent()]))
             }
         } else {
-            heroSprite.texture = tex(game.heroPrefix + (facingUp && !swinging ? "back_idle_0" : (Int(animClock * 2) % 2 == 0 ? "idle_0" : "idle_1")))
-            if swinging { facingUp = false; pickNode.zPosition = 1 }
+            // working (swing or dig) turns the hero to face the camera, so the tool shows in front
+            let working = swinging || digging
+            heroSprite.texture = tex(game.heroPrefix + (facingUp && !working ? "back_idle_0" : (Int(animClock * 2) % 2 == 0 ? "idle_0" : "idle_1")))
+            if working { facingUp = false; pickNode.zPosition = 1 }
         }
         heroSprite.xScale = facing
         hero.position = CGPoint(x: (heroPos.x * zoom).rounded() / zoom, y: (heroPos.y * zoom).rounded() / zoom)
@@ -1269,7 +1276,7 @@ final class BloomScene: SKScene {
     private func mine(_ dt: TimeInterval) {
         hitTimer += dt
         if fishing != nil { return }
-        guard !swinging, hitTimer >= 0.3, let r = target() else { return }
+        guard !swinging, !digging, hitTimer >= 0.3, let r = target() else { return }
         if r.kind == .pond {
             // ponds are fished, not hit: stand still next to one and the cast starts
             if stickVec == .zero, now > fishCooldown { startFishing(r) }
@@ -1279,7 +1286,7 @@ final class BloomScene: SKScene {
         swinging = true
         // the right tool for the job: an axe on trees once you have one
         let tool = r.kind.isTree && game.axeTier > 0 ? "bloom_axe_\(game.axeTier)" : "bloom_pick_\(game.pickTier)"
-        if heldTool != tool { heldTool = tool; pickNode.texture = tex(tool) }
+        if heldTool != tool { heldTool = tool; pickNode.texture = tex(tool); pickNode.size = pickNode.texture!.size() }
         if abs(r.node.position.x - heroPos.x) > 2 { facing = r.node.position.x > heroPos.x ? 1 : -1 }
         heroSprite.xScale = facing
         pickNode.run(.sequence([
@@ -2041,10 +2048,11 @@ final class BloomScene: SKScene {
         let c = cam.position
 
         // fireflies around the hero at night
-        if nightLevel > 0.6, ambientCount < 40, Int.random(in: 0..<14) == 0 {
+        if nightLevel > 0.6, ambientCount < 40, Int.random(in: 0..<6) == 0 {
             let p = CGPoint(x: heroPos.x + CGFloat.random(in: -70...70), y: heroPos.y + CGFloat.random(in: -50...60))
             ambient("bloom_fx_firefly", at: p, alpha: 1, life: 4, fadeIn: 0.8,
-                    move: .moveBy(x: CGFloat.random(in: -14...14), y: CGFloat.random(in: -6...10), duration: 4), wobble: 4, pulse: true)
+                    move: .moveBy(x: CGFloat.random(in: -14...14), y: CGFloat.random(in: -6...10), duration: 4), wobble: 4, pulse: true,
+                    glow: 1.6)
         }
 
         // a leaf drifts down from a tree on screen
@@ -2180,6 +2188,9 @@ final class BloomScene: SKScene {
               let i = digSpots.firstIndex(where: { hypot($0.node.position.x - heroPos.x, $0.node.position.y - heroPos.y) < 13 }) else { return }
         if !game.hasShovel {
             if now > digHintAt {
+                #if DEBUG
+                print("[dig] hint: no shovel")
+                #endif
                 digHintAt = now + 5
                 floatText(tr("Нужна лопата: наковальня"), at: CGPoint(x: heroPos.x, y: heroPos.y + 28), color: UIColor(red: 1, green: 0.85, blue: 0.3, alpha: 1), size: 5.5)
             }
@@ -2188,9 +2199,12 @@ final class BloomScene: SKScene {
         dig(at: i)
     }
 
-    private func spawnDigSpot() {
+    private func spawnDigSpot(near: Bool = false) {
         let cands = game.owned.flatMap { id in cells(of: id).filter(freeCell).map { ($0, id) } }
-            .filter { !underHUD(basePoint($0.0)) && hypot(basePoint($0.0).x - heroPos.x, basePoint($0.0).y - heroPos.y) > 30 }
+            .filter {
+                let d = hypot(basePoint($0.0).x - heroPos.x, basePoint($0.0).y - heroPos.y)
+                return !underHUD(basePoint($0.0)) && d > (near ? 14 : 30) && (!near || d < 50)
+            }
         guard let pick = cands.randomElement() else { return }
         let c = pick.0
         let n = SKSpriteNode(texture: tex("bloom_dig"))
@@ -2208,6 +2222,9 @@ final class BloomScene: SKScene {
     }
 
     private func dig(at i: Int) {
+        #if DEBUG
+        print("[dig] start")
+        #endif
         digging = true
         let spot = digSpots[i]
         let p = spot.node.position
@@ -2215,6 +2232,7 @@ final class BloomScene: SKScene {
         heroSprite.xScale = facing
         heldTool = "bloom_shovel"
         pickNode.texture = tex(heldTool)
+        pickNode.size = pickNode.texture!.size()
         var acts: [SKAction] = []
         for k in 0..<3 {
             acts += [.rotate(toAngle: 0.7, duration: 0.08), .rotate(toAngle: -1.4, duration: 0.07),
@@ -2244,6 +2262,9 @@ final class BloomScene: SKScene {
         let id = (spot.node.userData?["island"] as? Int) ?? 0
         let kind = randomKind(id)
         let r = game.digReward(kind)
+        #if DEBUG
+        print("[dig] done: \(r.coins) coins, items \(r.items.map { "\($0.0.rawValue)×\($0.1)" }), gem \(r.gem)")
+        #endif
         emit(nil, r.coins, from: p, maxPieces: 6, spread: 16)
         for (item, n) in r.items { emit(item, n, from: p, maxPieces: 4, spread: 16) }
         if r.gem { showPickup("gem", sprite: "bloom_item_gem", amount: 1, color: UIColor(red: 0.6, green: 0.9, blue: 1, alpha: 1)) }
@@ -2553,6 +2574,7 @@ final class BloomScene: SKScene {
             else if now - demoBestAt > 4 { demoSkip[i] = now + 25; demoSign = nil; return }
         }
         if goal == nil, let ch = chests.first { goal = ch.node.position }
+        if goal == nil, game.hasShovel, let d = digSpots.first { goal = d.node.position }
         // show off fishing: walk to a pond nearby and stand next to it
         if goal == nil, now > fishCooldown {
             let hc = heroCell

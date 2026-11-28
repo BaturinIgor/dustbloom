@@ -51,7 +51,7 @@ struct BloomView: View {
             // App Store screenshots: -bloomPanel build|talents|shop|album opens one panel
             if let name = UserDefaults.standard.string(forKey: "bloomPanel") {
                 let p: BloomPanel? = ["build": .build, "talents": .talents, "shop": .shop, "album": .album,
-                                      "daily": .daily, "spring": .spring, "event": .event, "skins": .skins, "feedback": .feedback, "menu": .menu, "bag": .inventory][name]
+                                      "daily": .daily, "spring": .spring, "event": .event, "skins": .skins, "feedback": .feedback, "menu": .menu, "bag": .inventory, "anvil": .building(.anvil)][name]
                 DispatchQueue.main.asyncAfter(deadline: .now() + 3) { game.panel = p }
             }
             #endif

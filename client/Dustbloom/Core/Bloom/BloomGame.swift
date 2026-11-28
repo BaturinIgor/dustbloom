@@ -274,6 +274,11 @@ final class BloomGame: ObservableObject {
         if args.contains("-bloomAll") {
             for id in 0..<world.islands.count where !s.owned.contains(id) { s.owned.append(id) }
         }
+        // -bloomRich: plenty of every material and coins, to try forging and building
+        if args.contains("-bloomRich") {
+            for i in BItem.allCases { s.inv[i.rawValue] = max(s.inv[i.rawValue] ?? 0, 999) }
+            s.coins = max(s.coins, 99_999)
+        }
         #endif
     }
 
