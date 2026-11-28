@@ -32,6 +32,36 @@ enum BloomDungeons {
 
 extension BloomGame {
     func hasRelic(_ r: String) -> Bool { s.relics.contains(r) }
+
+    static let reviveGems = 15
+    /// One free get-up a day for a short video.
+    var reviveAdReady: Bool { UserDefaults.standard.string(forKey: "dustbloom.reviveAd") != BloomMeta.dayKey() && RewardedAds.isAvailable }
+
+    func answerRevive(gems: Bool) {
+        guard reviveAsk else { return }
+        if gems {
+            guard s.gems >= BloomGame.reviveGems else { Sfx.play(.error); panel = .shop; return }
+            _ = spend(BloomGame.reviveGems, "revive")
+        }
+        reviveAsk = false
+        onRevive?(true)
+    }
+
+    func reviveWithAd() {
+        RewardedAds.show { [weak self] ok in
+            guard let self, ok, self.reviveAsk else { return }
+            UserDefaults.standard.set(BloomMeta.dayKey(), forKey: "dustbloom.reviveAd")
+            Analytics.shared.track("bloom_ad_revive", ["level": self.level])
+            self.reviveAsk = false
+            self.onRevive?(true)
+        }
+    }
+
+    func declineRevive() {
+        guard reviveAsk else { return }
+        reviveAsk = false
+        onRevive?(false)
+    }
     func cleared(_ d: Dungeon) -> Bool { (s.dungeonRuns[d.id] ?? 0) > 0 }
     var relicCount: Int { s.relics.count }
 

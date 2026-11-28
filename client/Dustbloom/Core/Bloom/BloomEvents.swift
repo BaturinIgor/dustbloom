@@ -67,6 +67,12 @@ enum BloomEvents {
         HeroSkin(id: "sky", title: "Небесный", gems: 300),
         HeroSkin(id: "sun", title: "Солнечный", gems: 500),
         HeroSkin(id: "star", title: "Звёздный", gems: nil),        // event pass
+        HeroSkin(id: "lemon", title: "Лимонный", gems: 200),
+        HeroSkin(id: "lilac", title: "Сиреневый", gems: 300),
+        HeroSkin(id: "ocean", title: "Морской", gems: 400),
+        HeroSkin(id: "ember", title: "Угольный", gems: 600),
+        HeroSkin(id: "rose", title: "Розовый сад", gems: nil),     // level 10 bundle
+        HeroSkin(id: "night", title: "Ночной", gems: nil),         // level 20 bundle
     ]
 
     /// Monday 5 January 2026, local time: week 0.

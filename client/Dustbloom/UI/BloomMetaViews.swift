@@ -95,7 +95,7 @@ struct DailyView: View {
         Card {
             HStack(spacing: 10) {
                 PixelIcon(name: "bloom_chest_closed", size: 34).frame(width: 44, height: 44)
-                OutlinedText(text: tr("Все три задания: +15 росинок и сундук"), size: 12, fixed: false, lines: 2, align: .leading)
+                OutlinedText(text: tr("Все три задания: +10 росинок и сундук"), size: 12, fixed: false, lines: 2, align: .leading)
                 Spacer(minLength: 0)
                 if game.dailyBonusClaimed {
                     OutlinedText(text: "✓", size: 22, color: BUI.green).frame(width: 70)
@@ -324,6 +324,43 @@ struct SkinsView: View {
         LazyVGrid(columns: cols, spacing: 12) {
             ForEach(BloomEvents.skins) { k in tile(k) }
         }
+        OutlinedText(text: tr("Спутники"), size: 15, color: BUI.gold).padding(.top, 6)
+        LazyVGrid(columns: cols, spacing: 12) {
+            ForEach(BloomOffers.pets) { p in petTile(p) }
+        }
+    }
+
+    private func petTile(_ p: PetDef) -> some View {
+        let owned = game.ownsPet(p.id)
+        let on = game.s.pet == p.id
+        return VStack(spacing: 6) {
+            PixelIcon(name: "bloom_pet_\(p.id)_0", size: 44).frame(height: 62)
+            OutlinedText(text: tr(p.title), size: 12, fixed: false)
+            Group {
+                if owned {
+                    Button { game.pickPet(p) } label: { OutlinedText(text: on ? tr("Убрать") : tr("Взять с собой"), size: 12).frame(width: 110) }
+                        .buttonStyle(BloomButtonStyle(color: on ? BUI.panel : BUI.green, edge: on ? BUI.ink : BUI.greenEdge))
+                } else if let g = p.gems {
+                    Button {
+                        if armed == p.id { game.pickPet(p); armed = nil } else { armed = p.id; Sfx.play(.select) }
+                    } label: {
+                        HStack(spacing: 3) {
+                            if armed == p.id { OutlinedText(text: tr("Точно?"), size: 13) } else {
+                                OutlinedText(text: "\(g)", size: 13); PixelIcon(name: "bloom_item_gem", size: 16)
+                            }
+                        }
+                        .frame(width: 100)
+                    }
+                    .buttonStyle(BloomButtonStyle(color: game.gems >= g ? BUI.orange : BUI.panel, edge: game.gems >= g ? BUI.orangeEdge : BUI.ink))
+                } else {
+                    OutlinedText(text: tr(p.source), size: 10.5, color: BUI.muted, fixed: false, lines: 2).frame(height: 38)
+                }
+            }
+        }
+        .padding(.vertical, 10)
+        .frame(width: 150)
+        .background(RoundedRectangle(cornerRadius: 14).fill(BUI.panelHi))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(on ? BUI.gold : BUI.ink.opacity(0.6), lineWidth: 2))
     }
 
     private func tile(_ k: HeroSkin) -> some View {
@@ -353,7 +390,7 @@ struct SkinsView: View {
                     .buttonStyle(BloomButtonStyle(color: game.gems >= g ? BUI.orange : BUI.panel, edge: game.gems >= g ? BUI.orangeEdge : BUI.ink))
                     .disabled(game.gems < g)
                 } else {
-                    OutlinedText(text: k.id == "mint" ? tr("Стартовый набор") : tr("Пропуск события"),
+                    OutlinedText(text: k.id == "mint" ? tr("Стартовый набор") : k.id == "rose" ? tr("Набор 10 уровня") : k.id == "night" ? tr("Набор 20 уровня") : tr("Пропуск события"),
                                  size: 10.5, color: BUI.muted, fixed: false, lines: 2).frame(height: 38)
                 }
             }

@@ -140,6 +140,7 @@ extension BloomGame {
         s.gems += r.gems
         s.quests[n.id] = k + 1
         bump("quest")
+        if k + 1 >= n.steps.count { triggerOffer("friend") }
         Sfx.play(.coin)
         let friend = k + 1 >= n.steps.count
         showToast(BloomToast(title: friend ? tr("%@ теперь твой друг!", tr(n.name)) : tr("Задание выполнено!"),
@@ -151,11 +152,12 @@ extension BloomGame {
 
     func takeGift(_ n: Islander) {
         guard giftReady(n) else { return }
-        for (i, c) in n.gift { add(i, c) }
+        let x = friendGiftMult
+        for (i, c) in n.gift { add(i, c * x) }
         s.giftDay[n.id] = BloomMeta.dayKey()
         bump("gift")
         Sfx.play(.chest)
-        showToast(BloomToast(title: tr("Подарок от друга"), subtitle: n.gift.map { "+\($0.1) \($0.0.title)" }.joined(separator: ", ")))
+        showToast(BloomToast(title: tr("Подарок от друга"), subtitle: n.gift.map { "+\($0.1 * x) \($0.0.title)" }.joined(separator: ", ")))
         save()
     }
 

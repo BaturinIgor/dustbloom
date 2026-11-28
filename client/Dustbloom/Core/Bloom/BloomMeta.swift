@@ -141,6 +141,9 @@ extension BloomGame {
         n.eventWeek = s.eventWeek; n.eventPoints = s.eventPoints; n.eventFree = s.eventFree; n.eventPrem = s.eventPrem
         n.eventPass = s.eventPass; n.skins = s.skins; n.skin = s.skin; n.starter = s.starter; n.slot = s.slot
         n.tut = 99; n.achieved = s.achieved
+        n.offers = s.offers; n.perks = s.perks; n.islandPacks = s.islandPacks; n.pets = s.pets; n.pet = s.pet; n.passDewDay = s.passDewDay
+        // decorations stood on islands that go back to dust: their dew comes back in full
+        n.gems += s.decor.reduce(0) { $0 + (BloomOffers.decor($1.kind)?.gems ?? 0) }
         n.springs = s.springs + 1
         n.seeds = s.seeds + got
         n.coins = Int(eternalBonus("start"))
@@ -208,7 +211,7 @@ extension BloomGame {
     func dailyKind(_ q: DailyQuest) -> DailyKind? { BloomMeta.dailyKinds.first { $0.key == q.key } }
     func dailyProgress(_ q: DailyQuest) -> Int { min(q.target, max(0, (s.life[q.key] ?? 0) - q.base)) }
     func dailyDone(_ q: DailyQuest) -> Bool { dailyProgress(q) >= q.target }
-    var dailyReward: (coins: Int, gems: Int, xp: Int) { (coinUnit, 5, 10 + s.level * 2) }
+    var dailyReward: (coins: Int, gems: Int, xp: Int) { (coinUnit, 3, 10 + s.level * 2) }
     /// Badge count for the calendar button: things ready to collect.
     var dailyReadyCount: Int {
         (loginReady ? 1 : 0) + s.dailies.filter { !$0.claimed && dailyDone($0) }.count
@@ -232,7 +235,7 @@ extension BloomGame {
     func claimDailyBonus() {
         guard allDailiesClaimed, !s.dailyBonus else { return }
         s.dailyBonus = true
-        s.gems += 15
+        s.gems += 10
         let c = openChest()
         s.coins += c.coins
         for (i, k) in c.items { add(i, k) }

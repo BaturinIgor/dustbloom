@@ -107,6 +107,14 @@ struct BloomSave: Codable {
     var quests: [String: Int] = [:]        // islander id -> steps done (BloomQuests.swift)
     var giftDay: [String: String] = [:]    // islander id -> day the friend gift was taken
     var puzzles: [String] = []             // floor puzzles solved
+    // donate 2 (BloomOffers.swift)
+    var offers: [String: Date] = [:]       // moment offer id -> when it appeared (48 h window)
+    var perks: [String] = []               // bought for good: brave, crafter, digger, friend, level10, level20
+    var islandPacks = 0
+    var pets: [String] = []
+    var pet: String?
+    var decor: [PlacedDecor] = []
+    var passDewDay: String?
 
     init() {}
 
@@ -167,6 +175,13 @@ struct BloomSave: Codable {
         quests = try c.decodeIfPresent([String: Int].self, forKey: .quests) ?? [:]
         giftDay = try c.decodeIfPresent([String: String].self, forKey: .giftDay) ?? [:]
         puzzles = try c.decodeIfPresent([String].self, forKey: .puzzles) ?? []
+        offers = try c.decodeIfPresent([String: Date].self, forKey: .offers) ?? [:]
+        perks = try c.decodeIfPresent([String].self, forKey: .perks) ?? []
+        islandPacks = try c.decodeIfPresent(Int.self, forKey: .islandPacks) ?? 0
+        pets = try c.decodeIfPresent([String].self, forKey: .pets) ?? []
+        pet = try c.decodeIfPresent(String.self, forKey: .pet)
+        decor = try c.decodeIfPresent([PlacedDecor].self, forKey: .decor) ?? []
+        passDewDay = try c.decodeIfPresent(String.self, forKey: .passDewDay)
     }
 }
 
@@ -186,6 +201,8 @@ enum BloomPanel: Equatable {
     case menu
     case dungeon(String)
     case islander(String)
+    case offer(String)
+    case decor
 }
 
 struct BloomToast: Identifiable, Equatable {
@@ -241,6 +258,14 @@ final class BloomGame: ObservableObject {
     /// Scene callbacks.
     var onIslandBought: ((Int) -> Void)?
     var onEnterDungeon: ((String) -> Void)?
+    /// Fainted inside a cave: the HUD asks "get up here or go home"; the scene waits for the answer.
+    @Published var reviveAsk = false
+    /// Donate 2 (BloomOffers.swift): one new moment offer per session; scene hooks for pets and decorations.
+    var offerShownThisSession = false
+    var onPetChanged: (() -> Void)?
+    var onDecorPlaced: ((PlacedDecor) -> Void)?
+    var placeDecorCell: (() -> Cell?)?
+    var onRevive: ((Bool) -> Void)?
     @Published var inDungeon = false
     var onBuildingPlaced: ((PlacedBuilding) -> Void)?
     var onCrafted: ((BuildKind, BItem, Bool) -> Void)?
@@ -392,6 +417,7 @@ final class BloomGame: ObservableObject {
             up = s.level
         }
         if s.level > s.bestLevel { s.bestLevel = s.level }
+        if let l = up, l == 10 || l == 20 { triggerOffer(l == 10 ? "level10" : "level20") }
         if let l = up {
             Analytics.shared.track("bloom_level", ["level": l, "minutes": playMinutes])
             showToast(BloomToast(title: tr("Уровень %@!", l), subtitle: BloomContent.levelUnlockText[l] ?? tr("Новое очко таланта")))
@@ -434,6 +460,7 @@ final class BloomGame: ObservableObject {
         }
         pay(r.cost, times: n)
         Sfx.play(.select)
+        if (s.queues[b.rawValue]?.left ?? 0) >= 5 && s.level >= 4 { triggerOffer("crafter") }
     }
 
     func maxCraft(_ r: Recipe) -> Int {
@@ -530,10 +557,12 @@ final class BloomGame: ObservableObject {
     /// What a dug-up spot gives: coins, a pile of the island's goods, sometimes a gem.
     func digReward(_ k: GatherKind) -> (coins: Int, items: [(BItem, Int)], gem: Bool) {
         bump("dig", 1)
-        let coins = Int.random(in: 6...12) + level * 2 + owned.count * 3
+        if stat("dig") >= 3 { triggerOffer("digger") }
+        let x = hasPerk("digger") ? 2 : 1
+        let coins = (Int.random(in: 6...12) + level * 2 + owned.count * 3) * x
         let gem = Double.random(in: 0..<1) < 0.12
         if gem { s.gems += 1 }
-        return (coins, roll(k, mult: 3), gem)
+        return (coins, roll(k, mult: 3 * x), gem)
     }
 
     // MARK: - market
@@ -676,7 +705,7 @@ final class BloomGame: ObservableObject {
     @Published var goldenUntil: Date?
     /// Hero health in half-hearts. Not saved: a fresh start is always at full health.
     @Published var hp = 6
-    var maxHP: Int { (s.level >= 20 ? 8 : 6) + (hasRelic("shell") ? 2 : 0) }   // a fourth heart at level 20
+    var maxHP: Int { (s.level >= 20 ? 8 : 6) + (hasRelic("shell") ? 2 : 0) + (passActive ? 2 : 0) + (hasPerk("brave") ? 4 : 0) }   // a fourth heart at level 20
     /// Dust creatures roam the islands from this level on.
     var foesOn: Bool { s.level >= 5 }
     var golden: Bool { (goldenUntil ?? .distantPast) > Date() }
@@ -701,7 +730,7 @@ final class BloomGame: ObservableObject {
     var comboWindow: Double { BloomContent.comboWindow + (hasT("d3") ? 0.4 : 0) }
     var critChance: Double { BloomContent.critChance + (hasT("d2") ? 0.06 : 0) + (hasRelic("eye") ? 0.08 : 0) }
     var luckyChance: Double { BloomContent.luckyChance + (hasT("c4") ? 0.25 : 0) }
-    func secs(_ r: Recipe) -> Double { r.seconds * (hasT("c1") ? 0.75 : 1) * (hasT("c5") ? 0.7 : 1) / eternalMult("craft") }
+    func secs(_ r: Recipe) -> Double { r.seconds * (hasPerk("crafter") ? 0.5 : 1) * (hasT("c1") ? 0.75 : 1) * (hasT("c5") ? 0.7 : 1) / eternalMult("craft") }
     /// What the market pays for `n` of an item (market rate, Торговец talent).
     func sellValue(_ i: BItem, _ n: Int) -> Int {
         Int(Double(n * i.price) * BloomBalance.shared.sellRate * (hasT("t1") ? 1.25 : 1) * eternalMult("coins") * (pageDone(3) ? 1.2 : 1) * (eventIs("fair") ? 1.5 : 1))
@@ -787,6 +816,11 @@ final class BloomGame: ObservableObject {
             refreshEvent()
             s.eventPass = eventKey
             showToast(BloomToast(title: tr("Пропуск события"), subtitle: tr("Открыты все награды: %@", tr(event.title))))
+        case .brave, .crafter, .digger, .islandPack, .friend, .level10, .level20:
+            grantOffer(p)
+            Sfx.play(.victory)
+            save()
+            return
         case .jar:
             s.gems += s.jar
             showToast(BloomToast(title: tr("Банка росы"), subtitle: tr("+%@ росинок", s.jar)))
@@ -799,7 +833,7 @@ final class BloomGame: ObservableObject {
         save()
     }
 
-    private func spend(_ n: Int, _ what: String = #function) -> Bool {
+    func spend(_ n: Int, _ what: String = #function) -> Bool {
         guard s.gems >= n else { Sfx.play(.error); return false }
         s.gems -= n
         Analytics.shared.track("bloom_gems_spent", ["what": what, "gems": n, "level": s.level])
@@ -828,6 +862,46 @@ final class BloomGame: ObservableObject {
         s.coins += n
         Sfx.play(.coin)
         showToast(BloomToast(title: tr("Мешок монет"), subtitle: tr("+%@ монет", n)))
+        save()
+    }
+
+    // MARK: - dew sinks: cover a shortfall, finish crafting now
+
+    /// Dew that covers what is missing from a cost. Twice the market value, so gathering stays the better deal.
+    func shortfallGems(_ c: Cost) -> Int {
+        let value = c.reduce(0) { $0 + max(0, $1.1 - count($1.0)) * max(1, $1.0.price) }
+        return value == 0 ? 0 : max(1, Int((Double(value) * 2 / Double(BloomBalance.shared.shop.gemCoins)).rounded(.up)))
+    }
+
+    /// Fills the shortfall with dew. Opens the shop when dew runs short. True when the cost is covered now.
+    @discardableResult
+    func buyShortfall(_ c: Cost, what: String) -> Bool {
+        let g = shortfallGems(c)
+        guard g > 0 else { return true }
+        guard s.gems >= g else { Sfx.play(.error); panel = .shop; return false }
+        _ = spend(g, "shortfall." + what)
+        for (i, n) in c where count(i) < n { s.inv[i.rawValue] = n }
+        Sfx.play(.coin)
+        return true
+    }
+
+    func finishCraftGems(_ b: BuildKind) -> Int {
+        guard let q = s.queues[b.rawValue], q.left > 0, let r = b.recipes.first(where: { $0.id == q.recipe }) else { return 0 }
+        let left = secs(r) * Double(q.left) - (progress[b.rawValue] ?? 0)
+        return max(2, Int((left / 30).rounded(.up)))
+    }
+
+    func finishCraftNow(_ b: BuildKind) {
+        let g = finishCraftGems(b)
+        guard g > 0, let q = s.queues[b.rawValue], let r = b.recipes.first(where: { $0.id == q.recipe }) else { return }
+        guard s.gems >= g else { Sfx.play(.error); panel = .shop; return }
+        _ = spend(g, "finishCraft")
+        add(r.output, q.left)
+        bump("craft." + r.output.rawValue, q.left)
+        s.queues[b.rawValue] = CraftQueue(recipe: q.recipe, left: 0, progress: 0)
+        progress[b.rawValue] = 0
+        onCrafted?(b, r.output, false)
+        Sfx.play(.chest)
         save()
     }
 

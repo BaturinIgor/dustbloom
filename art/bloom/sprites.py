@@ -178,6 +178,12 @@ HERO_SKINS = {
     'sky': ('#d2eaff', '#96c6f2', '#6a98cc', '#ff8fb0', '#ffffff'),
     'sun': ('#ffe9a0', '#f5c24e', '#cf9330', '#ff7f6a', 'berry_l'),
     'star': ('#ddd0ff', '#ab95ee', '#7d68c4', '#ff9ad0', 'gold'),
+    'rose': ('#ffb8c8', '#f07896', '#c44a6e', '#ff5070', 'berry'),
+    'night': ('#8a86c8', '#5e5aa0', '#3e3a78', '#ff9ad0', 'gem_l'),
+    'lemon': ('#fff6a8', '#f0dc58', '#c8aa30', '#ff8f70', 'l3'),
+    'lilac': ('#ecd2ff', '#c89cf0', '#9a6cc8', '#ff8fc0', '#ffffff'),
+    'ocean': ('#a8f0f0', '#5ccad0', '#2e98a4', '#ff8fa0', 'gem'),
+    'ember': ('#ffc49a', '#f08a50', '#c45a2e', '#ff5a5a', 'fire2'),
 }
 
 
@@ -1775,7 +1781,68 @@ def puzzle_tiles():
     cv.outline('ink'); sprite('bloom_bubble_gift', cv)
 
 
+def pet(kind, f):
+    """Companions that trot after the hero: bee (friend pack), fox (dew), owl (level 20 pack)."""
+    cv = Canvas(16, 14)
+    b = f
+    if kind == 'bee':
+        cv.disc(8, 8 - b, 4.6, 3.8, 'gold'); cv.rect(6, 5 - b, 6, 11 - b, 'ink'); cv.rect(9, 5 - b, 9, 11 - b, 'ink')
+        cv.disc(6, 4 - b + f, 2.6, 1.8, 'white', 220); cv.disc(10, 4 - b + f, 2.6, 1.8, 'white', 220)
+        cv.put(12, 7 - b, 'ink'); cv.put(12, 6 - b, 'white'); cv.put(13, 9 - b, 'cheek')
+        cv.put(3, 8 - b, 'gold_d')
+    elif kind == 'fox':
+        cv.disc(7, 9, 4.6, 3, 'iron'); cv.disc(11, 6 - b, 3.4, 3, 'iron'); cv.put(9, 3 - b, 'iron'); cv.put(9, 2 - b, 'iron_l')
+        cv.put(13, 3 - b, 'iron'); cv.put(13, 2 - b, 'iron_l'); cv.disc(11.5, 7.5 - b, 2, 1.2, 'white')
+        cv.put(12, 5 - b, 'ink'); cv.put(14, 7 - b, 'ink'); cv.disc(2.5, 7 - f, 2.6, 2, 'iron'); cv.put(1, 6 - f, 'white')
+        cv.rect(5, 12, 5, 12, 't0'); cv.rect(9, 12, 9, 12, 't0')
+    else:  # owl
+        cv.disc(8, 8 - b, 5, 5, 't1'); cv.disc(8, 9.5 - b, 3.4, 3, 't2')
+        cv.disc(6, 6 - b, 1.8, 1.8, 'white'); cv.disc(10, 6 - b, 1.8, 1.8, 'white')
+        cv.put(6, 6 - b, 'ink'); cv.put(10, 6 - b, 'ink'); cv.put(8, 8 - b, 'gold')
+        cv.put(4, 2 - b, 't0'); cv.put(12, 2 - b, 't0'); cv.rect(6, 13, 6, 13, 'gold_d'); cv.rect(10, 13, 10, 13, 'gold_d')
+    cv.outline('ink')
+    sprite('bloom_pet_%s_%d' % (kind, f), cv)
+
+
+def decor_items():
+    """Island decorations bought with dew. Ground at the bottom centre with BASE px."""
+    def done(cv, n):
+        cv.outline('ink'); sprite('bloom_decor_' + n, cv)
+    cv = Canvas(12, 24); cv.rect(5, 6, 6, 21, 'r0'); cv.rect(5, 6, 5, 21, 'r1'); cv.rect(3, 20, 8, 21, 'r0')
+    cv.rect(3, 1, 8, 6, 'r0'); cv.rect(4, 2, 7, 5, 'fire2'); cv.put(5, 3, 'white'); done(cv, 'lamp')
+    cv = Canvas(18, 12); cv.disc(9, 7, 8, 3.4, 'd1'); cv.disc(9, 6.4, 7, 2.6, 'd2')
+    for x, c in ((4, 'berry'), (7, 'gold'), (10, 'berry_l'), (13, 'white'), (6, 'gem'), (12, 'gold')):
+        cv.put(x, 5 if x % 2 else 4, c); cv.put(x, 6, 'l2')
+    done(cv, 'bed')
+    cv = Canvas(12, 24); cv.rect(2, 2, 2, 21, 't1'); cv.put(2, 1, 'gold_l')
+    for k in range(8):
+        h = 3 - abs(k - 3) // 2
+        cv.rect(3 + k, 3 + (3 - h), 3 + k, 3 + 3 + h, 'gem' if k < 4 else 'gem_l')
+    cv.rect(1, 20, 3, 21, 't0'); done(cv, 'flag')
+    cv = Canvas(20, 14); cv.rect(2, 5, 17, 7, 't1'); cv.rect(2, 5, 17, 5, 't2'); cv.rect(2, 1, 17, 3, 't1'); cv.rect(2, 1, 17, 1, 't2')
+    cv.rect(3, 8, 4, 11, 't0'); cv.rect(15, 8, 16, 11, 't0'); done(cv, 'bench')
+    cv = Canvas(18, 26); cv.rect(8, 8, 9, 23, 't1'); cv.rect(2, 11, 15, 12, 't1')
+    cv.disc(8.5, 6, 3.6, 3.6, 'iron'); cv.put(7, 5, 'ink'); cv.put(10, 5, 'ink'); cv.rect(7, 7, 10, 7, 'ink')
+    cv.rect(4, 1, 13, 2, 'gold_d'); cv.rect(6, 0, 11, 1, 'gold'); cv.rect(6, 13, 11, 18, 'berry'); cv.rect(6, 13, 11, 13, 'berry_d')
+    done(cv, 'scarecrow')
+    cv = Canvas(22, 18); cv.disc(11, 13, 10, 4, 'r0'); cv.disc(11, 12.5, 8.6, 3, 'water'); cv.disc(9, 12, 3, 1.2, 'water_l')
+    cv.rect(10, 4, 12, 11, 'r1'); cv.disc(11, 4, 3, 1.4, 'r2'); cv.put(11, 1, 'water_l'); cv.put(10, 2, 'water_l'); cv.put(12, 2, 'water_l')
+    done(cv, 'fountain')
+    cv = Canvas(14, 16); cv.rect(6, 7, 8, 13, 'cotton_d'); cv.disc(7, 6, 6, 3.4, 'gem'); cv.rect(1, 6, 13, 7, 'gem_d')
+    cv.put(4, 4, 'gem_l'); cv.put(9, 3, 'gem_l'); cv.put(11, 5, 'gem_l'); done(cv, 'shroom')
+    cv = Canvas(14, 26); cv.rect(3, 19, 10, 23, 'r1'); cv.rect(3, 19, 10, 19, 'r2'); cv.rect(5, 10, 8, 18, 'gold_d')
+    for k in range(5):
+        import math as _m
+        a = -_m.pi / 2 + k * 2 * _m.pi / 5
+        cv.disc(6.5 + _m.cos(a) * 3.2, 6 + _m.sin(a) * 3.2, 1.6, 1.6, 'gold')
+    cv.disc(6.5, 6, 2.4, 2.4, 'gold'); cv.put(6, 5, 'gold_l'); done(cv, 'statue')
+
+
 def folk():
+    for k in ('bee', 'fox', 'owl'):
+        for f in range(2):
+            pet(k, f)
+    decor_items()
     for n in FOLK:
         for f in range(2):
             islander(n, f)

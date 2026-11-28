@@ -228,6 +228,7 @@ struct ShopView: View {
                     PixelIcon(name: "bloom_ui_pass", size: 38)
                     VStack(alignment: .leading, spacing: 2) {
                         OutlinedText(text: tr("+25% добычи и опыта"), size: 13)
+                        OutlinedText(text: tr("+1 сердце, подарки друзей ×2, 20 росинок в день"), size: 11, color: BUI.cream, fixed: false, lines: 2, align: .leading)
                         OutlinedText(text: tr("28 дней, без автопродления"), size: 11, color: BUI.muted, fixed: false)
                     }
                     Spacer(minLength: 0)
@@ -235,6 +236,17 @@ struct ShopView: View {
                 if let until = game.passUntil {
                     let days = max(1, Int(until.timeIntervalSinceNow / 86400) + 1)
                     OutlinedText(text: tr("Активен ещё %@ дн.", days), size: 12, color: BUI.green)
+                    if game.passDewReady {
+                        Button { game.claimPassDew() } label: {
+                            HStack(spacing: 6) {
+                                OutlinedText(text: tr("Забрать"), size: 14)
+                                PixelIcon(name: "bloom_item_gem", size: 18)
+                                OutlinedText(text: "+\(BloomOffers.passDew)", size: 14)
+                            }
+                            .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(BloomButtonStyle(color: BUI.green, edge: BUI.greenEdge))
+                    }
                 }
                 BuyButton(product: .pass, wide: true, title: game.passActive ? tr("Продлить") : nil)
             }
@@ -283,6 +295,7 @@ struct BuyButton: View {
     var body: some View {
         let owned = (product == .founder && game.isFounder) || (product == .starter && game.starterBought)
             || (product == .slot && game.hasSlot) || (product == .eventPass && game.eventPassActive)
+            || (!BloomOffers.perk(product).isEmpty && game.hasPerk(BloomOffers.perk(product)))
         Button {
             guard !owned, store.busy == nil else { return }
             Sfx.play(.select)

@@ -236,6 +236,11 @@ final class BloomScene: SKScene {
         setUpLife()
         placeCaves()
         placeFolk()
+        for d in game.s.decor { addDecorNode(d, animated: false) }
+        game.placeDecorCell = { [weak self] in self?.findBuildCell() }
+        game.onDecorPlaced = { [weak self] d in self?.addDecorNode(d, animated: true) }
+        game.onPetChanged = { [weak self] in self?.refreshPet() }
+        refreshPet()
         for c in game.helpers { addHelper(c, animated: false) }
         if game.isFounder { addHelper("gold", animated: false) }
         if ProcessInfo.processInfo.arguments.contains("-bloomDemo") {
@@ -438,7 +443,7 @@ final class BloomScene: SKScene {
     }
 
     private func freeCell(_ c: Cell) -> Bool {
-        res[c] == nil && buildingNodes[c] == nil && flowers[c] == nil && !chests.contains(where: { $0.cell == c }) && !digSpots.contains(where: { $0.cell == c }) && !caveCells.contains(c) && !folkCells.contains(c) && !nearBridge.contains(c) && land.contains(c) && !bridgeCells.contains(c)
+        res[c] == nil && buildingNodes[c] == nil && flowers[c] == nil && !chests.contains(where: { $0.cell == c }) && !digSpots.contains(where: { $0.cell == c }) && !caveCells.contains(c) && !folkCells.contains(c) && decorNodes[c] == nil && !nearBridge.contains(c) && land.contains(c) && !bridgeCells.contains(c)
     }
 
     private func randomKind(_ id: Int) -> GatherKind {
@@ -1164,6 +1169,7 @@ final class BloomScene: SKScene {
         updateFoes(dt)
         updateDungeon(dt)
         updateFolk(dt)
+        updatePet(dt)
         game.tick(dt: dt)
         game.tickCombo(now: now)
         updateCombo()
@@ -1722,7 +1728,10 @@ final class BloomScene: SKScene {
                 }
             }
         }
-        if n != game.nearby { game.nearby = n }
+        if n != game.nearby {
+            game.nearby = n
+            if case .island(let id) = n, game.level >= 6, game.coins * 2 < game.islandPrice(id) { game.triggerOffer("island") }
+        }
     }
 
     // MARK: - treasure chests
@@ -2589,13 +2598,44 @@ final class BloomScene: SKScene {
         fainted = true
         vel = .zero
         hero.removeAction(forKey: "blink")
+        // in a cave, once per run: offer to get up on the spot (dew or a video) instead of going home
+        if dungeon != nil && !revivedThisRun && !demo {
+            hero.run(.group([.rotate(toAngle: -facing * 1.3, duration: 0.25), .fadeAlpha(to: 0.5, duration: 0.25)]))
+            game.onRevive = { [weak self] yes in
+                guard let self else { return }
+                if yes { self.getUp() } else { self.goHome(fallen: true) }
+            }
+            game.reviveAsk = true
+            return
+        }
+        goHome(fallen: false)
+    }
+
+    private func getUp() {
+        revivedThisRun = true
+        hero.removeAllActions()
+        hero.run(.group([.rotate(toAngle: 0, duration: 0.2), .fadeIn(withDuration: 0.2)]))
+        game.hp = game.maxHP
+        fainted = false
+        hurtUntil = now + 3
+        // push the nearest foes back so the hero is not knocked down again at once
+        for f in foes where hypot(f.pos.x - heroPos.x, f.pos.y - heroPos.y) < 40 {
+            let a = atan2(f.pos.y - heroPos.y, f.pos.x - heroPos.x)
+            f.pos = CGPoint(x: f.pos.x + cos(a) * 24, y: f.pos.y + sin(a) * 24)
+        }
+        for _ in 0..<14 { spark(at: CGPoint(x: heroPos.x, y: heroPos.y + 8), spread: 16, gold: true) }
+        Sfx.play(.levelUp, volume: 0.7)
+        game.bump("revive")
+    }
+
+    private func goHome(fallen: Bool) {
         hero.run(.sequence([
-            .group([.rotate(toAngle: -facing * 1.3, duration: 0.25), .fadeAlpha(to: 0.5, duration: 0.25)]),
-            .wait(forDuration: 0.8),
+            .group([.rotate(toAngle: -facing * 1.3, duration: fallen ? 0.01 : 0.25), .fadeAlpha(to: 0.5, duration: fallen ? 0.01 : 0.25)]),
+            .wait(forDuration: fallen ? 0.2 : 0.8),
             .fadeOut(withDuration: 0.2),
             .run { [weak self] in
                 guard let self else { return }
-                if self.dungeon != nil { self.teardownDungeon() }
+                if self.dungeon != nil { self.teardownDungeon(); self.game.triggerOffer("brave") }
                 self.heroPos = self.spawnPoint()
                 self.hero.position = self.heroPos
                 self.cam.position = self.heroPos
@@ -2618,6 +2658,8 @@ final class BloomScene: SKScene {
         game.showToast(BloomToast(title: tr("Ты устал"), subtitle: tr("Отдохнул дома, все сердца снова целы")))
         game.bump("faint")
     }
+
+    private var revivedThisRun = false
 
     // MARK: - dungeons: a cave on some islands leads to an arena with two waves and a boss
 
@@ -2676,6 +2718,7 @@ final class BloomScene: SKScene {
     private func enterDungeon(_ id: String) {
         guard dungeon == nil, let d = BloomDungeons.byId(id), !fainted else { return }
         dungeon = d
+        revivedThisRun = false
         game.inDungeon = true
         SKTexture.preload([slamRingTexture, tex("bloom_dfloor_0"), tex("bloom_dfloor_1"), tex("bloom_dwall"), tex("bloom_portal_0"),
                            tex("bloom_portal_1"), tex("bloom_relic_" + d.relic)]) {}
@@ -2992,6 +3035,77 @@ final class BloomScene: SKScene {
         game.inDungeon = false
         vel = .zero
         applyDayLight()
+    }
+
+    // MARK: - pets and decorations (donate 2)
+
+    private var decorNodes: [Cell: SKSpriteNode] = [:]
+    private var petNode: SKSpriteNode?
+    private var petPos = CGPoint.zero
+    private var petKind: String?
+
+    private func addDecorNode(_ d: PlacedDecor, animated: Bool) {
+        guard decorNodes[d.cell] == nil, land.contains(d.cell) else { return }
+        clearCell(d.cell)
+        let t = tex("bloom_decor_" + d.kind)
+        let n = SKSpriteNode(texture: t)
+        n.anchorPoint = CGPoint(x: 0.5, y: 2 / t.size().height)
+        let p = basePoint(d.cell)
+        n.position = p
+        n.zPosition = 500 - p.y
+        world.addChild(n)
+        decorNodes[d.cell] = n
+        if d.kind == "lamp" || d.kind == "shroom" {
+            let g = SKSpriteNode(texture: glowTexture)
+            g.blendMode = .add
+            g.color = d.kind == "lamp" ? UIColor(red: 1, green: 0.8, blue: 0.4, alpha: 1) : UIColor(red: 0.45, green: 0.75, blue: 1, alpha: 1)
+            g.colorBlendFactor = 1
+            g.setScale(0.6)
+            g.position = CGPoint(x: p.x, y: p.y + (d.kind == "lamp" ? 18 : 8))
+            g.zPosition = 3950
+            g.alpha = nightLevel * 0.8
+            world.addChild(g)
+            nightLights.append(g)
+        }
+        if animated {
+            n.setScale(0.2)
+            n.run(.sequence([.scale(to: 1.2, duration: 0.12), .scale(to: 1, duration: 0.1)]))
+            for _ in 0..<10 { spark(at: CGPoint(x: p.x, y: p.y + 6), spread: 12, gold: true) }
+            Sfx.play(.chest, volume: 0.7)
+            buzz(light)
+        }
+    }
+
+    private func refreshPet() {
+        guard game.s.pet != petKind else { return }
+        petKind = game.s.pet
+        petNode?.removeFromParent()
+        petNode = nil
+        guard let k = petKind else { return }
+        let n = SKSpriteNode(texture: tex("bloom_pet_\(k)_0"))
+        n.anchorPoint = CGPoint(x: 0.5, y: 0.1)
+        n.run(.repeatForever(.animate(with: [tex("bloom_pet_\(k)_0"), tex("bloom_pet_\(k)_1")], timePerFrame: k == "bee" ? 0.12 : 0.3)))
+        petPos = CGPoint(x: heroPos.x - 14, y: heroPos.y)
+        n.position = petPos
+        world.addChild(n)
+        petNode = n
+        puff(at: petPos, n: 5)
+    }
+
+    /// The companion trots a little behind the hero; the bee hovers a bit higher.
+    private func updatePet(_ dt: TimeInterval) {
+        guard let n = petNode else { return }
+        let target = CGPoint(x: heroPos.x - facing * 13, y: heroPos.y - 2)
+        let d = hypot(target.x - petPos.x, target.y - petPos.y)
+        if d > 200 { petPos = target } else if d > 3 {
+            let k = min(1, CGFloat(dt) * (d > 30 ? 7 : 4))
+            petPos.x += (target.x - petPos.x) * k
+            petPos.y += (target.y - petPos.y) * k
+        }
+        let lift: CGFloat = petKind == "bee" ? 9 + sin(CGFloat(now) * 5) * 2 : 0
+        n.position = CGPoint(x: petPos.x, y: petPos.y + lift)
+        n.zPosition = 500 - petPos.y + 0.5
+        if abs(target.x - petPos.x) > 2 { n.xScale = target.x > petPos.x ? 1 : -1 }
     }
 
     // MARK: - islanders and floor puzzles

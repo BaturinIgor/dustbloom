@@ -149,6 +149,7 @@ struct BloomHUD: View {
                         RoundIconButton(icon: "bloom_ui_event", badge: game.eventReadyCount) { game.panel = .event }
                         RoundIconButton(icon: "bloom_ui_tree", badge: game.talentPoints) { game.panel = .talents }
                         ShopButton()
+                        OfferButton()
                     }
                 }
                 .padding(.horizontal, 16)
@@ -184,6 +185,10 @@ struct BloomHUD: View {
                     .compositingGroup()
                     .transition(.scale(scale: 0.85).combined(with: .opacity))
             }
+            if game.reviveAsk && game.panel == nil {
+                Color.black.opacity(0.45).ignoresSafeArea().transition(.opacity)
+                ReviveCard().transition(.scale(scale: 0.85).combined(with: .opacity))
+            }
             // toasts sit above panels so they never look dimmed
             VStack {
                 if let t = game.toast {
@@ -202,6 +207,7 @@ struct BloomHUD: View {
             .animation(.spring(response: 0.3, dampingFraction: 0.75), value: game.toast)
         }
         .animation(.spring(response: 0.28, dampingFraction: 0.8), value: game.panel)
+        .animation(.spring(response: 0.28, dampingFraction: 0.8), value: game.reviveAsk)
     }
 
     private var topBar: some View {
@@ -408,6 +414,8 @@ struct PanelHost: View {
         case .menu: return tr("Меню")
         case .dungeon(let id): return tr(BloomDungeons.byId(id)?.title ?? "")
         case .islander(let id): return tr(BloomQuests.islander(id)?.name ?? "")
+        case .offer(let id): return tr(BloomOffers.offer(id)?.title ?? "")
+        case .decor: return tr("Украшения")
         }
     }
 
@@ -431,6 +439,8 @@ struct PanelHost: View {
         case .menu: MenuView()
         case .dungeon(let id): DungeonView(id: id)
         case .islander(let id): IslanderView(id: id)
+        case .offer(let id): OfferView(id: id)
+        case .decor: DecorView()
         }
     }
 }
@@ -472,6 +482,20 @@ struct CostRow: View {
 struct BuildList: View {
     @EnvironmentObject private var game: BloomGame
     var body: some View {
+        Button { game.panel = .decor; Sfx.play(.select) } label: {
+            Card {
+                HStack(spacing: 10) {
+                    PixelIcon(name: "bloom_decor_fountain", size: 40).frame(width: 54, height: 46)
+                    VStack(alignment: .leading, spacing: 2) {
+                        OutlinedText(text: tr("Украшения"), size: 15)
+                        OutlinedText(text: tr("Фонари, клумбы, фонтаны для твоих островов"), size: 11, color: BUI.muted, fixed: false, lines: 2, align: .leading)
+                    }
+                    Spacer(minLength: 0)
+                    OutlinedText(text: "›", size: 22, color: BUI.gold).frame(width: 30)
+                }
+            }
+        }
+        .buttonStyle(.plain)
         ForEach(BuildKind.allCases) { k in
             Card {
                 HStack(spacing: 10) {
@@ -494,9 +518,24 @@ struct BuildList: View {
                         }
                         .frame(width: 74)
                     } else {
-                        Button { game.build(k) } label: { OutlinedText(text: tr("Строить"), size: 12.5) }
-                            .buttonStyle(BloomButtonStyle(enabled: game.canBuild(k)))
+                        if game.has(game.cost(k)) {
+                            Button { game.build(k) } label: { OutlinedText(text: tr("Строить"), size: 12.5) }
+                                .buttonStyle(BloomButtonStyle(enabled: game.canBuild(k)))
+                                .frame(width: 84)
+                        } else {
+                            // not enough goods: cover the rest with dew, then build
+                            Button { if game.buyShortfall(game.cost(k), what: "build") { game.build(k) } } label: {
+                                VStack(spacing: 1) {
+                                    OutlinedText(text: tr("Строить"), size: 11)
+                                    HStack(spacing: 3) {
+                                        PixelIcon(name: "bloom_item_gem", size: 13)
+                                        OutlinedText(text: "\(game.shortfallGems(game.cost(k)))", size: 11.5)
+                                    }
+                                }
+                            }
+                            .buttonStyle(BloomButtonStyle(color: BUI.green, edge: BUI.greenEdge))
                             .frame(width: 84)
+                        }
                     }
                 }
             }
@@ -521,10 +560,23 @@ struct CraftList: View {
                                 Capsule().fill(BUI.ink).frame(height: 12)
                                 Capsule().fill(BUI.gold).frame(width: max(12, 200 * p), height: 12)
                             }
-                            .frame(width: 204, alignment: .leading)
+                            .frame(width: 150, alignment: .leading)
                         }
                     }
                     Spacer(minLength: 0)
+                    TimelineView(.periodic(from: .now, by: 1)) { _ in
+                        Button { game.finishCraftNow(kind) } label: {
+                            VStack(spacing: 1) {
+                                OutlinedText(text: tr("Сразу"), size: 11)
+                                HStack(spacing: 3) {
+                                    PixelIcon(name: "bloom_item_gem", size: 14)
+                                    OutlinedText(text: "\(game.finishCraftGems(kind))", size: 12)
+                                }
+                            }
+                            .frame(width: 58, height: 36)
+                        }
+                        .buttonStyle(BloomButtonStyle(color: BUI.green, edge: BUI.greenEdge))
+                    }
                 }
             }
         }
@@ -614,8 +666,7 @@ struct AnvilView: View {
                     }
                     Text(tr("Шанс %@% на удачную ковку: +1 к удару", Int(BloomContent.luckyChance * 100)))
                         .font(DText.font(10.5)).foregroundStyle(BUI.gold.opacity(0.9))
-                    Button { game.forgePick() } label: { OutlinedText(text: tr("Выковать"), size: 15).frame(maxWidth: .infinity) }
-                        .buttonStyle(BloomButtonStyle(color: BUI.orange, edge: BUI.orangeEdge, enabled: game.has(next.cost)))
+                    ForgeButton(cost: next.cost, what: "pick") { game.forgePick() }
                 }
             }
         } else {
@@ -634,8 +685,7 @@ struct AnvilView: View {
                     Spacer(minLength: 0)
                 }
                 if game.nextAxe != nil {
-                    Button { game.forgeAxe() } label: { OutlinedText(text: tr("Выковать"), size: 15).frame(maxWidth: .infinity) }
-                        .buttonStyle(BloomButtonStyle(color: BUI.orange, edge: BUI.orangeEdge, enabled: game.has(game.nextAxe!.cost)))
+                    ForgeButton(cost: game.nextAxe!.cost, what: "axe") { game.forgeAxe() }
                 }
             }
         }
@@ -654,8 +704,7 @@ struct AnvilView: View {
                 if game.hasShovel {
                     OutlinedText(text: tr("Уже у тебя"), size: 13, color: BUI.green)
                 } else {
-                    Button { game.forgeShovel() } label: { OutlinedText(text: tr("Выковать"), size: 15).frame(maxWidth: .infinity) }
-                        .buttonStyle(BloomButtonStyle(color: BUI.orange, edge: BUI.orangeEdge, enabled: game.has(BloomBalance.shared.shovelCost)))
+                    ForgeButton(cost: BloomBalance.shared.shovelCost, what: "shovel") { game.forgeShovel() }
                 }
             }
         }
@@ -865,7 +914,7 @@ struct ShopButton: View {
     @EnvironmentObject private var game: BloomGame
     var body: some View {
         TimelineView(.periodic(from: .now, by: 5)) { ctx in
-            RoundIconButton(icon: "bloom_ui_shop", badge: 0, dot: game.adReadyAt <= ctx.date && RewardedAds.isAvailable) {
+            RoundIconButton(icon: "bloom_ui_shop", badge: 0, dot: (game.adReadyAt <= ctx.date && RewardedAds.isAvailable) || game.passDewReady) {
                 game.panel = .shop
             }
         }
@@ -1388,6 +1437,18 @@ struct IslanderView: View {
                 }
                 .buttonStyle(BloomButtonStyle(color: ready ? BUI.orange : BUI.panelHi, edge: ready ? BUI.orangeEdge : BUI.ink))
                 .disabled(!ready)
+                if !ready, step.build == nil {
+                    let g = game.shortfallGems(step.items)
+                    Button { if game.buyShortfall(step.items, what: "quest") { game.handIn(n) } } label: {
+                        HStack(spacing: 6) {
+                            OutlinedText(text: tr("Докупить недостающее"), size: 14)
+                            PixelIcon(name: "bloom_item_gem", size: 18)
+                            OutlinedText(text: "\(g)", size: 14)
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(BloomButtonStyle(color: BUI.green, edge: BUI.greenEdge))
+                }
                 OutlinedText(text: tr("Друг раз в день дарит подарок"), size: 11, color: BUI.muted, fixed: false, lines: 2)
             }
         }
@@ -1419,6 +1480,163 @@ struct IslanderView: View {
                     .padding(.horizontal, 10)
                     .frame(height: 44)
                     .background(RoundedRectangle(cornerRadius: 12).fill(BUI.panelHi))
+                }
+            }
+        }
+    }
+}
+
+/// Forge with what you have, or cover the shortfall with dew in the same tap.
+struct ForgeButton: View {
+    @EnvironmentObject private var game: BloomGame
+    let cost: Cost
+    let what: String
+    let action: () -> Void
+    var body: some View {
+        if game.has(cost) {
+            Button(action: action) { OutlinedText(text: tr("Выковать"), size: 15).frame(maxWidth: .infinity) }
+                .buttonStyle(BloomButtonStyle(color: BUI.orange, edge: BUI.orangeEdge))
+        } else {
+            Button { if game.buyShortfall(cost, what: what) { action() } } label: {
+                HStack(spacing: 6) {
+                    OutlinedText(text: tr("Выковать"), size: 15)
+                    PixelIcon(name: "bloom_item_gem", size: 18)
+                    OutlinedText(text: "\(game.shortfallGems(cost))", size: 15)
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(BloomButtonStyle(color: BUI.green, edge: BUI.greenEdge))
+        }
+    }
+}
+
+/// Fainted in a cave: get up on the spot or rest at home. Never a system alert.
+struct ReviveCard: View {
+    @EnvironmentObject private var game: BloomGame
+    var body: some View {
+        VStack(spacing: 12) {
+            OutlinedText(text: tr("Ты упал без сил"), size: 20, color: BUI.gold)
+            OutlinedText(text: tr("Встань прямо здесь и добей пещеру, или отдохни дома"), size: 13, color: BUI.muted, fixed: false, lines: 2)
+            Button { game.answerRevive(gems: true) } label: {
+                HStack(spacing: 6) {
+                    OutlinedText(text: tr("Встать"), size: 16)
+                    PixelIcon(name: "bloom_item_gem", size: 18)
+                    OutlinedText(text: "\(BloomGame.reviveGems)", size: 16)
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(BloomButtonStyle(color: BUI.orange, edge: BUI.orangeEdge))
+            if game.reviveAdReady {
+                Button { game.reviveWithAd() } label: {
+                    HStack(spacing: 6) {
+                        PixelIcon(name: "bloom_ui_ad", size: 20)
+                        OutlinedText(text: tr("Встать за видео"), size: 15)
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(BloomButtonStyle(color: BUI.green, edge: BUI.greenEdge))
+            }
+            Button { game.declineRevive() } label: {
+                OutlinedText(text: tr("Домой"), size: 15).frame(maxWidth: .infinity)
+            }
+            .buttonStyle(BloomButtonStyle(color: BUI.panelHi, edge: BUI.ink))
+        }
+        .padding(18)
+        .frame(width: 300)
+        .background(RoundedRectangle(cornerRadius: 22).fill(BUI.panel))
+        .overlay(RoundedRectangle(cornerRadius: 22).stroke(BUI.ink, lineWidth: 4))
+    }
+}
+
+// MARK: - donate 2: moment offer button and card, decorations
+
+/// Glows in the right column while a moment offer is live; shows the hours left.
+struct OfferButton: View {
+    @EnvironmentObject private var game: BloomGame
+    @State private var glow = false
+    var body: some View {
+        if let a = game.activeOffer {
+            TimelineView(.periodic(from: .now, by: 30)) { ctx in
+                let left = max(0, Int(a.until.timeIntervalSince(ctx.date)))
+                Button { game.panel = .offer(a.offer.id); Sfx.play(.select) } label: {
+                    ZStack(alignment: .bottom) {
+                        ZStack {
+                            Circle().fill(BUI.ink.opacity(0.88)).frame(width: 50, height: 50)
+                            Circle().stroke(BUI.gold, lineWidth: 2.5).frame(width: 46, height: 46)
+                                .shadow(color: BUI.gold.opacity(glow ? 0.9 : 0.2), radius: glow ? 8 : 2)
+                            PixelIcon(name: a.offer.icon, size: 30)
+                        }
+                        OutlinedText(text: left >= 3600 ? tr("%@ ч", left / 3600) : tr("%@ мин", max(1, left / 60)), size: 10.5)
+                            .padding(.horizontal, 5)
+                            .background(Capsule().fill(BUI.red))
+                            .offset(y: 8)
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+            .onAppear { withAnimation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true)) { glow = true } }
+        }
+    }
+}
+
+struct OfferView: View {
+    @EnvironmentObject private var game: BloomGame
+    let id: String
+    var body: some View {
+        if let o = BloomOffers.offer(id) {
+            Card {
+                VStack(spacing: 10) {
+                    PixelIcon(name: o.icon, size: 64)
+                        .frame(width: 84, height: 84)
+                        .background(RoundedRectangle(cornerRadius: 16).fill(BUI.ink.opacity(0.4)))
+                    OutlinedText(text: tr(o.text), size: 14, fixed: false, lines: 3)
+                    if o.product == .islandPack {
+                        HStack(spacing: 6) {
+                            PixelIcon(name: "bloom_item_coin", size: 20)
+                            OutlinedText(text: "+\(game.islandPackCoins)", size: 15, color: BUI.gold)
+                            PixelIcon(name: "bloom_item_gem", size: 20)
+                            OutlinedText(text: "+100", size: 15, color: BUI.gold)
+                        }
+                    }
+                    if let a = game.activeOffer, a.offer.id == id {
+                        TimelineView(.periodic(from: .now, by: 1)) { ctx in
+                            let left = max(0, Int(a.until.timeIntervalSince(ctx.date)))
+                            OutlinedText(text: tr("Предложение исчезнет через %@", String(format: "%d:%02d:%02d", left / 3600, left / 60 % 60, left % 60)),
+                                         size: 11.5, color: BUI.muted)
+                        }
+                    }
+                }
+            }
+            BuyButton(product: o.product, wide: true)
+            OutlinedText(text: tr("Без случайностей: ты точно получишь всё, что написано"), size: 10.5, color: BUI.muted, fixed: false, lines: 2)
+        }
+    }
+}
+
+struct DecorView: View {
+    @EnvironmentObject private var game: BloomGame
+    var body: some View {
+        let cols = [GridItem(.fixed(150), spacing: 12), GridItem(.fixed(150), spacing: 12)]
+        VStack(spacing: 8) {
+            OutlinedText(text: tr("Встанет рядом с тобой"), size: 12, color: BUI.muted)
+            LazyVGrid(columns: cols, spacing: 12) {
+                ForEach(BloomOffers.decor) { d in
+                    VStack(spacing: 6) {
+                        PixelIcon(name: "bloom_decor_" + d.id, size: 48).frame(height: 56)
+                        OutlinedText(text: tr(d.title), size: 12, fixed: false)
+                        Button { game.placeDecor(d) } label: {
+                            HStack(spacing: 3) {
+                                OutlinedText(text: "\(d.gems)", size: 13)
+                                PixelIcon(name: "bloom_item_gem", size: 16)
+                            }
+                            .frame(width: 100)
+                        }
+                        .buttonStyle(BloomButtonStyle(color: game.gems >= d.gems ? BUI.orange : BUI.panel, edge: game.gems >= d.gems ? BUI.orangeEdge : BUI.ink))
+                    }
+                    .padding(.vertical, 10)
+                    .frame(width: 150)
+                    .background(RoundedRectangle(cornerRadius: 14).fill(BUI.panelHi))
+                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(BUI.ink.opacity(0.6), lineWidth: 2))
                 }
             }
         }

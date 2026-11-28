@@ -9,6 +9,13 @@ enum ShopProduct: String, CaseIterable, Identifiable {
     case starter = "bloom.starter"        // non-consumable, once
     case slot = "bloom.slot"              // non-consumable, +1 Bloomling
     case eventPass = "bloom.eventpass"    // consumable, premium track of this week's event
+    case brave = "bloom.brave"            // non-consumable: +2 hearts, 100 dew
+    case crafter = "bloom.crafter"        // non-consumable: crafting twice as fast
+    case digger = "bloom.digger"          // non-consumable: golden shovel, dig rewards x2, 200 dew
+    case islandPack = "bloom.islandpack"  // consumable: coins for the next island + 100 dew (twice per game)
+    case friend = "bloom.friend"          // non-consumable: friend gifts x2 + bee companion
+    case level10 = "bloom.level10"        // non-consumable: level 10 bundle
+    case level20 = "bloom.level20"        // non-consumable: level 20 bundle
     case gemsS = "bloom.gems.80"
     case gemsM = "bloom.gems.450"
     case gemsL = "bloom.gems.1000"
@@ -35,6 +42,13 @@ enum ShopProduct: String, CaseIterable, Identifiable {
         case .starter: return "0,99 $"
         case .slot: return "1,99 $"
         case .eventPass: return "2,99 $"
+        case .brave: return "1,99 $"
+        case .crafter: return "4,99 $"
+        case .digger: return "2,99 $"
+        case .islandPack: return "2,99 $"
+        case .friend: return "3,99 $"
+        case .level10: return "4,99 $"
+        case .level20: return "9,99 $"
         case .gemsS: return "0,99 $"
         case .gemsM: return "4,99 $"
         case .gemsL: return "9,99 $"
@@ -110,6 +124,8 @@ final class BloomStore: ObservableObject {
             case .founder where game?.isFounder == false: game?.grant(.founder)
             case .starter where game?.starterBought == false: game?.grant(.starter)
             case .slot where game?.hasSlot == false: game?.grant(.slot)
+            case .brave, .crafter, .digger, .friend, .level10, .level20:
+                if let g = game, !g.hasPerk(BloomOffers.perk(p)) { g.grant(p) }
             default: break
             }
         }
