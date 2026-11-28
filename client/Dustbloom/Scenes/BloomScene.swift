@@ -279,6 +279,9 @@ final class BloomScene: SKScene {
                 } else { self.game.panel = nil }
             }])))
         }
+        if let id = UserDefaults.standard.string(forKey: "bloomSolve") {
+            run(.sequence([.wait(forDuration: 3), .run { [weak self] in self?.debugSolve(id) }]))
+        }
         // -bloomChests N: several chests at once, to check each one opens
         let nChests = UserDefaults.standard.integer(forKey: "bloomChests")
         if nChests > 0 {
@@ -3089,15 +3092,33 @@ final class BloomScene: SKScene {
             guard spots.count == d.size else { return }
         } else {
             let starts = cs.sorted { ($0.y, $0.x) > ($1.y, $1.x) }
-            for st in starts {
-                var block: [Cell] = []
-                for yy in 0..<h { for xx in 0..<w { block.append(Cell(x: st.x + xx, y: st.y - yy)) } }
-                // a free ring around the block keeps it readable and reachable
-                let ring = (-1...w).flatMap { xx in (-h...1).map { yy in Cell(x: st.x + xx, y: st.y + yy) } }
-                if block.allSatisfy({ roomy($0, set) }) && ring.filter({ !set.contains($0) }).count <= w {
-                    spots = Array(block.prefix(d.kind == .runes ? d.size : w)); break
+            // lying across first; standing up on narrow islands (island 4 is a thin diamond)
+            search: for (bw, bh) in [(w, h), (h, w)] {
+                for st in starts {
+                    var block: [Cell] = []
+                    // row by row (or column by column) so neighbouring lanterns stay next to each other
+                    if bw >= bh { for yy in 0..<bh { for xx in 0..<bw { block.append(Cell(x: st.x + xx, y: st.y - yy)) } } }
+                    else { for xx in 0..<bw { for yy in 0..<bh { block.append(Cell(x: st.x + xx, y: st.y - yy)) } } }
+                    // a free ring around the block keeps it readable and reachable
+                    let ring = (-1...bw).flatMap { xx in (-bh...1).map { yy in Cell(x: st.x + xx, y: st.y + yy) } }
+                    if block.allSatisfy({ roomy($0, set) }) && ring.filter({ !set.contains($0) }).count <= max(bw, bh) {
+                        spots = Array(block.prefix(d.kind == .runes ? d.size : max(bw, bh))); break search
+                    }
                 }
             }
+            #if DEBUG
+            if spots.isEmpty {
+                let free = cs.filter { roomy($0, set) }
+                let xs = cs.map(\.x), ys = cs.map(\.y)
+                print("[bloom] puzzle \(d.id) on island \(d.island): no \(w)x\(h) block; \(cs.count) cells, \(free.count) roomy, x \(xs.min() ?? 0)...\(xs.max() ?? 0), y \(ys.min() ?? 0)...\(ys.max() ?? 0)")
+                for y in stride(from: (ys.max() ?? 0), through: (ys.min() ?? 0), by: -1) {
+                    print("[bloom]   " + String(((xs.min() ?? 0)...(xs.max() ?? 0)).map { x in
+                        let c = Cell(x: x, y: y)
+                        return !set.contains(c) ? " " : (roomy(c, set) ? "." : (buildingNodes[c] != nil ? "B" : (folkCells.contains(c) ? "N" : "x")))
+                    }))
+                }
+            }
+            #endif
             guard !spots.isEmpty else { return }
         }
         let pz = Puzzle(d)
@@ -3219,6 +3240,9 @@ final class BloomScene: SKScene {
             return
         }
         guard let i = entered else { return }
+        #if DEBUG
+        print("[puzzle] rune \(i) entered, step \(pz.step) of \(pz.order)")
+        #endif
         if pz.order.isEmpty {
             pz.order = (0..<pz.def.size).map { _ in Int.random(in: 0..<pz.tiles.count) }
             // no rune twice in a row: stepping again on the tile you stand on is awkward
@@ -3289,6 +3313,57 @@ final class BloomScene: SKScene {
         heroPos = CGPoint(x: CGFloat(c.x) * T + 8, y: CGFloat(c.y - 1) * T + 8)
         print("[bloom] goTo \(to) at \(c.x),\(c.y)")
     }
+
+    #if DEBUG
+    /// -bloomSolve p1: steps the hero across the puzzle's tiles the way a player would (plates: each
+    /// once, quickly; runes: one wrong rune first, then the shown order; lanterns: a solving set of
+    /// presses found by trying every combination). Exercises the real puzzle logic, timers and reward.
+    private func debugSolve(_ id: String) {
+        guard let pz = puzzles[id] else { print("[puzzle] \(id): not placed"); return }
+        let off = CGPoint(x: CGFloat(pz.tiles[0].cell.x) * T + 8, y: CGFloat(pz.tiles[0].cell.y - 2) * T + 8)
+        func at(_ i: Int) -> CGPoint { CGPoint(x: CGFloat(pz.tiles[i].cell.x) * T + 8, y: CGFloat(pz.tiles[i].cell.y) * T + 8) }
+        var steps: [SKAction] = []
+        func stand(_ p: CGPoint, _ wait: Double) { steps += [.run { [weak self] in self?.heroPos = p }, .wait(forDuration: wait)] }
+        print("[puzzle] \(id) \(pz.def.kind) \(pz.tiles.count) tiles, solved=\(pz.solved)")
+        switch pz.def.kind {
+        case .plates:
+            for i in pz.tiles.indices { stand(at(i), 0.4); stand(off, 0.15) }
+        case .lanterns:
+            let n = pz.lit.count
+            var presses: [Int] = []
+            for mask in 0..<(1 << n) {
+                var l = pz.lit
+                for i in 0..<n where mask & (1 << i) != 0 { for j in [i - 1, i, i + 1] where j >= 0 && j < n { l[j].toggle() } }
+                if l.allSatisfy({ $0 }) { presses = (0..<n).filter { mask & (1 << $0) != 0 }; break }
+            }
+            print("[puzzle] \(id) lanterns \(pz.lit.map { $0 ? 1 : 0 }) -> press \(presses)")
+            for i in presses { stand(at(i), 0.35); stand(off, 0.2) }
+        case .runes:
+            stand(at(0), 0.3)                                   // shows the order
+            steps.append(.wait(forDuration: 0.8 + 0.55 * Double(pz.def.size)))
+            steps.append(.run { [weak self] in
+                guard let self else { return }
+                print("[puzzle] \(id) order \(pz.order)")
+                var more: [SKAction] = []
+                func go(_ p: CGPoint, _ w: Double) { more += [.run { [weak self] in self?.heroPos = p }, .wait(forDuration: w)] }
+                // one wrong rune first: it must replay the order and accept it afterwards
+                let wrong = (pz.order[0] + 1) % pz.tiles.count
+                go(off, 0.2); go(at(wrong), 0.3); go(off, 0.6 + 0.55 * Double(pz.order.count) + 0.4)
+                for (k, i) in pz.order.enumerated() {
+                    if k > 0, pz.order[k - 1] == i { go(off, 0.2) }
+                    go(at(i), 0.3); go(off, 0.15)
+                }
+                self.run(.sequence(more))
+            })
+        }
+        steps.append(.wait(forDuration: pz.def.kind == .runes ? 9 : 1))   // runes queue their own steps after the replay
+        steps.append(.run { [weak self] in
+            guard let self else { return }
+            print("[puzzle] \(id) solved=\(pz.solved) saved=\(self.game.puzzleSolved(id)) coins=\(self.game.coins)")
+        })
+        run(.sequence([.wait(forDuration: 1.5), .sequence(steps)]))
+    }
+    #endif
 
     private func nearestFolk(within r: CGFloat) -> String? {
         var best = r, id: String?
