@@ -228,6 +228,7 @@ final class BloomScene: SKScene {
         goldOverlay.alpha = 0
         goldOverlay.zPosition = 4000
         cam.addChild(goldOverlay)
+        setUpLife()
         for c in game.helpers { addHelper(c, animated: false) }
         if game.isFounder { addHelper("gold", animated: false) }
         if ProcessInfo.processInfo.arguments.contains("-bloomDemo") {
@@ -367,6 +368,7 @@ final class BloomScene: SKScene {
                 n.zPosition = -900
                 world.addChild(n)
                 if delay > 0 { pop(n, delay: delay + Double.random(in: 0...0.6)) }
+                sway(n, phase: CGFloat(c.x) * 0.35 + CGFloat(c.y) * 0.15)
             }
         }
         for _ in 0..<2 { addButterfly(id, delay: delay) }
@@ -496,6 +498,18 @@ final class BloomScene: SKScene {
             n.run(.repeatForever(.animate(with: [tex("bloom_furnace_0"), tex("bloom_furnace_1")], timePerFrame: 0.18)))
         }
         buildingNodes[b.cell] = (b, n)
+        if b.kind == .furnace || b.kind == .smokehouse || b.kind == .cauldron || b.kind == .observatory {
+            let g = SKSpriteNode(texture: glowTexture)
+            g.blendMode = .add
+            g.color = b.kind == .observatory ? UIColor(red: 0.6, green: 0.7, blue: 1, alpha: 1) : UIColor(red: 1, green: 0.62, blue: 0.25, alpha: 1)
+            g.colorBlendFactor = 1
+            g.setScale(b.kind == .observatory ? 0.7 : 0.9)
+            g.position = CGPoint(x: p.x, y: p.y + 8)
+            g.zPosition = 3950
+            g.alpha = nightLevel * 0.8
+            world.addChild(g)
+            nightLights.append(g)
+        }
         if animated {
             n.position.y += 30
             n.alpha = 0
@@ -1104,6 +1118,7 @@ final class BloomScene: SKScene {
         updateBiome(dt)
         updateEventPickups(dt)
         updateHappenings(dt)
+        updateLife(dt)
 
         spawnTimer += dt
         if spawnTimer > game.respawnInterval {
@@ -1904,6 +1919,218 @@ final class BloomScene: SKScene {
             if self.freeCell(c) { self.spawn(k, at: c, island: id, delay: 0) }
         }, .removeFromParent()]))
         game.showToast(BloomToast(title: tr("Метеорит"), subtitle: tr("Упал редкий камень, разбей его")))
+    }
+
+    // MARK: - living world: day and night, swaying grass, birds, jumping fish, falling leaves
+    // Everything here is decoration: cheap, capped in number, and never in the way.
+
+    private let nightOverlay = SKSpriteNode()
+    private let heroLight = SKSpriteNode()
+    private var nightLights: [SKSpriteNode] = []
+    private var dayClock: TimeInterval = 0.12     // 0..1 through one day
+    private let dayLength: TimeInterval = 420      // seven minutes: a dusk or a night in almost every session
+    private var nightLevel: CGFloat = 0
+    private var lifeTimer: TimeInterval = 0
+    private var fishTimer: TimeInterval = 5
+    private var leafTimer: TimeInterval = 0
+    private var groundBirds: [SKSpriteNode] = []
+
+    /// A soft round light, drawn once.
+    private lazy var glowTexture: SKTexture = {
+        let size = CGSize(width: 64, height: 64)
+        let img = UIGraphicsImageRenderer(size: size).image { ctx in
+            let cs = CGColorSpaceCreateDeviceRGB()
+            let colors = [UIColor(white: 1, alpha: 0.55).cgColor, UIColor(white: 1, alpha: 0.18).cgColor, UIColor(white: 1, alpha: 0).cgColor] as CFArray
+            if let g = CGGradient(colorsSpace: cs, colors: colors, locations: [0, 0.45, 1]) {
+                ctx.cgContext.drawRadialGradient(g, startCenter: CGPoint(x: 32, y: 32), startRadius: 0,
+                                                 endCenter: CGPoint(x: 32, y: 32), endRadius: 32, options: [])
+            }
+        }
+        return SKTexture(image: img)
+    }()
+
+    private func setUpLife() {
+        nightOverlay.color = UIColor(red: 0.12, green: 0.14, blue: 0.38, alpha: 1)
+        nightOverlay.size = CGSize(width: 3000, height: 3000)
+        nightOverlay.alpha = 0
+        nightOverlay.zPosition = 3940
+        cam.addChild(nightOverlay)
+        heroLight.texture = glowTexture
+        heroLight.size = CGSize(width: 64, height: 64)
+        heroLight.setScale(1.3)
+        heroLight.blendMode = .add
+        heroLight.color = UIColor(red: 1, green: 0.85, blue: 0.55, alpha: 1)
+        heroLight.colorBlendFactor = 1
+        heroLight.alpha = 0
+        heroLight.zPosition = 3945
+        world.addChild(heroLight)
+        #if DEBUG
+        if let d = UserDefaults.standard.string(forKey: "bloomDay"), let v = Double(d) { dayClock = v }   // -bloomDay 0.75 = night
+        #endif
+        applyDayLight()
+    }
+
+    /// Night strength 0...1 and the tint for the time of day.
+    private func applyDayLight() {
+        let t = dayClock
+        var night: CGFloat = 0
+        var tint = UIColor(red: 0.12, green: 0.14, blue: 0.38, alpha: 1)
+        switch t {
+        case 0.55..<0.65:   // dusk: warm, then cooling
+            let k = CGFloat((t - 0.55) / 0.1)
+            night = k
+            tint = UIColor(red: 0.12 + 0.5 * (1 - k), green: 0.14 + 0.1 * (1 - k), blue: 0.38 - 0.1 * (1 - k), alpha: 1)
+        case 0.65..<0.88: night = 1
+        case 0.88..<1:      // dawn: pink, fading out
+            let k = CGFloat((t - 0.88) / 0.12)
+            night = 1 - k
+            tint = UIColor(red: 0.12 + 0.55 * k, green: 0.14 + 0.1 * k, blue: 0.38, alpha: 1)
+        default: night = 0
+        }
+        nightLevel = night
+        nightOverlay.color = tint
+        nightOverlay.alpha = night * 0.3          // never dark enough to hide what you are doing
+        heroLight.alpha = night * 0.55
+        for g in nightLights { g.alpha = night * 0.8 }
+    }
+
+    private func sway(_ n: SKNode, phase: CGFloat) {
+        let a: CGFloat = 0.09
+        let d = 1.6
+        n.zRotation = -a
+        n.run(.sequence([.wait(forDuration: Double(phase.truncatingRemainder(dividingBy: 1.6))),
+                         .repeatForever(.sequence([.rotate(toAngle: a, duration: d), .rotate(toAngle: -a, duration: d)]))]))
+    }
+
+    private func updateLife(_ dt: TimeInterval) {
+        dayClock += dt / dayLength
+        if dayClock >= 1 { dayClock -= 1 }
+        lifeTimer += dt
+        if lifeTimer > 0.5 { lifeTimer = 0; applyDayLight() }
+        heroLight.position = CGPoint(x: hero.position.x, y: hero.position.y + 8)
+        let hw = size.width / zoom / 2, hh = size.height / zoom / 2
+        let c = cam.position
+
+        // fireflies around the hero at night
+        if nightLevel > 0.6, ambientCount < 40, Int.random(in: 0..<14) == 0 {
+            let p = CGPoint(x: heroPos.x + CGFloat.random(in: -70...70), y: heroPos.y + CGFloat.random(in: -50...60))
+            ambient("bloom_fx_firefly", at: p, alpha: 1, life: 4, fadeIn: 0.8,
+                    move: .moveBy(x: CGFloat.random(in: -14...14), y: CGFloat.random(in: -6...10), duration: 4), wobble: 4, pulse: true)
+        }
+
+        // a leaf drifts down from a tree on screen
+        leafTimer += dt
+        if leafTimer > 0.9 {
+            leafTimer = 0
+            if let r = res.values.first(where: { $0.kind.isTree && abs($0.node.position.x - c.x) < hw && abs($0.node.position.y - c.y) < hh }) {
+                let p = CGPoint(x: r.node.position.x + CGFloat.random(in: -5...5), y: r.node.position.y + CGFloat.random(in: 12...20))
+                particle("bloom_fx_leaf", at: p, v: CGVector(dx: CGFloat.random(in: -6...6), dy: -6), life: 2.2, z: 1800, gravity: false)
+            }
+        }
+
+        // a fish jumps out of the water now and then
+        fishTimer -= dt
+        if fishTimer <= 0 {
+            fishTimer = Double.random(in: 5...9)
+            for _ in 0..<8 {
+                let p = CGPoint(x: c.x + CGFloat.random(in: -hw...hw) * 0.85, y: c.y + CGFloat.random(in: -hh...hh) * 0.6)
+                let cell = Cell(x: Int(floor(p.x / T)), y: Int(floor(p.y / T)))
+                guard cellIsland[cell] == nil, !land.contains(cell), !bridgeCells.contains(cell) else { continue }
+                // keep clear of shores so it never jumps out of the sand
+                let shore = [(-1, 0), (1, 0), (0, -1), (0, 1)].contains { cellIsland[Cell(x: cell.x + $0.0, y: cell.y + $0.1)] != nil }
+                if shore || underHUD(p) { continue }
+                fishJump(at: p)
+                break
+            }
+        }
+
+        // birds land near the hero, peck, and fly off when you come close
+        if groundBirds.count < 2, Int.random(in: 0..<600) == 0, nightLevel < 0.4 { landBird() }
+        for b in groundBirds {
+            if hypot(b.position.x - heroPos.x, b.position.y - heroPos.y) < 22 { flyOff(b) }
+        }
+    }
+
+    private func fishJump(at p: CGPoint) {
+        let f = SKSpriteNode(texture: tex("bloom_item_fish"))
+        f.setScale(0.7)
+        f.position = p
+        f.zPosition = -950
+        let dir: CGFloat = Bool.random() ? 1 : -1
+        f.xScale = 0.7 * dir
+        world.addChild(f)
+        let dur = 0.7
+        f.run(.sequence([.group([.customAction(withDuration: dur) { node, t in
+            let k = t / CGFloat(dur)
+            node.position = CGPoint(x: p.x + dir * 12 * k, y: p.y + 14 * 4 * k * (1 - k))
+            node.zRotation = dir * (0.9 - 1.8 * k)
+        }]), .removeFromParent()]))
+        splash(at: p)
+        run(.sequence([.wait(forDuration: dur), .run { [weak self] in self?.splash(at: CGPoint(x: p.x + dir * 12, y: p.y)) }]))
+    }
+
+    private func splash(at p: CGPoint) {
+        let ring = SKShapeNode(ellipseOf: CGSize(width: 6, height: 3))
+        ring.strokeColor = UIColor(white: 1, alpha: 0.8)
+        ring.lineWidth = 0.6
+        ring.position = p
+        ring.zPosition = -960
+        world.addChild(ring)
+        ring.run(.sequence([.group([.scale(to: 2.4, duration: 0.5), .fadeOut(withDuration: 0.5)]), .removeFromParent()]))
+        for _ in 0..<4 {
+            particle("bloom_fx_spark", at: p, v: CGVector(dx: CGFloat.random(in: -10...10), dy: CGFloat.random(in: 10...18)), life: 0.35, z: -955)
+        }
+    }
+
+    private func landBird() {
+        let cells = cellsNearHero(70, minDist: 34)
+        guard let spot = cells.randomElement() else { return }
+        let cell = spot.0
+        let p = CGPoint(x: basePoint(cell).x + CGFloat.random(in: -4...4), y: basePoint(cell).y + CGFloat.random(in: -2...4))
+        let b = SKSpriteNode(texture: tex("bloom_fx_bird_0"))
+        let dir: CGFloat = p.x > heroPos.x ? -1 : 1
+        b.xScale = dir
+        b.anchorPoint = CGPoint(x: 0.5, y: 0)
+        b.position = CGPoint(x: p.x - dir * 80, y: p.y + 60)
+        b.zPosition = 3800
+        b.userData = NSMutableDictionary()
+        world.addChild(b)
+        groundBirds.append(b)
+        let flap = SKAction.repeatForever(.animate(with: [tex("bloom_fx_bird_0"), tex("bloom_fx_bird_1")], timePerFrame: 0.1))
+        b.run(flap, withKey: "flap")
+        let land = SKAction.move(to: p, duration: 1.4)
+        land.timingMode = .easeOut
+        b.run(.sequence([land, .run { [weak b] in
+            guard let b else { return }
+            b.removeAction(forKey: "flap")
+            b.texture = SKTexture(imageNamed: "bloom_fx_bird_1")
+            b.texture?.filteringMode = .nearest
+            b.zPosition = 500 - p.y
+            // peck and hop about
+            b.run(.repeatForever(.sequence([
+                .wait(forDuration: Double.random(in: 0.6...1.4)),
+                .rotate(toAngle: -0.35 * b.xScale, duration: 0.06), .rotate(toAngle: 0, duration: 0.08),
+                .wait(forDuration: Double.random(in: 0.3...0.9)),
+                .moveBy(x: CGFloat.random(in: -3...3), y: 1.5, duration: 0.08), .moveBy(x: 0, y: -1.5, duration: 0.08),
+            ])), withKey: "peck")
+        }]))
+        // it leaves by itself after a while
+        b.run(.sequence([.wait(forDuration: 18), .run { [weak self, weak b] in if let b { self?.flyOff(b) } }]), withKey: "timer")
+    }
+
+    private func flyOff(_ b: SKSpriteNode) {
+        guard b.userData?["leaving"] == nil else { return }
+        b.userData?["leaving"] = true
+        b.removeAllActions()
+        b.zPosition = 3800
+        let dir: CGFloat = b.position.x > heroPos.x ? 1 : -1
+        b.xScale = dir
+        b.run(.repeatForever(.animate(with: [tex("bloom_fx_bird_0"), tex("bloom_fx_bird_1")], timePerFrame: 0.08)))
+        let away = SKAction.moveBy(x: dir * 120, y: 90, duration: 1.6)
+        away.timingMode = .easeIn
+        groundBirds.removeAll { $0 === b }
+        b.run(.sequence([away, .removeFromParent()]))
+        Sfx.playThrottled(.select, gap: 0.3, volume: 0.25)
     }
 
     // MARK: - golden hour (our own event: everything turns gold, drops double)
