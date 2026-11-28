@@ -109,7 +109,9 @@ def sprite(name, cv):
 
 # ---------------------------------------------------------------- hero
 def hero(frame, name='bloom_hero_'):
-    """Bloomling: pink bud with a sprout. frame: idle_0/1, run_0..3."""
+    """Bloomling: pink bud with a sprout. frame: idle_0/1, run_0..3; back_* = seen from behind."""
+    back = frame.startswith('back_')
+    frame = frame[5:] if back else frame
     cv = Canvas(16, 24)
     x, y = 8, 24 - BASE - 1
     bob = 0
@@ -131,22 +133,36 @@ def hero(frame, name='bloom_hero_'):
         cv.put(x + 5, yy, 'cream_d'); cv.put(x + 4, yy + 1, 'cream_d')
     cv.rect(x - 3, by - 1, x + 3, by - 1, 'cream_d')
     cv.put(x - 3, by - 9, 'white'); cv.put(x - 2, by - 10, 'white'); cv.put(x - 4, by - 8, 'white')
+    if back:
+        # walking away: no face, a darker lower half and the sprout's stem in front
+        for yy in range(int(by - 4), int(by)):
+            for xx in range(x - 4, x + 5):
+                if cv.px[xx, yy][3] > 0:
+                    cv.put(xx, yy, 'cream_d')
+        cv.put(x - 3, by - 9, 'cream'); cv.put(x - 2, by - 10, 'cream')
+        cv.put(x + 1, by - 8, 'white'); cv.put(x + 2, by - 9, 'white')
     # face
-    if frame == 'idle_1':
+    if back:
+        pass
+    elif frame == 'idle_1':
         cv.rect(x - 3, by - 6, x - 2, by - 6, 'ink'); cv.rect(x + 2, by - 6, x + 3, by - 6, 'ink')
     else:
         for ex in (x - 2, x + 2):
             cv.rect(ex, by - 7, ex, by - 6, 'ink'); cv.put(ex, by - 7, 'white')
             cv.put(ex + (1 if ex < x else 1), by - 6, 'ink')
-    cv.put(x - 1, by - 4, 'ink'); cv.put(x, by - 3, 'ink'); cv.put(x + 1, by - 4, 'ink')
-    cv.put(x - 4, by - 5, 'cheek'); cv.put(x + 4, by - 5, 'cheek')
+    if not back:
+        cv.put(x - 1, by - 4, 'ink'); cv.put(x, by - 3, 'ink'); cv.put(x + 1, by - 4, 'ink')
+        cv.put(x - 4, by - 5, 'cheek'); cv.put(x + 4, by - 5, 'cheek')
     # sprout
     cv.rect(x, by - 13, x, by - 11, 'l0')
     cv.disc(x - 2.5, by - 13.5, 2.6, 1.4, 'l2'); cv.put(x - 3, by - 14, 'l3')
     cv.disc(x + 2.5, by - 14.5, 2.6, 1.4, 'l3'); cv.put(x + 2, by - 15, 'l4')
     cv.disc(x, by - 16.5, 1.6, 1.6, 'berry_l'); cv.put(x, by - 17, 'white')
     cv.outline('ink')
-    sprite(name + frame, cv)
+    sprite(name + ('back_' if back else '') + frame, cv)
+
+
+HERO_FRAMES = ('idle_0', 'idle_1', 'run_0', 'run_1', 'run_2', 'run_3', 'back_idle_0', 'back_run_0', 'back_run_1', 'back_run_2', 'back_run_3')
 
 
 HELPER_COLORS = {
@@ -169,7 +185,7 @@ def hero_skins():
     for skin, (b, d, dd, ch, bud) in HERO_SKINS.items():
         keep = {k: C[k] for k in ('cream', 'cream_d', 'cream_dd', 'cheek', 'berry_l')}
         C.update(cream=b, cream_d=d, cream_dd=dd, cheek=ch, berry_l=C.get(bud, bud))
-        for f in ('idle_0', 'idle_1', 'run_0', 'run_1', 'run_2', 'run_3'):
+        for f in HERO_FRAMES:
             hero(f, 'bloom_hero_%s_' % skin)
         C.update(keep)
 
@@ -1359,7 +1375,7 @@ def island_texture(isl, dust):
 
 
 def build_all():
-    for f in ('idle_0', 'idle_1', 'run_0', 'run_1', 'run_2', 'run_3'):
+    for f in HERO_FRAMES:
         hero(f)
     for t in range(4):
         pick(t)
