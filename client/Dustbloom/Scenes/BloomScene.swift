@@ -1170,8 +1170,13 @@ final class BloomScene: SKScene {
 
     private func updateCamera(_ dt: TimeInterval) {
         let k = 1 - exp(-dt * 7)
-        var c = CGPoint(x: cam.position.x + (heroPos.x - cam.position.x) * k,
-                        y: cam.position.y + (heroPos.y + 6 - cam.position.y) * k)
+        // in a boss fight look between the hero and the boss, so the slam ring stays on screen
+        var target = CGPoint(x: heroPos.x, y: heroPos.y + 6)
+        if let b = bossFoe, b.hp > 0 {
+            target = CGPoint(x: heroPos.x + (b.pos.x - heroPos.x) * 0.45, y: heroPos.y + 6 + (b.pos.y - heroPos.y) * 0.3)
+        }
+        var c = CGPoint(x: cam.position.x + (target.x - cam.position.x) * k,
+                        y: cam.position.y + (target.y - cam.position.y) * k)
         if shakeAmp > 0.05 {
             c.x += CGFloat.random(in: -shakeAmp...shakeAmp)
             c.y += CGFloat.random(in: -shakeAmp...shakeAmp)
@@ -1817,6 +1822,7 @@ final class BloomScene: SKScene {
                          v: CGVector(dx: -facing * CGFloat.random(in: 20...34), dy: CGFloat.random(in: -4...6)), life: 0.5, gravity: false)
             }
         }
+        guard dungeon == nil else { return }
         guard happeningMeter >= happeningAt, fishing == nil, goldenLeft <= 0, dungeon == nil else { return }
         happeningMeter = 0
         happeningAt = Int.random(in: 18...30)
@@ -2077,6 +2083,7 @@ final class BloomScene: SKScene {
         lifeTimer += dt
         if lifeTimer > 0.5 { lifeTimer = 0; applyDayLight() }
         heroLight.position = CGPoint(x: hero.position.x, y: hero.position.y + 8)
+        guard dungeon == nil else { return }   // no birds, fish or fireflies in a cave
         let hw = size.width / zoom / 2, hh = size.height / zoom / 2
         let c = cam.position
 
@@ -2212,6 +2219,7 @@ final class BloomScene: SKScene {
     private var digging = false
 
     private func updateDig(_ dt: TimeInterval) {
+        guard dungeon == nil else { return }
         digTimer -= dt
         if digTimer <= 0 {
             digTimer = BloomBalance.shared.digEvery * Double.random(in: 0.8...1.3)
@@ -2417,7 +2425,9 @@ final class BloomScene: SKScene {
         let d = hypot(dx, dy)
         var v = CGVector.zero
         if now >= f.stunUntil {
-            if d < 75 || f.arena, !fainted {
+            if f.boss && d < 15 {
+                // the boss plants itself in reach of the hero's swing: only its slam hurts
+            } else if d < 75 || f.arena, !fainted {
                 v = CGVector(dx: dx / max(d, 0.1) * f.kind.speed * f.speedMul, dy: dy / max(d, 0.1) * f.kind.speed * f.speedMul)
             } else {
                 if now > f.wanderAt || hypot(f.wander.x - f.pos.x, f.wander.y - f.pos.y) < 2 {
@@ -2443,7 +2453,8 @@ final class BloomScene: SKScene {
         f.node.zPosition = 500 - f.pos.y
         f.shadow.position = CGPoint(x: f.pos.x, y: f.pos.y - 0.5)
         // touch hurts the hero
-        if d < 7 * f.scale, now >= f.stunUntil, now >= hurtUntil, !fainted { hurtHero(f) }
+        // the boss hurts only with its telegraphed slam, never by bumping into you
+        if d < 7 * f.scale, !f.boss, now >= f.stunUntil, now >= hurtUntil, !fainted { hurtHero(f) }
     }
 
     private func nearestFoe(within r: CGFloat) -> Foe? {
@@ -2515,11 +2526,12 @@ final class BloomScene: SKScene {
     }
 
     private func hurtHero(_ f: Foe) {
-        hurtUntil = now + 1.1
+        hurtUntil = now + (dungeon != nil ? 1.6 : 1.1)   // a crowded cave gives a little more grace
         lastHurt = now
         regenClock = 0
-        game.hp = max(0, game.hp - f.kind.dmg)
-        if logFPS { print("[foe] \(f.kind.id) hurts hero: hp \(game.hp)/\(game.maxHP)") }
+        // in a crowded cave, only the boss's slam takes a whole heart
+        game.hp = max(0, game.hp - (f.arena && !f.boss ? 1 : f.kind.dmg))
+        if logFPS { print("[foe] \(f.boss ? "BOSS" : f.kind.id) \(now < slamRingUntil + 0.3 && f.boss ? "slam" : "touch") hurts hero: hp \(game.hp)/\(game.maxHP) at \(String(format: "%.1f", now))") }
         // push the hero back and the foe away
         let dx = heroPos.x - f.pos.x, dy = heroPos.y - f.pos.y, d = max(0.1, hypot(dx, dy))
         vel = CGVector(dx: dx / d * 120, dy: dy / d * 120)
@@ -2587,7 +2599,9 @@ final class BloomScene: SKScene {
     private var exitPortal: SKSpriteNode?
     private let bossBar = SKSpriteNode(color: UIColor(red: 0.17, green: 0.14, blue: 0.25, alpha: 1), size: CGSize(width: 210, height: 16))
     private let bossFill = SKSpriteNode(color: UIColor(red: 1, green: 0.32, blue: 0.3, alpha: 1), size: CGSize(width: 202, height: 8))
-    private let arenaOrigin = Cell(x: 300, y: 300)
+    // far right and below the islands: depth sort is 500 - y, so a high arena would draw every
+    // creature under its floor
+    private let arenaOrigin = Cell(x: 300, y: -60)
     private let arenaW = 13, arenaH = 9
 
     /// One cave mouth per owned dungeon island, on a fixed cell so it never moves between launches.
@@ -2626,12 +2640,14 @@ final class BloomScene: SKScene {
         guard dungeon == nil, let d = BloomDungeons.byId(id), !fainted else { return }
         dungeon = d
         game.inDungeon = true
+        SKTexture.preload([slamRingTexture, tex("bloom_dfloor_0"), tex("bloom_dfloor_1"), tex("bloom_dwall"), tex("bloom_portal_0"),
+                           tex("bloom_portal_1"), tex("bloom_relic_" + d.relic)]) {}
         returnPos = heroPos
         veil {
             self.buildArena()
             self.dungeonWave = 0
             self.waveDelay = 1.2
-            self.game.showToast(BloomToast(title: tr(d.title), subtitle: tr("Волна %@ из %@", 1, 3)))
+            self.game.showToast(BloomToast(title: tr(d.title), subtitle: tr("Волна %@ из %@", 1, 2)))
         }
         Sfx.play(.chest, volume: 0.6)
         game.bump("dungeon.enter")
@@ -2727,9 +2743,11 @@ final class BloomScene: SKScene {
         world.addChild(sh)
         world.addChild(n)
         n.run(.repeatForever(.animate(with: [t0, tex("bloom_foe_\(kind.id)_1")], timePerFrame: kind.frame / Double(scale))), withKey: "anim")
-        let hp = Int((Double(kind.hp) * (1 + Double(d.island) * 0.4) * hpMul).rounded())
+        // caves are sized by their crowd, not by island: foes grow slowly with the island
+        let hp = Int((Double(kind.hp) * (1 + Double(d.island) * 0.15) * hpMul).rounded())
         let f = Foe(kind: kind, node: n, shadow: sh, island: d.island, hp: hp, pos: p)
         f.arena = true
+        f.speedMul = 0.85
         f.scale = scale
         foes.append(f)
         n.setScale(0.1 * scale); n.alpha = 0
@@ -2748,7 +2766,7 @@ final class BloomScene: SKScene {
             bossFill.xScale = max(0, CGFloat(b.hp) / CGFloat(bossMaxHP))
             if now > bossSlamAt { bossSlamAt = now + 4.2; bossSlam(b) }
             if now > bossSummonAt {
-                bossSummonAt = now + 9
+                bossSummonAt = now + 11
                 for _ in 0..<2 {
                     let p = CGPoint(x: b.pos.x + CGFloat.random(in: -24...24), y: b.pos.y + CGFloat.random(in: -14...14))
                     if land.contains(Cell(x: Int(floor(p.x / T)), y: Int(floor(p.y / T)))) { spawnArenaFoe(d.foe, at: p, hpMul: 0.6) }
@@ -2761,19 +2779,24 @@ final class BloomScene: SKScene {
         guard waveDelay <= 0 else { return }
         waveDelay = 1.5
         dungeonWave += 1
+        if logFPS { print(String(format: "[dungeon] wave %d at %.1f s", dungeonWave, now)) }
         switch dungeonWave {
         case 1:
             for _ in 0..<4 { spawnArenaFoe(d.foe, at: arenaPoint(), hpMul: 1) }
         case 2:
-            game.showToast(BloomToast(title: tr(d.title), subtitle: tr("Волна %@ из %@", 2, 3)))
-            for i in 0..<6 { spawnArenaFoe(i % 3 == 2 && d.foe != "bat" ? "bat" : d.foe, at: arenaPoint(), hpMul: 1.1) }
+            game.hp = min(game.maxHP, game.hp + 2)   // a heart back between waves
+            game.showToast(BloomToast(title: tr(d.title), subtitle: tr("Волна %@ из %@", 2, 2)))
+            for i in 0..<6 { spawnArenaFoe(i % 3 == 2 && d.foe != "bat" && d.island >= 6 ? "bat" : d.foe, at: arenaPoint(), hpMul: 1.1) }
         case 3:
             let p = CGPoint(x: CGFloat(arenaOrigin.x + arenaW / 2) * T + 8, y: CGFloat(arenaOrigin.y + arenaH - 3) * T + 6)
-            guard let b = spawnArenaFoe(d.foe, at: p, hpMul: 9, scale: 2.4) else { return }
+            guard let b = spawnArenaFoe(d.foe, at: p, hpMul: 60, scale: 2.4) else { return }
             b.boss = true
             b.speedMul = 0.6
+            game.hp = game.maxHP   // the boss is the real test: start it with full hearts
             b.node.color = UIColor(red: 0.55, green: 0.2, blue: 0.35, alpha: 1)
             b.node.colorBlendFactor = 0.25
+            // about 70 swings at the cave's advised damage: a minute or so of dodging and hitting
+            b.hp = d.advisedDamage * 70
             bossFoe = b
             bossMaxHP = b.hp
             bossSlamAt = now + 3
@@ -2795,14 +2818,49 @@ final class BloomScene: SKScene {
         }
     }
 
+    private lazy var slamRingTexture: SKTexture = {
+        let px: CGFloat = 128
+        let img = UIGraphicsImageRenderer(size: CGSize(width: px, height: px)).image { ctx in
+            let rect = CGRect(x: 2, y: 2, width: px - 4, height: px - 4)
+            UIColor(red: 1, green: 0.2, blue: 0.2, alpha: 0.22).setFill()
+            ctx.cgContext.fillEllipse(in: rect)
+            UIColor(red: 1, green: 0.35, blue: 0.3, alpha: 0.9).setStroke()
+            ctx.cgContext.setLineWidth(4)
+            ctx.cgContext.strokeEllipse(in: rect)
+        }
+        return SKTexture(image: img)
+    }()
+
+    /// Demo autopilot inside a cave: walk out of a slam ring, else close in on the nearest foe,
+    /// then take the portal. Plays like a careful player, for balance checks and the store video.
+    private var slamRingUntil: TimeInterval = 0
+    private func dungeonPilot() {
+        if let portal = exitPortal {
+            let d = CGVector(dx: portal.position.x - heroPos.x, dy: portal.position.y - heroPos.y), l = hypot(d.dx, d.dy)
+            stickVec = l < 2 ? .zero : CGVector(dx: d.dx / l, dy: d.dy / l)
+            return
+        }
+        if let b = bossFoe, now < slamRingUntil {
+            let dx = heroPos.x - b.pos.x, dy = (heroPos.y - b.pos.y) / 0.6, l = max(0.1, hypot(dx, dy))
+            stickVec = l < 40 ? CGVector(dx: dx / l, dy: dy / l * 0.6) : .zero
+            return
+        }
+        guard let f = foes.filter({ $0.arena && $0.hp > 0 })
+            .min(by: { hypot($0.pos.x - heroPos.x, $0.pos.y - heroPos.y) < hypot($1.pos.x - heroPos.x, $1.pos.y - heroPos.y) }) else {
+            stickVec = .zero; return
+        }
+        let d = CGVector(dx: f.pos.x - heroPos.x, dy: f.pos.y - heroPos.y), l = hypot(d.dx, d.dy)
+        stickVec = l < (f.boss ? 14 : 10) ? .zero : CGVector(dx: d.dx / l, dy: d.dy / l)
+    }
+
     /// Wind-up ring, then a ground slam: stand outside the ring.
     private func bossSlam(_ b: Foe) {
+        slamRingUntil = now + 0.95
         b.stunUntil = now + 1.1
         let r: CGFloat = 30
-        let ring = SKShapeNode(circleOfRadius: r)
-        ring.fillColor = UIColor(red: 1, green: 0.2, blue: 0.2, alpha: 0.22)
-        ring.strokeColor = UIColor(red: 1, green: 0.35, blue: 0.3, alpha: 0.9)
-        ring.lineWidth = 1
+        // a pre-drawn sprite: the first SKShapeNode stalled the frame for ~1 s building its pipeline
+        let ring = SKSpriteNode(texture: slamRingTexture)
+        ring.size = CGSize(width: r * 2, height: r * 2)
         ring.position = b.pos
         ring.yScale = 0.6
         ring.zPosition = -700
@@ -2829,6 +2887,7 @@ final class BloomScene: SKScene {
 
     private func bossDefeated(_ p: CGPoint) {
         guard let d = dungeon else { return }
+        if logFPS { print(String(format: "[dungeon] boss down at %.1f s", now)) }
         bossFoe = nil
         bossBar.run(.sequence([.fadeOut(withDuration: 0.3), .removeFromParent()]))
         // the minions crumble with their master
@@ -2927,7 +2986,7 @@ final class BloomScene: SKScene {
             return
         }
         goldenNext -= dt
-        if goldenNext <= 0 { startGolden() }
+        if goldenNext <= 0, dungeon == nil { startGolden() }
     }
 
     // MARK: - guide arrow (show, don't tell: points at what the current goal needs)
@@ -3137,6 +3196,7 @@ final class BloomScene: SKScene {
     private var demoSkip: [Int: TimeInterval] = [:]  // signs it couldn't reach, ignored until the time
     private var demoMarketAt: TimeInterval = 0
     private func autopilot() {
+        if dungeon != nil { dungeonPilot(); return }
         if game.panel != nil { stickVec = .zero; return }
         if now < demoPause { stickVec = .zero; return }
         if game.goalDone { game.claimGoal(); demoPause = now + 1.2; return }

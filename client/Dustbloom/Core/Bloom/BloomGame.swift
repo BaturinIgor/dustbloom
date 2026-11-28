@@ -282,6 +282,8 @@ final class BloomGame: ObservableObject {
         if args.contains("-bloomAll") {
             for id in 0..<world.islands.count where !s.owned.contains(id) { s.owned.append(id) }
         }
+        // -bloomPick N: that pick tier, no lucky forge (fight balance checks at a given damage)
+        if let t = UserDefaults.standard.object(forKey: "bloomPick") as? String, let n = Int(t) { s.pick = n; s.lucky = false }
         // -bloomRich: plenty of every material and coins, to try forging and building
         if args.contains("-bloomRich") {
             for i in BItem.allCases { s.inv[i.rawValue] = max(s.inv[i.rawValue] ?? 0, 999) }
