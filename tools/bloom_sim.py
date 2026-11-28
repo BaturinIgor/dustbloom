@@ -60,6 +60,7 @@ class Sim:
         self.owned = [0]
         self.built = set()
         self.pick, self.lucky = 0, False
+        self.axe, self.shovel, self.next_dig, self.gathers = 0, False, 0.0, 0
         self.helpers = 0            # grown helpers
         self.golden_helper = False  # founder pack helper (does not take a slot)
         self.talents = []
@@ -147,6 +148,8 @@ class Sim:
         if key == "islands": return len(self.owned)
         if key == "level": return self.level
         if key == "pick": return self.pick
+        if key == "axe": return self.axe
+        if key == "shovel": return 1 if self.shovel else 0
         if key == "helpers": return self.helpers
         if key.startswith("build."): return 1 if key[6:] in self.built else 0
         return self.stats.get(key, 0)
@@ -253,6 +256,8 @@ class Sim:
         for b, d in BAL["buildings"].items():
             if b not in self.built and self.level >= d["level"]: want(self.build_cost(b))
         if self.pick + 1 < len(BAL["picks"]): want([tuple(x) for x in BAL["picks"][self.pick + 1]["cost"]])
+        if self.axe + 1 < len(BAL["axes"]): want([tuple(x) for x in BAL["axes"][self.axe + 1]["cost"]])
+        if not self.shovel: want([tuple(x) for x in BAL["shovel"]["cost"]])
         if "nursery" in self.built and self.helpers < self.max_helpers: want(self.helper_cost())
         if self.goal < len(BAL["goals"]):
             g = BAL["goals"][self.goal]; k = g["key"]
@@ -326,11 +331,14 @@ class Sim:
             hits += 1; self.combo += 1
             step = min(BAL["combo"]["max"], 1 + self.combo // BAL["combo"]["hitsPerStep"])
             crit = self.rng.random() < self.crit + 0.02 * (step - 1)
-            hp -= self.damage * 2 + 1 if crit else self.damage
+            dmg = self.damage + (BAL["axes"][self.axe]["bonus"] if k in ("tree", "pine", "palm") else 0)
+            hp -= dmg * 2 + 1 if crit else dmg
         self.stats["combo"] = max(self.stats.get("combo", 0), min(BAL["combo"]["max"], 1 + self.combo // BAL["combo"]["hitsPerStep"]))
         self.advance(hits * SWING)
         if self.nodes[isl].get(k, 0) > 0:
             self.destroy(k, isl, min(BAL["combo"]["max"], 1 + self.combo // BAL["combo"]["hitsPerStep"]))
+            self.gathers += 1
+            if self.gathers % 24 == 0: self.stats["happening"] = self.stats.get("happening", 0) + 1
         # flowers along the way
         if self.flowers and self.rng.random() < 0.25:
             self.flowers -= 1; self.add("flower", 1)
@@ -360,6 +368,19 @@ class Sim:
                 self.pay(c); self.pick += 1
                 self.lucky = self.rng.random() < 0.25 + (0.25 if self.has_t("c4") else 0)
                 self.log(f"кирка {self.pick}"); self.advance(3)
+        if "anvil" in self.built and self.axe + 1 < len(BAL["axes"]):
+            c = [tuple(x) for x in BAL["axes"][self.axe + 1]["cost"]]
+            if self.has(c):
+                self.pay(c); self.axe += 1; self.log(f"топор {self.axe}"); self.advance(3)
+        if "anvil" in self.built and not self.shovel and self.has([tuple(x) for x in BAL["shovel"]["cost"]]):
+            self.pay([tuple(x) for x in BAL["shovel"]["cost"]]); self.shovel = True; self.next_dig = self.t + 20
+            self.log("лопата"); self.advance(3)
+        if self.shovel and self.level >= 3 and self.t >= self.next_dig:
+            # walk to the mound and dig: a few seconds, coins and some goods
+            self.next_dig = self.t + BAL["shovel"]["every"] * self.rng.uniform(0.8, 1.3)
+            self.advance(4)
+            self.coins += self.rng.randint(6, 12) + self.level * 2 + len(self.owned) * 3
+            self.stats["dig"] = self.stats.get("dig", 0) + 1
         if "nursery" in self.built and self.helpers < self.max_helpers and self.has(self.helper_cost()):
             self.pay(self.helper_cost()); self.helpers += 1; self.log(f"помощник {self.helpers}"); self.advance(3)
         # next island

@@ -1808,6 +1808,7 @@ final class BloomScene: SKScene {
         default: coinRain()
         }
         Analytics.shared.track("bloom_happening", ["kind": pick])
+        game.bump("happening")
     }
 
     /// Free cells near the hero on owned islands, nearest first.
