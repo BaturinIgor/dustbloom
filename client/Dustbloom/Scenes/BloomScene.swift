@@ -3457,8 +3457,15 @@ final class BloomScene: SKScene {
                 for dx in -1...1 { for dy in -1...1 where folkCells.contains(Cell(x: c.x + dx, y: c.y + dy)) { return false } }
                 return true
             }
+            // small or crowded islands (4: a thin diamond with an islander and lanterns) have no cell with
+            // open ground on three sides; there, one free cell to walk up to from below is enough
+            func loose(_ c: Cell) -> Bool {
+                guard roomy(c, set), roomy(Cell(x: c.x, y: c.y - 1), set) else { return false }
+                return ![(0, 1), (-1, 0), (1, 0)].contains { folkCells.contains(Cell(x: c.x + $0.0, y: c.y + $0.1)) }
+            }
             func pick(_ ox: CGFloat, _ oy: CGFloat) -> Cell? {
-                cs.filter(clear).min { a, b in
+                let strict = cs.filter(clear)
+                return (strict.isEmpty ? cs.filter(loose) : strict).min { a, b in
                     let da = hypot(CGFloat(a.x) - mid.x - ox, CGFloat(a.y) - mid.y - oy), db = hypot(CGFloat(b.x) - mid.x - ox, CGFloat(b.y) - mid.y - oy)
                     return da != db ? da < db : (a.x, a.y) < (b.x, b.y)
                 }
@@ -3494,6 +3501,12 @@ final class BloomScene: SKScene {
                 stoneNodes[id] = (c, node)
                 folkCells.insert(c)
             }
+            #if DEBUG
+            if logFPS {
+                let h = hutNodes[id]?.cell, st = stoneNodes[id]?.cell
+                print("[auto] island \(id): hut \(h.map { "\($0.x),\($0.y)" } ?? "NONE") stone \(st.map { "\($0.x),\($0.y)" } ?? "NONE")")
+            }
+            #endif
         }
     }
 
