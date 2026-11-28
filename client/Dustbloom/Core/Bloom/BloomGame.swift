@@ -169,6 +169,7 @@ enum BloomPanel: Equatable {
     case spring
     case event
     case skins
+    case menu
 }
 
 struct BloomToast: Identifiable, Equatable {

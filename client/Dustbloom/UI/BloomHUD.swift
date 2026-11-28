@@ -51,7 +51,7 @@ struct BloomView: View {
             // App Store screenshots: -bloomPanel build|talents|shop|album opens one panel
             if let name = UserDefaults.standard.string(forKey: "bloomPanel") {
                 let p: BloomPanel? = ["build": .build, "talents": .talents, "shop": .shop, "album": .album,
-                                      "daily": .daily, "spring": .spring, "event": .event, "skins": .skins, "feedback": .feedback][name]
+                                      "daily": .daily, "spring": .spring, "event": .event, "skins": .skins, "feedback": .feedback, "menu": .menu][name]
                 DispatchQueue.main.asyncAfter(deadline: .now() + 3) { game.panel = p }
             }
             #endif
@@ -142,39 +142,31 @@ struct BloomHUD: View {
                 HStack(alignment: .top) {
                     GoalCard()
                     Spacer()
-                    // two even columns: what you come back for on the right, the rest beside it
-                    HStack(alignment: .top, spacing: 10) {
-                        VStack(spacing: 10) {
-                            RoundIconButton(icon: "bloom_ui_book", badge: 0) { game.panel = .album }
-                            RoundIconButton(icon: "bloom_ui_trophy", badge: 0) { BloomGameCenter.shared.open() }
-                            RoundIconButton(icon: "bloom_ui_mail", badge: 0) { game.panel = .feedback }
-                            if game.canRebirth || game.springs > 0 {
-                                RoundIconButton(icon: "bloom_ui_spring", badge: 0, dot: game.canRebirth) { game.panel = .spring }
-                            }
-                        }
-                        VStack(spacing: 10) {
-                            RoundIconButton(icon: "bloom_ui_calendar", badge: game.dailyReadyCount) { game.panel = .daily }
-                            RoundIconButton(icon: "bloom_ui_event", badge: game.eventReadyCount) { game.panel = .event }
-                            RoundIconButton(icon: "bloom_ui_tree", badge: game.talentPoints) { game.panel = .talents }
-                            ShopButton()
-                        }
+                    // one column: what you come back for; the rest lives in the menu
+                    VStack(spacing: 10) {
+                        RoundIconButton(icon: "bloom_ui_menu", badge: 0, dot: game.canRebirth) { game.panel = .menu }
+                        RoundIconButton(icon: "bloom_ui_calendar", badge: game.dailyReadyCount) { game.panel = .daily }
+                        RoundIconButton(icon: "bloom_ui_event", badge: game.eventReadyCount) { game.panel = .event }
+                        RoundIconButton(icon: "bloom_ui_tree", badge: game.talentPoints) { game.panel = .talents }
+                        ShopButton()
                     }
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
                 GoldenBanner()
                 Spacer()
+                if let t = game.tutorialStep, game.panel == nil { TutorialBubble(step: t) }
+                // two round buttons of the same size in the corners; the world stays clear between them
                 HStack(alignment: .bottom) {
                     VStack(alignment: .leading, spacing: 12) {
                         if let n = game.nearby { contextButton(n) }
                         buildButton
                     }
                     Spacer()
+                    bagButton
                 }
                 .padding(.horizontal, 16)
-                .padding(.bottom, 12)
-                if let t = game.tutorialStep, game.panel == nil { TutorialBubble(step: t) }
-                hotbar
+                .padding(.bottom, 8)
             }
             .animation(.spring(response: 0.3, dampingFraction: 0.75), value: game.toast)
             .animation(.spring(response: 0.25, dampingFraction: 0.8), value: game.nearby)
@@ -295,29 +287,20 @@ struct BloomHUD: View {
         }
     }
 
-    private var hotbar: some View {
-        let items = Array(game.hotbar.prefix(7)).map { $0.0 }
-        return HStack(spacing: 6) {
-            if items.isEmpty {
-                OutlinedText(text: tr("Подойди к дереву или камню"), size: 13)
-                    .frame(height: 50)
-            }
-            ForEach(items) { item in
-                let n = game.count(item)
-                ZStack(alignment: .bottomTrailing) {
-                    RoundedRectangle(cornerRadius: 10).fill(Color.white.opacity(0.12)).frame(width: 46, height: 50)
-                    PixelIcon(name: item.sprite, size: 30).frame(width: 46, height: 44)
-                    OutlinedText(text: "\(n)", size: 12).padding(.trailing, 4).padding(.bottom, 1)
-                }
-                .frame(width: 46, height: 50)
+    /// The backpack: resources live here instead of a bar across the screen.
+    private var bagButton: some View {
+        Button {
+            game.panel = .inventory
+            Sfx.play(.select)
+        } label: {
+            ZStack {
+                Circle().fill(BUI.ink).frame(width: 78, height: 78)
+                Circle().fill(BUI.panelHi).frame(width: 68, height: 68)
+                Circle().fill(Color.white.opacity(0.18)).frame(width: 52, height: 28).offset(y: -16)
+                PixelIcon(name: "bloom_ui_bag", size: 44)
             }
         }
-        .padding(8)
-        .frame(maxWidth: .infinity)
-        .background(RoundedRectangle(cornerRadius: 18).fill(BUI.ink.opacity(0.88)))
-        .padding(.horizontal, 12)
-        .padding(.bottom, 4)
-        .onTapGesture { game.panel = .inventory }
+        .buttonStyle(.plain)
     }
 }
 
@@ -390,6 +373,7 @@ struct PanelHost: View {
         case .spring: return tr("Новая весна")
         case .event: return tr(game.event.title)
         case .skins: return tr("Облик героя")
+        case .menu: return tr("Меню")
         }
     }
 
@@ -410,6 +394,7 @@ struct PanelHost: View {
         case .spring: SpringView()
         case .event: EventView()
         case .skins: SkinsView()
+        case .menu: MenuView()
         }
     }
 }
@@ -1139,31 +1124,9 @@ struct FeedbackView: View {
                 .frame(maxWidth: .infinity, minHeight: 24)
             }
             .buttonStyle(BloomButtonStyle(color: BUI.panelHi, edge: BUI.ink))
-            HStack(spacing: 10) {
-                toggle("🎵", tr("Музыка"), musicOn) { musicOn.toggle(); Music.enabled = musicOn }
-                toggle("🔊", tr("Звуки"), soundOn) {
-                    soundOn.toggle()
-                    Sfx.master = soundOn ? 0.8 : 0
-                    UserDefaults.standard.set(Double(Sfx.master), forKey: "dustbloom.volume")
-                }
-            }
         }
         .frame(width: 322)
         .onAppear { if state == 2 { state = 0; text = "" } }
-    }
-
-    @State private var musicOn = Music.enabled
-    @State private var soundOn = Sfx.master > 0
-
-    private func toggle(_ icon: String, _ title: String, _ on: Bool, _ action: @escaping () -> Void) -> some View {
-        Button { action(); Sfx.play(.select) } label: {
-            HStack(spacing: 6) {
-                Text(icon).font(.system(size: 15)).opacity(on ? 1 : 0.45)
-                OutlinedText(text: title, size: 13, color: on ? BUI.cream : BUI.muted)
-            }
-            .frame(maxWidth: .infinity, minHeight: 22)
-        }
-        .buttonStyle(BloomButtonStyle(color: on ? BUI.green : BUI.panelHi, edge: on ? BUI.greenEdge : BUI.ink))
     }
 
     private func send() async {
@@ -1174,5 +1137,72 @@ struct FeedbackView: View {
         Analytics.shared.track("feedback", ["mood": mood, "sent": ok])
         state = ok ? 2 : 3
         if ok { Sfx.play(.victory) }
+    }
+}
+
+// MARK: - menu
+
+/// Everything that doesn't need to sit on the play screen: album, achievements, letters,
+/// a new spring and the sound switches. Tiles are one fixed size so the grid stays even.
+struct MenuView: View {
+    @EnvironmentObject private var game: BloomGame
+    @State private var musicOn = Music.enabled
+    @State private var soundOn = Sfx.master > 0
+    @State private var hapticsOn = Haptics.enabled
+
+    var body: some View {
+        VStack(spacing: 10) {
+            LazyVGrid(columns: [GridItem(.fixed(156), spacing: 10), GridItem(.fixed(156), spacing: 10)], spacing: 10) {
+                tile("bloom_ui_book", tr("Альбом находок")) { game.panel = .album }
+                tile("bloom_ui_trophy", tr("Рекорды")) { game.panel = nil; BloomGameCenter.shared.open() }
+                tile("bloom_ui_skin", tr("Облик героя")) { game.panel = .skins }
+                tile("bloom_ui_mail", tr("Написать нам")) { game.panel = .feedback }
+                if game.canRebirth || game.springs > 0 {
+                    tile("bloom_ui_spring", tr("Новая весна"), dot: game.canRebirth) { game.panel = .spring }
+                }
+            }
+            HStack(spacing: 10) {
+                toggle("🎵", tr("Музыка"), musicOn) { musicOn.toggle(); Music.enabled = musicOn }
+                toggle("🔊", tr("Звуки"), soundOn) {
+                    soundOn.toggle()
+                    Sfx.master = soundOn ? 0.8 : 0
+                    UserDefaults.standard.set(Double(Sfx.master), forKey: "dustbloom.volume")
+                }
+                toggle("📳", tr("Вибрация"), hapticsOn) { hapticsOn.toggle(); Haptics.enabled = hapticsOn }
+            }
+        }
+        .frame(width: 322)
+    }
+
+    private func tile(_ icon: String, _ title: String, dot: Bool = false, _ action: @escaping () -> Void) -> some View {
+        Button { Sfx.play(.select); action() } label: {
+            ZStack(alignment: .topTrailing) {
+                VStack(spacing: 6) {
+                    PixelIcon(name: icon, size: 36)
+                    OutlinedText(text: title, size: 13, fixed: false, lines: 2)
+                        .frame(width: 140, height: 34)
+                }
+                .frame(width: 156, height: 92)
+                .background(RoundedRectangle(cornerRadius: 16).fill(BUI.panelHi))
+                .overlay(RoundedRectangle(cornerRadius: 16).stroke(BUI.ink, lineWidth: 2.5))
+                if dot {
+                    Circle().fill(BUI.green).frame(width: 16, height: 16)
+                        .overlay(Circle().stroke(BUI.ink, lineWidth: 2))
+                        .offset(x: -6, y: 6)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func toggle(_ icon: String, _ title: String, _ on: Bool, _ action: @escaping () -> Void) -> some View {
+        Button { action(); Sfx.play(.select) } label: {
+            VStack(spacing: 2) {
+                Text(icon).font(.system(size: 17)).opacity(on ? 1 : 0.45)
+                OutlinedText(text: title, size: 12, color: on ? BUI.cream : BUI.muted)
+            }
+            .frame(maxWidth: .infinity, minHeight: 40)
+        }
+        .buttonStyle(BloomButtonStyle(color: on ? BUI.green : BUI.panelHi, edge: on ? BUI.greenEdge : BUI.ink))
     }
 }

@@ -717,6 +717,38 @@ def ui_icons():
     cv.put(2, 1, 'gold_l'); cv.put(11, 7, 'gold_l'); cv.put(1, 8, 'gold')
     cv.outline('ink')
     sprite('bloom_ui_spring', cv)
+    cv = Canvas(14, 14)  # backpack: everything you carry
+    cv.rect(2, 4, 11, 12, 't1'); cv.rect(3, 5, 10, 12, 't2'); cv.rect(2, 4, 11, 4, 't2')
+    cv.rect(4, 1, 9, 1, 't1'); cv.put(4, 2, 't1'); cv.put(9, 2, 't1'); cv.put(4, 3, 't1'); cv.put(9, 3, 't1')
+    cv.rect(3, 5, 10, 7, 'brick'); cv.rect(3, 5, 10, 5, 'brick_l')
+    cv.rect(6, 7, 7, 8, 'gold'); cv.put(6, 7, 'gold_l')
+    cv.rect(4, 9, 9, 11, 't1'); cv.rect(4, 9, 9, 9, 'brick_l')
+    cv.outline('ink')
+    sprite('bloom_ui_bag', cv)
+    cv = Canvas(14, 14)  # menu: a cog
+    import math
+    for y in range(14):
+        for x in range(14):
+            dx, dy = x + 0.5 - 7, y + 0.5 - 7
+            r = math.hypot(dx, dy); a = math.atan2(dy, dx)
+            tooth = (math.cos(a * 8) > 0.35)
+            if r <= 4.6 or (tooth and r <= 6.2):
+                cv.put(x, y, 'bar' if dy > 0.5 else 'bar_l')
+            if r <= 2.0:
+                cv.put(x, y, 'bar_d')
+    cv.outline('ink')
+    sprite('bloom_ui_menu', cv)
+    for f in range(2):  # a little bird for the "flock" happening: wings up / down
+        cv = Canvas(11, 7)
+        cv.disc(5.5, 3.6, 2.6, 1.7, 'cloth'); cv.put(7, 3, 'white'); cv.put(8, 3, 'gold_d'); cv.put(9, 3, 'gold')
+        cv.put(6, 3, 'ink')
+        if f == 0:
+            cv.rect(2, 1, 4, 1, 'cloth_d'); cv.rect(3, 2, 5, 2, 'cloth'); cv.put(1, 0, 'cloth_d')
+        else:
+            cv.rect(2, 5, 4, 5, 'cloth_d'); cv.rect(3, 4, 5, 4, 'cloth_d'); cv.put(1, 6, 'cloth_d')
+        cv.put(2, 3, 'cloth_d'); cv.put(1, 3, 'cloth_d')
+        cv.outline('ink')
+        sprite('bloom_fx_bird_%d' % f, cv)
     cv = Canvas(10, 10)  # eternal seed (rebirth currency)
     cv.disc(4.5, 5, 3.6, 4.2, 'gold_d'); cv.disc(4.3, 4.8, 2.8, 3.4, 'gold'); cv.put(3, 3, 'gold_l'); cv.put(3, 4, 'gold_l')
     cv.put(5, 0, 'l3'); cv.put(6, 0, 'l2')

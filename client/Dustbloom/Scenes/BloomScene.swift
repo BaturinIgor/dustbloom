@@ -44,6 +44,7 @@ final class BloomScene: SKScene {
         let node: SKSpriteNode
         let shadow: SKSpriteNode
         var bar: SKSpriteNode?
+        var golden = false
         init(kind: GatherKind, cell: Cell, island: Int, node: SKSpriteNode, shadow: SKSpriteNode) {
             self.kind = kind; self.cell = cell; self.island = island; self.hp = kind.hp; self.node = node; self.shadow = shadow
         }
@@ -105,6 +106,10 @@ final class BloomScene: SKScene {
     private var fpsClock: TimeInterval = 0
     private var fpsWorst: TimeInterval = 0
     private var fpsLong = 0
+    private var freeze: TimeInterval = 0       // hit-stop: a few frames of stillness that sell a heavy blow
+    private var vel = CGVector.zero            // hero velocity, eased so starts and stops feel soft
+
+    private func buzz(_ g: UIImpactFeedbackGenerator, _ i: CGFloat = 1) { if Haptics.enabled { g.impactOccurred(intensity: i) } }
 
     // MARK: - setup
 
@@ -493,16 +498,17 @@ final class BloomScene: SKScene {
             n.run(.sequence([.group([.fadeIn(withDuration: 0.1), .moveBy(x: 0, y: -30, duration: 0.22)]),
                              .run { [weak self] in self?.puff(at: p, n: 8); self?.shake(2.5) },
                              .scaleX(to: 1.25, y: 0.8, duration: 0.07), .scale(to: 1, duration: 0.12)]))
-            heavy.impactOccurred()
+            buzz(heavy)
             Sfx.play(.fence)
         }
     }
 
     private func crafted(_ k: BuildKind, _ item: BItem, _ lucky: Bool) {
+        happeningMeter += 2
         if k == .anvil {
             pickNode.texture = tex("bloom_pick_\(game.pickTier)")
             for _ in 0..<(lucky ? 26 : 12) { spark(at: CGPoint(x: heroPos.x, y: heroPos.y + 10), spread: lucky ? 22 : 12, gold: true) }
-            heavy.impactOccurred()
+            buzz(heavy)
             return
         }
         guard let (_, node) = buildingNodes.values.first(where: { $0.0.kind == k }) else { return }
@@ -519,6 +525,7 @@ final class BloomScene: SKScene {
     // MARK: - bloom wave
 
     private func bloom(_ id: Int) {
+        happeningMeter += 8
         guard let dust = islandNodes[id] else { return }
         // wave starts at the bridge the hero is next to
         var start = heroPos
@@ -573,7 +580,7 @@ final class BloomScene: SKScene {
         fill(id, animated: true, delay: 0.6)
         if game.hasT("b5") { run(.sequence([.wait(forDuration: 1.6), .run { [weak self] in self?.spawnChest(near: true) }])) }
         shake(3)
-        heavy.impactOccurred()
+        buzz(heavy)
         Sfx.play(.sparkle)
         Sfx.play(.levelUp, after: 0.3)
     }
@@ -790,7 +797,7 @@ final class BloomScene: SKScene {
         }
         floatText(tr("+20 звёзд события"), at: CGPoint(x: heroPos.x, y: heroPos.y + 26), color: UIColor(red: 1, green: 0.85, blue: 0.2, alpha: 1), size: 5)
         Sfx.play(.chest, volume: 0.7)
-        medium.impactOccurred()
+        buzz(medium)
     }
 
     // MARK: - fishing: a timing bar instead of hitting
@@ -847,7 +854,7 @@ final class BloomScene: SKScene {
         f.bobber.run(.repeatForever(.sequence([.moveBy(x: 0, y: -1, duration: 0.4), .moveBy(x: 0, y: 1, duration: 0.4)])))
         pickNode.run(.rotate(toAngle: 0.6, duration: 0.1))
         Sfx.play(.plant, volume: 0.6)
-        light.impactOccurred()
+        buzz(light)
     }
 
     private func updateFishing(_ dt: TimeInterval) {
@@ -874,11 +881,11 @@ final class BloomScene: SKScene {
             game.bump("fish.perfect")
             if Int.random(in: 0..<5) == 0 { spawnChest(near: true) }
             Sfx.play(.sparkle)
-            heavy.impactOccurred()
+            buzz(heavy)
         } else if f.zone.contains(x) {
             floatText(tr("Поймал!"), at: at, color: UIColor(red: 0.6, green: 1, blue: 0.55, alpha: 1), size: 6)
             destroy(f.r, mult: game.registerHit(now: now))
-            medium.impactOccurred()
+            buzz(medium)
         } else {
             floatText(tr("Сорвалась!"), at: at, color: UIColor(red: 1, green: 0.55, blue: 0.5, alpha: 1), size: 6)
             for _ in 0..<6 {
@@ -1071,6 +1078,12 @@ final class BloomScene: SKScene {
                 fpsFrames = 0; fpsClock = 0; fpsWorst = 0; fpsLong = 0
             }
         }
+        if freeze > 0 {
+            freeze -= dt
+            if freeze <= 0 { world.speed = 1 }
+            updateCamera(dt)
+            return
+        }
         if demo && fishing == nil { autopilot() }
         updateFishing(dt)
         moveHero(dt)
@@ -1085,6 +1098,7 @@ final class BloomScene: SKScene {
         updateGuide(dt)
         updateBiome(dt)
         updateEventPickups(dt)
+        updateHappenings(dt)
 
         spawnTimer += dt
         if spawnTimer > game.respawnInterval {
@@ -1097,7 +1111,15 @@ final class BloomScene: SKScene {
         if saveTimer > 10 { saveTimer = 0; game.save() }
         if game.tutorialIndex < 99, Int(saveTimer * 2) != Int((saveTimer - dt) * 2) { game.advanceTutorial() }
 
-        // camera
+        updateCamera(dt)
+    }
+
+    private func hitStop(_ t: TimeInterval) {
+        freeze = max(freeze, t)
+        world.speed = 0
+    }
+
+    private func updateCamera(_ dt: TimeInterval) {
         let k = 1 - exp(-dt * 7)
         var c = CGPoint(x: cam.position.x + (heroPos.x - cam.position.x) * k,
                         y: cam.position.y + (heroPos.y + 6 - cam.position.y) * k)
@@ -1111,11 +1133,20 @@ final class BloomScene: SKScene {
 
     private func moveHero(_ dt: TimeInterval) {
         let len = hypot(stickVec.dx, stickVec.dy)
-        let moving = len > 0.15
+        // ease towards the stick: quick to start (about 0.1 s), a touch softer to stop
+        let speed: CGFloat = 54 * game.runSpeed * windBoost * min(1, len * 1.35)
+        let want = len > 0.15 ? CGVector(dx: stickVec.dx / len * speed, dy: stickVec.dy / len * speed) : .zero
+        let ease = 1 - exp(-CGFloat(dt) * (len > 0.15 ? 22 : 16))
+        vel.dx += (want.dx - vel.dx) * ease
+        vel.dy += (want.dy - vel.dy) * ease
+        if len <= 0.15, hypot(vel.dx, vel.dy) < 2 { vel = .zero }
+        let moving = hypot(vel.dx, vel.dy) > 6
         animClock += dt
+        // a slight lean into the run, back upright when standing
+        let lean: CGFloat = moving ? -facing * min(1, hypot(vel.dx, vel.dy) / 60) * 0.08 : 0
+        heroSprite.zRotation += (lean - heroSprite.zRotation) * min(1, CGFloat(dt) * 14)
         if moving {
-            let speed: CGFloat = 54 * game.runSpeed * min(1, len * 1.35)
-            let d = CGVector(dx: stickVec.dx / len * speed * CGFloat(dt), dy: stickVec.dy / len * speed * CGFloat(dt))
+            let d = CGVector(dx: vel.dx * CGFloat(dt), dy: vel.dy * CGFloat(dt))
             var p = heroPos
             let px = CGPoint(x: p.x + d.dx, y: p.y)
             if canStand(px) { p = px }
@@ -1123,6 +1154,7 @@ final class BloomScene: SKScene {
             if canStand(py) { p = py }
             heroPos = p
             if abs(stickVec.dx) > 0.2 { facing = stickVec.dx > 0 ? 1 : -1 }
+            else if len <= 0.15, abs(vel.dx) > 4 { facing = vel.dx > 0 ? 1 : -1 }
             let f = Int(animClock * 10) % 4
             heroSprite.texture = tex(game.heroPrefix + "run_\(f)")
             collectFlowers()
@@ -1182,7 +1214,7 @@ final class BloomScene: SKScene {
                 game.gainXP(game.hasT("b3") ? 6 : 1)
                 showPickup("flower", sprite: BItem.flower.sprite, amount: 1, color: UIColor(red: 1, green: 0.7, blue: 0.8, alpha: 1))
                 Sfx.playThrottled(.sparkle, gap: 0.1, volume: 0.6)
-                light.impactOccurred()
+                buzz(light)
             }
         }
     }
@@ -1240,6 +1272,7 @@ final class BloomScene: SKScene {
     }
 
     private var heroHits = 0
+    private var lastCollectFX: TimeInterval = 0
 
     /// Talent "Землетряс": a ring that hits everything around the hero.
     private func quake(dmg: Int, mult: Int) {
@@ -1252,7 +1285,7 @@ final class BloomScene: SKScene {
         world.addChild(ring)
         ring.run(.sequence([.group([.scale(to: 7, duration: 0.3), .fadeOut(withDuration: 0.3)]), .removeFromParent()]))
         shake(3.5)
-        heavy.impactOccurred()
+        buzz(heavy)
         Sfx.play(.boss, volume: 0.5)
         let hc = heroCell
         var hits: [Res] = []
@@ -1285,8 +1318,9 @@ final class BloomScene: SKScene {
         world.addChild(flash)
         flash.run(.sequence([.group([.scale(to: 5, duration: 0.16), .fadeOut(withDuration: 0.16)]), .removeFromParent()]))
         for _ in 0..<10 { spark(at: p, spread: 22) }
-        shake(2.2)
-        heavy.impactOccurred()
+        shake(2.6)
+        hitStop(0.04)
+        buzz(heavy)
         Sfx.play(.skill, volume: 0.7)
     }
 
@@ -1297,18 +1331,22 @@ final class BloomScene: SKScene {
         let hp = CGPoint(x: r.node.position.x - facing * 3, y: r.node.position.y + r.node.size.height * 0.45)
         r.node.removeAction(forKey: "hit")
         r.node.run(.sequence([
-            .group([.scaleX(to: 1.15, y: 0.88, duration: 0.05), .moveBy(x: facing * 1.2, y: 0, duration: 0.05)]),
-            .group([.scale(to: 1, duration: 0.1), .moveBy(x: -facing * 1.2, y: 0, duration: 0.1)]),
+            .group([.scaleX(to: 1.2, y: 0.84, duration: 0.045), .moveBy(x: facing * 1.6, y: 0, duration: 0.045)]),
+            .group([.scaleX(to: 0.94, y: 1.08, duration: 0.07), .moveBy(x: -facing * 1.6, y: 0, duration: 0.07)]),
+            .scale(to: 1, duration: 0.08),
         ]), withKey: "hit")
+        // one bright frame on every hit: the eye reads it as contact
+        r.node.run(.sequence([.colorize(with: .white, colorBlendFactor: r.golden ? 0.4 : 0.75, duration: 0),
+                              .colorize(with: r.golden ? Self.goldTint : .white, colorBlendFactor: r.golden ? 0.55 : 0, duration: 0.1)]), withKey: "flash")
         for _ in 0..<3 { spark(at: hp) }
         for _ in 0..<3 {
             particle(r.kind.isStone ? "bloom_fx_chip" : "bloom_fx_leaf", at: hp,
                      v: CGVector(dx: CGFloat.random(in: -16...16), dy: CGFloat.random(in: 6...20)), life: 0.5)
         }
-        if now - hitHaptic > 0.08 { light.impactOccurred(intensity: 0.6); hitHaptic = now }
+        if now - hitHaptic > 0.08 { buzz(light, 0.6); hitHaptic = now }
         Sfx.playThrottled(.hit, gap: 0.06, volume: 0.6)
         if r.hp <= 0 {
-            destroy(r, mult: mult)
+            destroy(r, mult: mult, dir: dir)
         } else {
             showBar(r)
         }
@@ -1346,14 +1384,34 @@ final class BloomScene: SKScene {
         }
     }
 
-    private func destroy(_ r: Res, mult: Int) {
+    private func destroy(_ r: Res, mult: Int, dir: CGFloat = 1) {
         res[r.cell] = nil
         let p = r.node.position
         r.node.removeAllActions()
-        r.node.run(.sequence([.group([.scale(to: 0.1, duration: 0.12), .fadeOut(withDuration: 0.12)]), .removeFromParent()]))
-        r.shadow.run(.sequence([.fadeOut(withDuration: 0.15), .removeFromParent()]))
+        r.bar?.removeFromParent()
+        if r.kind.isTree {
+            // trees tip over away from the hero and land with a thump
+            r.node.zPosition = 500 - p.y + 1
+            let fall = SKAction.rotate(toAngle: -dir * 1.5, duration: 0.3)
+            fall.timingMode = .easeIn
+            r.node.run(.sequence([fall,
+                                  .run { [weak self] in
+                                      guard let self else { return }
+                                      self.puff(at: CGPoint(x: p.x + dir * 14, y: p.y), n: 7)
+                                      self.shake(1.6)
+                                      self.buzz(self.light, 0.7)
+                                  },
+                                  .group([.fadeOut(withDuration: 0.25), .moveBy(x: 0, y: -2, duration: 0.25)]),
+                                  .removeFromParent()]))
+        } else {
+            // stones and bushes swell for a frame, then burst
+            r.node.run(.sequence([.scale(to: 1.18, duration: 0.04),
+                                  .group([.scale(to: 0.1, duration: 0.1), .fadeOut(withDuration: 0.1)]), .removeFromParent()]))
+        }
+        r.shadow.run(.sequence([.fadeOut(withDuration: 0.2), .removeFromParent()]))
         puff(at: p, n: 9)
-        shake(1.2)
+        shake(r.golden ? 3 : 1.8)
+        hitStop(r.golden ? 0.07 : 0.035)
         if r.kind.isTree {
             let st = SKSpriteNode(texture: tex(r.kind.stump))
             st.anchorPoint = CGPoint(x: 0.5, y: 2 / 10)
@@ -1371,11 +1429,17 @@ final class BloomScene: SKScene {
                          v: CGVector(dx: CGFloat.random(in: -28...28), dy: CGFloat.random(in: 8...30)), life: 0.6)
             }
         }
-        medium.impactOccurred()
+        buzz(medium)
         Sfx.playThrottled(.poof, gap: 0.08, volume: 0.7)
-        for (item, n) in game.roll(r.kind, mult: mult) { emit(item, n, from: p) }
-        let c = game.rollCoins(r.kind, mult: mult)
-        if c > 0 { emit(nil, c, from: p) }
+        let bonus = r.golden ? 5 : 1
+        for (item, n) in game.roll(r.kind, mult: mult) { emit(item, n * bonus, from: p, maxPieces: r.golden ? 8 : 4, spread: r.golden ? 20 : 12) }
+        let c = game.rollCoins(r.kind, mult: mult) * bonus + (r.golden ? 10 : 0)
+        if c > 0 { emit(nil, c, from: p, maxPieces: r.golden ? 8 : 4, spread: r.golden ? 20 : 12) }
+        if r.golden {
+            for _ in 0..<16 { spark(at: CGPoint(x: p.x, y: p.y + 8), spread: 26, gold: true) }
+            Sfx.play(.victory, volume: 0.6)
+        }
+        happeningMeter += 1
         game.gainXP(r.kind.xp)
         game.gathered(r.kind)
         if let (f, isNew) = game.rollFind(r.kind) { findFX(f, isNew: isNew, at: p) }
@@ -1401,8 +1465,11 @@ final class BloomScene: SKScene {
                 let k = t / CGFloat(dur)
                 node.position = CGPoint(x: p.x + (dest.x - p.x) * k, y: p.y + (dest.y - p.y) * k + up * 4 * k * (1 - k))
             })
-            n.run(.sequence([.wait(forDuration: dur), .scaleX(to: 0.95, y: 0.6, duration: 0.05), .scale(to: 0.75, duration: 0.08)]))
-            drops.append(DropNode(node: n, item: item, amount: amount, readyAt: now + dur + 0.15))
+            let hop = up * 0.3
+            n.run(.sequence([.wait(forDuration: dur), .scaleX(to: 0.95, y: 0.55, duration: 0.04), .scale(to: 0.75, duration: 0.06),
+                             .moveBy(x: 0, y: hop, duration: 0.09), .moveBy(x: 0, y: -hop, duration: 0.09),
+                             .scaleX(to: 0.85, y: 0.65, duration: 0.03), .scale(to: 0.75, duration: 0.05)]))
+            drops.append(DropNode(node: n, item: item, amount: amount, readyAt: now + dur + 0.32))
         }
     }
 
@@ -1482,6 +1549,11 @@ final class BloomScene: SKScene {
             showPickup("coin", sprite: "bloom_item_coin", amount: d.amount, color: UIColor(red: 1, green: 0.85, blue: 0.3, alpha: 1))
         }
         Sfx.playThrottled(.coin, gap: 0.05, volume: 0.45)
+        if now - lastCollectFX > 0.08 {
+            lastCollectFX = now
+            particle("bloom_fx_spark", at: CGPoint(x: heroPos.x + CGFloat.random(in: -3...3), y: heroPos.y + 10),
+                     v: CGVector(dx: CGFloat.random(in: -8...8), dy: 14), life: 0.35, gravity: false)
+        }
         heroSprite.run(.sequence([.scaleY(to: 1.1, duration: 0.04), .scaleY(to: 1, duration: 0.06)]))
     }
 
@@ -1621,7 +1693,7 @@ final class BloomScene: SKScene {
                 for (i, k) in loot.items { self.emit(i, k, from: CGPoint(x: p.x, y: p.y + 6), maxPieces: 3, spread: 20) }
                 for _ in 0..<24 { self.spark(at: CGPoint(x: p.x, y: p.y + 10), spread: 30, gold: true) }
                 self.shake(3)
-                self.heavy.impactOccurred()
+                self.buzz(self.heavy)
                 self.floatText(tr("Сундук!"), at: CGPoint(x: p.x, y: p.y + 22), color: UIColor(red: 1, green: 0.85, blue: 0.3, alpha: 1), size: 7, rise: 14)
             },
             .scale(to: 1, duration: 0.12),
@@ -1654,8 +1726,173 @@ final class BloomScene: SKScene {
         floatText(isNew ? tr("НАХОДКА!") : "+\(BloomAlbum.duplicateCoins)", at: CGPoint(x: p.x, y: p.y + 34),
                   color: isNew ? UIColor(red: 0.85, green: 0.65, blue: 1, alpha: 1) : UIColor(red: 1, green: 0.85, blue: 0.3, alpha: 1), size: 6.5, rise: 10)
         for _ in 0..<16 { spark(at: CGPoint(x: p.x, y: p.y + 20), spread: 24) }
-        heavy.impactOccurred()
+        buzz(heavy)
         Sfx.play(isNew ? .chest : .coin)
+    }
+
+    // MARK: - happenings: small events that the farm's own work sets off
+    // Every break, craft and new island fills a meter; when it tips over, something
+    // happens by itself near the hero. No buttons, nothing to accept: just a reward.
+
+    private static let goldTint = UIColor(red: 1, green: 0.82, blue: 0.25, alpha: 1)
+    private var happeningMeter = 0
+    private var happeningAt = Int.random(in: 14...22)
+    private var windLeft: TimeInterval = 0
+    private var windBoost: CGFloat { windLeft > 0 ? 1.4 : 1 }
+    private var windClock: TimeInterval = 0
+    private var lastHappening = ""
+
+    private func updateHappenings(_ dt: TimeInterval) {
+        if windLeft > 0 {
+            windLeft -= dt
+            windClock += dt
+            if windClock > 0.12 {
+                windClock = 0
+                particle("bloom_fx_leaf", at: CGPoint(x: heroPos.x - facing * 6, y: heroPos.y + CGFloat.random(in: 2...14)),
+                         v: CGVector(dx: -facing * CGFloat.random(in: 20...34), dy: CGFloat.random(in: -4...6)), life: 0.5, gravity: false)
+            }
+        }
+        guard happeningMeter >= happeningAt, fishing == nil, goldenLeft <= 0 else { return }
+        happeningMeter = 0
+        happeningAt = Int.random(in: 18...30)
+        var pool = ["flock", "golden", "coins", "wind", "meteor", "treasure"]
+        pool.removeAll { $0 == lastHappening }
+        if !chests.isEmpty { pool.removeAll { $0 == "treasure" } }
+        let pick = pool.randomElement() ?? "coins"
+        lastHappening = pick
+        switch pick {
+        case "flock": flock()
+        case "golden": goldenThing()
+        case "wind": wind()
+        case "meteor": meteor()
+        case "treasure":
+            spawnChest(near: true)
+            game.showToast(BloomToast(title: tr("Клад!"), subtitle: tr("Рядом появился сундук")))
+        default: coinRain()
+        }
+        Analytics.shared.track("bloom_happening", ["kind": pick])
+    }
+
+    /// Free cells near the hero on owned islands, nearest first.
+    private func cellsNearHero(_ maxDist: CGFloat, minDist: CGFloat = 12) -> [(Cell, Int)] {
+        var out: [(Cell, Int, CGFloat)] = []
+        for id in game.owned {
+            for c in cells(of: id) where freeCell(c) {
+                let d = hypot(basePoint(c).x - heroPos.x, basePoint(c).y - heroPos.y)
+                if d >= minDist && d <= maxDist && !underHUD(basePoint(c)) { out.append((c, id, d)) }
+            }
+        }
+        return out.sorted { $0.2 < $1.2 }.map { ($0.0, $0.1) }
+    }
+
+    /// A flock flies over and sows: a handful of things sprout around the hero.
+    private func flock() {
+        let y0 = heroPos.y + CGFloat.random(in: 10...30)
+        let from = heroPos.x - 120 * facing
+        for i in 0..<6 {
+            let b = SKSpriteNode(texture: tex("bloom_fx_bird_0"))
+            b.xScale = facing
+            b.position = CGPoint(x: from - facing * CGFloat(i % 3) * 10, y: y0 + CGFloat(i) * 5 + CGFloat(i % 2) * 4)
+            b.zPosition = 3800
+            world.addChild(b)
+            b.run(.repeatForever(.animate(with: [tex("bloom_fx_bird_0"), tex("bloom_fx_bird_1")], timePerFrame: 0.12)))
+            b.run(.sequence([.wait(forDuration: Double(i) * 0.06), .moveBy(x: facing * 260, y: 14, duration: 2.6), .removeFromParent()]))
+        }
+        let spots = Array(cellsNearHero(60).shuffled().prefix(5))
+        for (k, (c, id)) in spots.enumerated() {
+            run(.sequence([.wait(forDuration: 0.8 + Double(k) * 0.18), .run { [weak self] in
+                guard let self, self.freeCell(c) else { return }
+                self.spawn(self.randomKind(id), at: c, island: id, delay: 0)
+                for _ in 0..<5 { self.petal(at: self.basePoint(c)) }
+                Sfx.playThrottled(.harvest, gap: 0.1, volume: 0.35)
+            }]))
+        }
+        Sfx.play(.sparkle, volume: 0.5)
+        game.showToast(BloomToast(title: tr("Стая птиц"), subtitle: tr("Птицы посеяли семена вокруг")))
+    }
+
+    /// The nearest tree or stone turns golden: five times the loot.
+    private func goldenThing() {
+        let near = res.values.filter { !$0.golden && $0.kind != .pond }
+            .sorted { hypot($0.node.position.x - heroPos.x, $0.node.position.y - heroPos.y) <
+                      hypot($1.node.position.x - heroPos.x, $1.node.position.y - heroPos.y) }
+        guard let r = near.first(where: { !underHUD($0.node.position) }) ?? near.first else { coinRain(); return }
+        r.golden = true
+        r.node.run(.colorize(with: Self.goldTint, colorBlendFactor: 0.55, duration: 0.3))
+        let p = r.node.position
+        r.node.run(.repeatForever(.sequence([.run { [weak self] in
+            self?.particle("bloom_fx_spark", at: CGPoint(x: p.x + CGFloat.random(in: -6...6), y: p.y + CGFloat.random(in: 2...18)),
+                           v: CGVector(dx: 0, dy: 10), life: 0.6, gravity: false)
+        }, .wait(forDuration: 0.18)])), withKey: "glow")
+        for _ in 0..<12 { spark(at: CGPoint(x: p.x, y: p.y + 8), spread: 18, gold: true) }
+        Sfx.play(.sparkle, volume: 0.7)
+        game.showToast(BloomToast(title: tr("Золотая находка"), subtitle: tr("Разбей сияющий ресурс: добыча ×5")))
+    }
+
+    /// Coins rain down around the hero for a few seconds; they land as normal drops.
+    private func coinRain() {
+        let total = max(8, 4 + game.level * 2)
+        let pieces = 12
+        for i in 0..<pieces {
+            run(.sequence([.wait(forDuration: Double(i) * 0.15), .run { [weak self] in
+                guard let self else { return }
+                let p = CGPoint(x: self.heroPos.x + CGFloat.random(in: -40...40), y: self.heroPos.y + CGFloat.random(in: -24...24))
+                let n = SKSpriteNode(texture: self.tex("bloom_item_coin"))
+                n.setScale(0.75)
+                n.zPosition = 2200
+                n.position = CGPoint(x: p.x, y: p.y + 110)
+                self.world.addChild(n)
+                let fall = SKAction.move(to: p, duration: 0.45)
+                fall.timingMode = .easeIn
+                n.run(.sequence([fall, .scaleX(to: 0.95, y: 0.55, duration: 0.04), .scale(to: 0.75, duration: 0.06)]))
+                self.drops.append(DropNode(node: n, item: nil, amount: max(1, total / pieces), readyAt: self.now + 0.6))
+                Sfx.playThrottled(.coin, gap: 0.08, volume: 0.3)
+            }]))
+        }
+        game.showToast(BloomToast(title: tr("Монетный дождь"), subtitle: tr("Собирай, пока падают")))
+    }
+
+    /// A tail wind: the hero runs faster for a while.
+    private func wind() {
+        windLeft = 20
+        for _ in 0..<14 {
+            particle("bloom_fx_leaf", at: CGPoint(x: heroPos.x + CGFloat.random(in: -20...20), y: heroPos.y + CGFloat.random(in: 0...20)),
+                     v: CGVector(dx: CGFloat.random(in: 30...60), dy: CGFloat.random(in: -6...10)), life: 0.8, gravity: false)
+        }
+        Sfx.play(.speedup, volume: 0.6)
+        game.showToast(BloomToast(title: tr("Попутный ветер"), subtitle: tr("20 секунд бегаешь быстрее")))
+    }
+
+    /// A small meteor falls close by and leaves a rare stone to break.
+    private func meteor() {
+        guard let spot = cellsNearHero(55, minDist: 18).first else { coinRain(); return }
+        let (c, id) = spot
+        let rare: [GatherKind] = game.level >= 12 ? [.starstone, .obsidian, .crystal, .rock_gold] : [.crystal, .rock_gold, .rock_iron]
+        let k = rare.randomElement() ?? .crystal
+        let p = basePoint(c)
+        let star = SKSpriteNode(texture: tex("bloom_fx_spark"))
+        star.setScale(2.5)
+        star.color = UIColor(red: 1, green: 0.7, blue: 0.3, alpha: 1)
+        star.colorBlendFactor = 0.6
+        star.position = CGPoint(x: p.x - 70, y: p.y + 140)
+        star.zPosition = 3900
+        world.addChild(star)
+        let fall = SKAction.move(to: CGPoint(x: p.x, y: p.y + 4), duration: 0.55)
+        fall.timingMode = .easeIn
+        star.run(.repeatForever(.sequence([.run { [weak self, weak star] in
+            guard let self, let star else { return }
+            self.particle("bloom_fx_puff", at: star.position, v: CGVector(dx: 0, dy: 0), life: 0.3, z: 3850, gravity: false)
+        }, .wait(forDuration: 0.03)])))
+        star.run(.sequence([fall, .run { [weak self] in
+            guard let self else { return }
+            self.puff(at: p, n: 12)
+            for _ in 0..<12 { self.spark(at: CGPoint(x: p.x, y: p.y + 4), spread: 24) }
+            self.shake(4)
+            self.buzz(self.heavy)
+            Sfx.play(.boss, volume: 0.5)
+            if self.freeCell(c) { self.spawn(k, at: c, island: id, delay: 0) }
+        }, .removeFromParent()]))
+        game.showToast(BloomToast(title: tr("Метеорит"), subtitle: tr("Упал редкий камень, разбей его")))
     }
 
     // MARK: - golden hour (our own event: everything turns gold, drops double)
@@ -1756,7 +1993,7 @@ final class BloomScene: SKScene {
         goldOverlay.run(.fadeAlpha(to: 0.16, duration: 0.8))
         world.run(.sequence([.wait(forDuration: 0.2), .run { [weak self] in self?.spawnChest(near: true) }]))
         shake(2)
-        heavy.impactOccurred()
+        buzz(heavy)
         Sfx.play(.victory)
         Sfx.play(.sparkle, after: 0.4)
     }
@@ -1784,7 +2021,7 @@ final class BloomScene: SKScene {
                      v: CGVector(dx: cos(a) * 34, dy: sin(a) * 34 + 14), life: 0.8)
         }
         shake(2)
-        heavy.impactOccurred()
+        buzz(heavy)
     }
 
     // MARK: - helpers (Bloomlings)
