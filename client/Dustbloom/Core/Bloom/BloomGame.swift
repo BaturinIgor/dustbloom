@@ -217,7 +217,9 @@ final class BloomGame: ObservableObject {
     @Published var panel: BloomPanel? {
         didSet { if let p = panel, p != oldValue { Analytics.shared.track("bloom_panel", ["panel": String(describing: p)]) } }
     }
-    @Published var combo = 0           // hits in the current chain
+    /// Hits in the current chain. Not @Published: the scene draws the combo itself, and publishing
+    /// it rebuilt the whole SwiftUI HUD (and any open panel) on every single hit.
+    var combo = 0
     @Published var toast: BloomToast?
     /// What the left context button offers right now (set by the scene).
     @Published var nearby: Nearby?

@@ -53,15 +53,16 @@ struct OutlinedText: View {
     var align: TextAlignment = .center
 
     var body: some View {
-        let base = ZStack {
-            ForEach(0..<4, id: \.self) { k in
-                Text(text).font(DText.font(size)).foregroundStyle(Color.black.opacity(0.75))
-                    .offset(x: k < 2 ? (k == 0 ? -1.5 : 1.5) : 0, y: k >= 2 ? (k == 2 ? -1.5 : 1.5) : 0)
-            }
-            Text(text).font(DText.font(size)).foregroundStyle(color)
-        }
-        .lineLimit(lines)
-        .multilineTextAlignment(align)
+        // one Text with four hard shadows draws the same 1.5 pt outline as four offset copies,
+        // but SwiftUI lays out and shapes the string once instead of five times
+        let edge = Color.black.opacity(0.75)
+        let base = Text(text).font(DText.font(size)).foregroundStyle(color)
+            .lineLimit(lines)
+            .multilineTextAlignment(align)
+            .shadow(color: edge, radius: 0, x: -1.5, y: 0)
+            .shadow(color: edge, radius: 0, x: 1.5, y: 0)
+            .shadow(color: edge, radius: 0, x: 0, y: -1.5)
+            .shadow(color: edge, radius: 0, x: 0, y: 1.5)
         if fixed {
             // natural width when there is room, but never wider than the row it sits in:
             // a long line shrinks a little instead of pushing cards and panels out of shape
