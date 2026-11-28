@@ -828,6 +828,14 @@
    "xp": 0
   },
   {
+   "title": "Построй домик-помощник",
+   "icon": "bloom_hut_1",
+   "key": "huts",
+   "target": 1,
+   "coins": 120,
+   "xp": 0
+  },
+  {
    "title": "Выкуй железный топор",
    "icon": "bloom_axe_2",
    "key": "axe",
@@ -1002,6 +1010,14 @@
    "target": 7,
    "coins": 400,
    "xp": 110
+  },
+  {
+   "title": "Построй 4 домика",
+   "icon": "bloom_hut_1",
+   "key": "huts",
+   "target": 4,
+   "coins": 300,
+   "xp": 0
   },
   {
    "title": "Подружись с 4 жителями",
@@ -1272,5 +1288,58 @@
   ],
   "every": 40,
   "max": 2
- }
+ },
+ "huts": {
+  "level": 8,
+  "interval": [
+   90,
+   60,
+   40
+  ],
+  "capHours": [
+   2,
+   4,
+   6
+  ],
+  "coinDiv": 8,
+  "coinMult": [
+   1,
+   2.5,
+   6
+  ],
+  "items": [
+   [
+    [
+     "wood",
+     25
+    ],
+    [
+     "stone",
+     15
+    ]
+   ],
+   [
+    [
+     "brick",
+     10
+    ],
+    [
+     "wood",
+     30
+    ]
+   ],
+   [
+    [
+     "iron_bar",
+     6
+    ],
+    [
+     "brick",
+     15
+    ]
+   ]
+  ],
+  "passBonus": 0.5
+ },
+ "autoCraftLevel": 10
 }

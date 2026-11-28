@@ -115,6 +115,9 @@ struct BloomSave: Codable {
     var pet: String?
     var decor: [PlacedDecor] = []
     var passDewDay: String?
+    // automation (BloomAutomation.swift)
+    var huts: [String: HutState] = [:]     // island id -> garden hut
+    var autoCraft: [String] = []           // building kinds that re-queue on their own
 
     init() {}
 
@@ -182,6 +185,8 @@ struct BloomSave: Codable {
         pet = try c.decodeIfPresent(String.self, forKey: .pet)
         decor = try c.decodeIfPresent([PlacedDecor].self, forKey: .decor) ?? []
         passDewDay = try c.decodeIfPresent(String.self, forKey: .passDewDay)
+        huts = try c.decodeIfPresent([String: HutState].self, forKey: .huts) ?? [:]
+        autoCraft = try c.decodeIfPresent([String].self, forKey: .autoCraft) ?? []
     }
 }
 
@@ -203,6 +208,8 @@ enum BloomPanel: Equatable {
     case islander(String)
     case offer(String)
     case decor
+    case hut(Int)
+    case teleport(Int)
 }
 
 struct BloomToast: Identifiable, Equatable {
@@ -253,6 +260,8 @@ final class BloomGame: ObservableObject {
         case island(Int)
         case dungeon(String)
         case islander(String)
+        case hut(Int)
+        case waystone(Int)
     }
 
     /// Scene callbacks.
@@ -266,6 +275,8 @@ final class BloomGame: ObservableObject {
     var onDecorPlaced: ((PlacedDecor) -> Void)?
     var placeDecorCell: (() -> Cell?)?
     var onRevive: ((Bool) -> Void)?
+    var onHutChanged: ((Int) -> Void)?
+    var onTeleport: ((Int) -> Void)?
     @Published var inDungeon = false
     var onBuildingPlaced: ((PlacedBuilding) -> Void)?
     var onCrafted: ((BuildKind, BItem, Bool) -> Void)?
@@ -477,6 +488,7 @@ final class BloomGame: ObservableObject {
                 p -= secs(r)
                 var nq = q
                 nq.left -= 1
+                autoRefill(b, &nq, r)
                 if nq.left == 0 { p = 0 }
                 s.queues[b.rawValue] = nq
                 let n = hasT("c3") && Double.random(in: 0..<1) < 0.2 ? 2 : 1
@@ -493,11 +505,17 @@ final class BloomGame: ObservableObject {
         for b in BuildKind.allCases {
             guard var q = s.queues[b.rawValue], q.left > 0,
                   let r = b.recipes.first(where: { $0.id == q.recipe }) else { continue }
-            let p = progress[b.rawValue] ?? 0
-            let done = min(q.left, Int((p + seconds) / secs(r)))
-            q.left -= done
-            progress[b.rawValue] = q.left > 0 ? (p + seconds).truncatingRemainder(dividingBy: secs(r)) : 0
-            add(r.output, done)
+            var p = (progress[b.rawValue] ?? 0) + seconds
+            var made = 0
+            // item by item, so auto-repeat keeps going while there is enough to pay for the next one
+            while q.left > 0 && p >= secs(r) && made < 5000 {
+                p -= secs(r)
+                q.left -= 1
+                made += 1
+                autoRefill(b, &q, r)
+            }
+            progress[b.rawValue] = q.left > 0 ? p : 0
+            add(r.output, made)
             s.queues[b.rawValue] = q
         }
     }
@@ -625,6 +643,7 @@ final class BloomGame: ObservableObject {
         case "friends": return friendCount
         case "puzzles": return s.puzzles.count
         case "helpers": return s.helpers.count
+        case "huts": return s.huts.count
         default:
             if key.hasPrefix("build."), let b = BuildKind(rawValue: String(key.dropFirst(6))) { return isBuilt(b) ? 1 : 0 }
             return s.stats[key] ?? 0

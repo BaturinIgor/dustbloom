@@ -22,6 +22,8 @@ SWING = 0.33           # seconds between hero hits
 HELPER_HIT = 0.9       # seconds between helper hits
 HELPER_WALK = 1.6      # helper walk overhead per node
 SESSION = 15 * 60      # a typical play session (for ad cooldowns)
+SESSION_PLAY = 40 * 60 # garden huts: play this long, then be away OFFLINE_GAP (cap applies)
+OFFLINE_GAP = 7 * 3600
 STONES = {"rock", "rock_iron", "rock_gold", "crystal", "dune", "obsidian", "starstone"}
 ISLAND_ITEMS = {1: "cotton", 2: "iron_ore", 4: "gold_ore", 5: "crystal"}
 
@@ -84,6 +86,8 @@ class Sim:
         self.relics = set()
         self.quests = {}            # islander -> steps done (BloomQuests.swift)
         self.puzzles = set()
+        self.huts = {}              # island -> level (BloomAutomation.swift)
+        self.hut_acc = 0.0          # play seconds since the last offline gap
         self.helpers = 0            # grown helpers
         self.golden_helper = False  # founder pack helper (does not take a slot)
         self.talents = []
@@ -177,6 +181,7 @@ class Sim:
         if key == "puzzles": return len(self.puzzles)
         if key == "shovel": return 1 if self.shovel else 0
         if key == "helpers": return self.helpers
+        if key == "huts": return len(self.huts)
         if key.startswith("build."): return 1 if key[6:] in self.built else 0
         return self.stats.get(key, 0)
 
@@ -284,6 +289,16 @@ class Sim:
         if self.pick + 1 < len(BAL["picks"]): want([tuple(x) for x in BAL["picks"][self.pick + 1]["cost"]])
         if self.axe + 1 < len(BAL["axes"]): want([tuple(x) for x in BAL["axes"][self.axe + 1]["cost"]])
         if not self.shovel: want([tuple(x) for x in BAL["shovel"]["cost"]])
+        # garden huts: build/upgrade when it costs at most a quarter of the next island
+        if self.level >= BAL["huts"]["level"]:
+            nxt_price = self.prices[len(self.owned)] if len(self.owned) < len(self.prices) else 10 ** 9
+            for isl in sorted(self.owned, reverse=True):
+                if self.huts.get(isl, 0) >= 3: continue
+                coins, items = self.hut_cost(isl)
+                if self.coins >= coins and self.has(items) and coins * 4 <= nxt_price:
+                    self.coins -= coins; self.pay(items); self.huts[isl] = self.huts.get(isl, 0) + 1
+                    self.log(f"домик {isl} ур.{self.huts[isl]}"); self.advance(5)
+                    break
         if "nursery" in self.built and self.helpers < self.max_helpers: want(self.helper_cost())
         # the current ask of each islander on an owned island
         for nid, isl, steps in ISLANDERS:
@@ -377,10 +392,31 @@ class Sim:
             self.flowers -= 1; self.add("flower", 1)
             if self.has_t("b3"): self.gain_xp(5)
 
+    def hut_yield(self, isl, lv, secs):
+        """What a hut gathers in `secs`: the island's spawn mix at average drops (BloomGame.hutStash)."""
+        H = BAL["huts"]
+        picks = min(secs, H["capHours"][lv - 1] * 3600) / H["interval"][lv - 1] * (1 + H["passBonus"] if self.p.pass_ else 1)
+        spawn = WORLD["islands"][isl]["spawn"]; tot = sum(spawn.values())
+        for k, w in spawn.items():
+            for it, lo, hi, ch in BAL["gather"][k]["drops"]:
+                self.add(it, int(picks * w / tot * ch * (lo + hi) / 2))
+
     def advance(self, dt):
+        total = dt
         while dt > 0:
             s = min(dt, 0.5); self.t += s; dt -= s
             self.tick_world(s)
+        if self.huts:
+            # huts work while playing too; every 40 min of play the player is away ~7 h (3 sessions a day)
+            self.hut_acc += total
+            if self.hut_acc >= SESSION_PLAY:
+                for isl, lv in self.huts.items(): self.hut_yield(isl, lv, self.hut_acc + OFFLINE_GAP)
+                self.hut_acc = 0.0
+
+    def hut_cost(self, isl):
+        H = BAL["huts"]; lv = self.huts.get(isl, 0)
+        base = max(80, self.prices[min(isl + 1, len(self.prices) - 1)] // H["coinDiv"])
+        return math.ceil(base * H["coinMult"][lv]), [tuple(x) for x in H["items"][lv]]
 
     def manage(self):
         """Spend: talents, buildings, picks, islands, helpers, crafting, selling."""

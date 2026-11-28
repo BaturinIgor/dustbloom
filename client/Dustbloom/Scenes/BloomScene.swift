@@ -240,6 +240,8 @@ final class BloomScene: SKScene {
         game.placeDecorCell = { [weak self] in self?.findBuildCell() }
         game.onDecorPlaced = { [weak self] d in self?.addDecorNode(d, animated: true) }
         game.onPetChanged = { [weak self] in self?.refreshPet() }
+        game.onHutChanged = { [weak self] i in self?.refreshHut(i, pop: true) }
+        game.onTeleport = { [weak self] i in self?.teleport(to: i) }
         refreshPet()
         for c in game.helpers { addHelper(c, animated: false) }
         if game.isFounder { addHelper("gold", animated: false) }
@@ -1719,6 +1721,16 @@ final class BloomScene: SKScene {
             best = 22
             n = .islander(f)
         }
+        for (i, h) in hutNodes where !h.node.isHidden {
+            let d = hypot(h.node.position.x - heroPos.x, h.node.position.y - heroPos.y)
+            if d < min(best, 22) { best = d; n = .hut(i) }
+        }
+        if game.waystonesUnlocked {
+            for (i, w) in stoneNodes {
+                let d = hypot(w.node.position.x - heroPos.x, w.node.position.y - heroPos.y)
+                if d < min(best, 20) { best = d; n = .waystone(i) }
+            }
+        }
         // an island sign wins when it is closer than the building (or the building is a bit far)
         best = n == nil ? 26 : min(26, best + 6)
         do {
@@ -3179,6 +3191,7 @@ final class BloomScene: SKScene {
             refreshBubble(n)
         }
         for d in BloomQuests.puzzles where game.owned.contains(d.island) && puzzles[d.id] == nil { placePuzzle(d) }
+        placeAutomation()
     }
 
     private func refreshBubble(_ n: Islander) {
@@ -3299,6 +3312,8 @@ final class BloomScene: SKScene {
         if folkTimer > 1 {
             folkTimer = 0
             for n in BloomQuests.islanders where folkNodes[n.id] != nil { refreshBubble(n) }
+            for i in hutNodes.keys { refreshHut(i, pop: false) }
+            for w in stoneNodes.values { w.node.isHidden = !game.waystonesUnlocked }
         }
         let hc = heroCell
         for pz in puzzles.values where !pz.solved {
@@ -3424,10 +3439,105 @@ final class BloomScene: SKScene {
         game.showToast(BloomToast(title: tr("Загадка решена!"), subtitle: tr("+%@ монет, +%@ росинок", r.coins, r.gems)))
     }
 
+    // MARK: - automation: a garden hut plot and a waystone on every owned island (BloomAutomation.swift)
+
+    private var hutNodes: [Int: (cell: Cell, node: SKSpriteNode, bubble: SKSpriteNode)] = [:]
+    private var stoneNodes: [Int: (cell: Cell, node: SKSpriteNode)] = [:]
+    private var hutShown: [Int: Int] = [:]
+
+    /// Fixed cells, chosen the same way every launch: the hut a bit below-left of the island's middle,
+    /// the waystone a bit above-right, both with open ground around and clear of islanders and puzzles.
+    private func placeAutomation() {
+        for id in game.owned.sorted() where hutNodes[id] == nil || stoneNodes[id] == nil {
+            let cs = cells(of: id)
+            let set = Set(cs)
+            let mid = CGPoint(x: CGFloat(cs.map(\.x).reduce(0, +)) / CGFloat(max(1, cs.count)), y: CGFloat(cs.map(\.y).reduce(0, +)) / CGFloat(max(1, cs.count)))
+            func clear(_ c: Cell) -> Bool {
+                guard roomy(c, set), roomy(Cell(x: c.x, y: c.y - 1), set), roomy(Cell(x: c.x - 1, y: c.y), set), roomy(Cell(x: c.x + 1, y: c.y), set) else { return false }
+                for dx in -1...1 { for dy in -1...1 where folkCells.contains(Cell(x: c.x + dx, y: c.y + dy)) { return false } }
+                return true
+            }
+            func pick(_ ox: CGFloat, _ oy: CGFloat) -> Cell? {
+                cs.filter(clear).min { a, b in
+                    let da = hypot(CGFloat(a.x) - mid.x - ox, CGFloat(a.y) - mid.y - oy), db = hypot(CGFloat(b.x) - mid.x - ox, CGFloat(b.y) - mid.y - oy)
+                    return da != db ? da < db : (a.x, a.y) < (b.x, b.y)
+                }
+            }
+            if hutNodes[id] == nil, let c = pick(-3, -2) {
+                clearCell(c)
+                let node = SKSpriteNode(texture: tex("bloom_hut_\(game.hut(id)?.level ?? 0)"))
+                node.anchorPoint = CGPoint(x: 0.5, y: 2 / 26)
+                let p = basePoint(c)
+                node.position = p
+                node.zPosition = 500 - p.y
+                world.addChild(node)
+                let bubble = SKSpriteNode(texture: tex("bloom_bubble_gift"))
+                bubble.anchorPoint = CGPoint(x: 0.5, y: 0)
+                bubble.position = CGPoint(x: 0, y: 25)
+                bubble.isHidden = true
+                bubble.run(.repeatForever(.sequence([.moveBy(x: 0, y: 2, duration: 0.5), .moveBy(x: 0, y: -2, duration: 0.5)])))
+                node.addChild(bubble)
+                hutNodes[id] = (c, node, bubble)
+                folkCells.insert(c)
+                refreshHut(id, pop: false)
+            }
+            if stoneNodes[id] == nil, let c = pick(3, 2) {
+                clearCell(c)
+                let node = SKSpriteNode(texture: tex("bloom_waystone_0"))
+                node.anchorPoint = CGPoint(x: 0.5, y: 2 / 24)
+                let p = basePoint(c)
+                node.position = p
+                node.zPosition = 500 - p.y
+                node.run(.repeatForever(.animate(with: [tex("bloom_waystone_0"), tex("bloom_waystone_1")], timePerFrame: 0.7)))
+                world.addChild(node)
+                node.isHidden = !game.waystonesUnlocked
+                stoneNodes[id] = (c, node)
+                folkCells.insert(c)
+            }
+        }
+    }
+
+    private func refreshHut(_ id: Int, pop: Bool) {
+        guard let h = hutNodes[id] else { return }
+        let lv = game.hut(id)?.level ?? 0
+        if hutShown[id] != lv {
+            hutShown[id] = lv
+            h.node.texture = tex("bloom_hut_\(lv)")
+            h.node.size = h.node.texture!.size()
+        }
+        // the plot shows only once huts can be built; a hut shows its bubble when half full
+        h.node.isHidden = lv == 0 && !game.hutsUnlocked
+        let fill = game.hutFill(id)
+        h.bubble.isHidden = lv == 0 || fill < 0.5
+        h.bubble.alpha = fill >= 1 ? 1 : 0.6
+        if pop {
+            h.node.run(.sequence([.scale(to: 1.15, duration: 0.08), .scale(to: 1, duration: 0.12)]))
+            spark(at: CGPoint(x: h.node.position.x, y: h.node.position.y + 10), spread: 10, gold: true)
+            puff(at: h.node.position, n: 6)
+        }
+    }
+
+    private func teleport(to id: Int) {
+        guard let w = stoneNodes[id], dungeon == nil, !fainted else { return }
+        Sfx.play(.chest, volume: 0.6)
+        buzz(light)
+        veil {
+            self.heroPos = CGPoint(x: CGFloat(w.cell.x) * self.T + 8, y: CGFloat(w.cell.y - 1) * self.T + 8)
+            self.hero.position = self.heroPos
+            self.cam.position = self.heroPos
+            for h in self.helpers { h.pos = CGPoint(x: self.heroPos.x + CGFloat.random(in: -10...10), y: self.heroPos.y - 6); h.target = nil }
+            self.petPos = CGPoint(x: self.heroPos.x - 10, y: self.heroPos.y)
+            self.spark(at: CGPoint(x: self.heroPos.x, y: self.heroPos.y + 8), spread: 12, gold: false)
+        }
+    }
+
+
     private func debugGoTo(_ to: String) {
         var c: Cell?
         if to.hasPrefix("npc:") { c = folkNodes[String(to.dropFirst(4))]?.cell }
         if to.hasPrefix("puzzle:"), let pz = puzzles[String(to.dropFirst(7))] { c = pz.tiles.first?.cell }
+        if to.hasPrefix("hut:"), let i = Int(to.dropFirst(4)) { c = hutNodes[i]?.cell }
+        if to.hasPrefix("stone:"), let i = Int(to.dropFirst(6)) { c = stoneNodes[i]?.cell }
         guard let c else { print("[bloom] goTo \(to): not placed"); return }
         heroPos = CGPoint(x: CGFloat(c.x) * T + 8, y: CGFloat(c.y - 1) * T + 8)
         print("[bloom] goTo \(to) at \(c.x),\(c.y)")
@@ -3576,6 +3686,11 @@ final class BloomScene: SKScene {
             let pts: [CGPoint] = g.key == "friends"
                 ? BloomQuests.islanders.filter { !game.isFriend($0) }.compactMap { folkNodes[$0.id].map { CGPoint(x: $0.node.position.x, y: $0.node.position.y + 34) } }
                 : puzzles.values.filter { !$0.solved }.compactMap { $0.tiles.first.map { CGPoint(x: $0.node.position.x, y: $0.node.position.y + 14) } }
+            guard let p = pts.min(by: { hypot($0.x - heroPos.x, $0.y - heroPos.y) < hypot($1.x - heroPos.x, $1.y - heroPos.y) }),
+                  hypot(p.x - heroPos.x, p.y - heroPos.y) > 30 else { return nil }
+            return p
+        } else if g.key == "huts" {
+            let pts = hutNodes.filter { game.hut($0.key) == nil }.map { CGPoint(x: $0.value.node.position.x, y: $0.value.node.position.y + 22) }
             guard let p = pts.min(by: { hypot($0.x - heroPos.x, $0.y - heroPos.y) < hypot($1.x - heroPos.x, $1.y - heroPos.y) }),
                   hypot(p.x - heroPos.x, p.y - heroPos.y) > 30 else { return nil }
             return p

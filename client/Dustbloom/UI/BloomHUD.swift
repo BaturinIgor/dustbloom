@@ -53,12 +53,22 @@ struct BloomView: View {
                 let p: BloomPanel? = ["build": .build, "talents": .talents, "shop": .shop, "album": .album,
                                       "daily": .daily, "spring": .spring, "event": .event, "skins": .skins, "feedback": .feedback, "menu": .menu, "bag": .inventory, "anvil": .building(.anvil)][name] ?? (name.hasPrefix("cave:") ? .dungeon(String(name.dropFirst(5))) : name.hasPrefix("npc:") ? .islander(String(name.dropFirst(4))) : nil)
                 let more: BloomPanel? = name == "decor" ? .decor : name == "furnace" ? .building(.furnace)
-                    : name.hasPrefix("offer:") ? .offer(String(name.dropFirst(6))) : nil
+                    : name.hasPrefix("offer:") ? .offer(String(name.dropFirst(6)))
+                    : name.hasPrefix("hut:") ? Int(name.dropFirst(4)).map { BloomPanel.hut($0) }
+                    : name.hasPrefix("teleport:") ? Int(name.dropFirst(9)).map { BloomPanel.teleport($0) } : nil
                 DispatchQueue.main.asyncAfter(deadline: .now() + 3) { game.panel = p ?? more }
             }
             // -bloomOffer brave: show that moment offer's button now (debug)
             if let o = UserDefaults.standard.string(forKey: "bloomOffer") {
                 game.s.offers[o] = Date()
+            }
+            // -bloomHuts "0:3:1.0,2:1:0.5": island:level:fill, garden huts in that state (debug, local)
+            if let list = UserDefaults.standard.string(forKey: "bloomHuts") {
+                for e in list.split(separator: ",") {
+                    let f = e.split(separator: ":")
+                    guard f.count == 3, let i = Int(f[0]), let lv = Int(f[1]), let fill = Double(f[2]) else { continue }
+                    game.s.huts[String(i)] = HutState(level: lv, since: Date().addingTimeInterval(-fill * game.hutCapSeconds(lv)))
+                }
             }
             // -bloomBuy brave,friend: grant those products as if bought (debug, local)
             if let list = UserDefaults.standard.string(forKey: "bloomBuy") {
@@ -326,6 +336,22 @@ struct BloomHUD: View {
                 }
             }
             .buttonStyle(BloomButtonStyle(color: BUI.panelHi, edge: BUI.ink))
+        case .hut(let id):
+            Button { game.panel = .hut(id); Sfx.play(.select) } label: {
+                HStack(spacing: 6) {
+                    PixelIcon(name: "bloom_hut_\(game.hut(id)?.level ?? 0)", size: 28)
+                    OutlinedText(text: tr("Домик"), size: 14)
+                }
+            }
+            .buttonStyle(BloomButtonStyle(color: BUI.panelHi, edge: BUI.ink))
+        case .waystone(let id):
+            Button { game.panel = .teleport(id); Sfx.play(.select) } label: {
+                HStack(spacing: 6) {
+                    PixelIcon(name: "bloom_waystone_1", size: 28)
+                    OutlinedText(text: tr("Путевой камень"), size: 14)
+                }
+            }
+            .buttonStyle(BloomButtonStyle(color: BUI.panelHi, edge: BUI.ink))
         case .island(let id):
             let isl = game.island(id)
             Button { game.panel = .buy(id); Sfx.play(.select) } label: {
@@ -430,6 +456,8 @@ struct PanelHost: View {
         case .islander(let id): return tr(BloomQuests.islander(id)?.name ?? "")
         case .offer(let id): return tr(BloomOffers.offer(id)?.title ?? "")
         case .decor: return tr("Украшения")
+        case .hut(let id): return tr("Домик: %@", tr(game.island(id).name))
+        case .teleport: return tr("Путевой камень")
         }
     }
 
@@ -455,6 +483,8 @@ struct PanelHost: View {
         case .islander(let id): IslanderView(id: id)
         case .offer(let id): OfferView(id: id)
         case .decor: DecorView()
+        case .hut(let id): HutView(id: id)
+        case .teleport(let from): TeleportView(from: from)
         }
     }
 }
@@ -561,6 +591,7 @@ struct CraftList: View {
     @EnvironmentObject private var game: BloomGame
     let kind: BuildKind
     var body: some View {
+        AutoCraftRow(kind: kind)
         if let q = game.queue(for: kind), q.left > 0,
            let r = kind.recipes.first(where: { $0.id == q.recipe }) {
             Card {
@@ -1507,15 +1538,16 @@ struct ForgeButton: View {
     @EnvironmentObject private var game: BloomGame
     let cost: Cost
     let what: String
+    var label = tr("Выковать")
     let action: () -> Void
     var body: some View {
         if game.has(cost) {
-            Button(action: action) { OutlinedText(text: tr("Выковать"), size: 15).frame(maxWidth: .infinity) }
+            Button(action: action) { OutlinedText(text: label, size: 15).frame(maxWidth: .infinity) }
                 .buttonStyle(BloomButtonStyle(color: BUI.orange, edge: BUI.orangeEdge))
         } else {
             Button { if game.buyShortfall(cost, what: what) { action() } } label: {
                 HStack(spacing: 6) {
-                    OutlinedText(text: tr("Выковать"), size: 15)
+                    OutlinedText(text: label, size: 15)
                     PixelIcon(name: "bloom_item_gem", size: 18)
                     OutlinedText(text: "\(game.shortfallGems(cost))", size: 15)
                 }
@@ -1654,6 +1686,150 @@ struct DecorView: View {
                     .background(RoundedRectangle(cornerRadius: 14).fill(BUI.panelHi))
                     .overlay(RoundedRectangle(cornerRadius: 14).stroke(BUI.ink.opacity(0.6), lineWidth: 2))
                 }
+            }
+        }
+    }
+}
+
+// MARK: - automation (BloomAutomation.swift)
+
+/// Auto-repeat: when the queue runs dry, the building takes one more of the same, while there is enough.
+struct AutoCraftRow: View {
+    @EnvironmentObject private var game: BloomGame
+    let kind: BuildKind
+    var body: some View {
+        let unlocked = game.autoCraftUnlocked
+        let on = game.autoCraftOn(kind)
+        Button { game.toggleAutoCraft(kind) } label: {
+            HStack(spacing: 8) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 6).fill(BUI.ink).frame(width: 24, height: 24)
+                    if on { Text("✓").font(DText.font(15)).foregroundStyle(BUI.green) }
+                }
+                OutlinedText(text: unlocked ? tr("Повторять само") : tr("Повтор откроется на уровне %@", BloomBalance.shared.autoCraftLevel),
+                             size: 13, fixed: false, lines: 2, align: .leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(.horizontal, 10)
+            .frame(height: 44)
+            .background(RoundedRectangle(cornerRadius: 12).fill(on ? BUI.green.opacity(0.35) : BUI.panelHi))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(BUI.ink.opacity(0.6), lineWidth: 2))
+        }
+        .buttonStyle(.plain)
+        .disabled(!unlocked)
+        .opacity(unlocked ? 1 : 0.6)
+    }
+}
+
+struct HutView: View {
+    @EnvironmentObject private var game: BloomGame
+    let id: Int
+    var body: some View {
+        let lv = game.hut(id)?.level ?? 0
+        Card {
+            HStack(spacing: 12) {
+                PixelIcon(name: "bloom_hut_\(max(1, lv))", size: 52)
+                    .frame(width: 60, height: 60)
+                    .background(RoundedRectangle(cornerRadius: 12).fill(BUI.ink.opacity(0.4)))
+                VStack(alignment: .leading, spacing: 4) {
+                    OutlinedText(text: lv == 0 ? tr("Место под домик") : tr("Уровень %@ из %@", lv, BloomGame.hutMaxLevel), size: 14)
+                    OutlinedText(text: tr("Помощник в домике сам собирает то, что растёт на острове. Даже когда ты не в игре."),
+                                 size: 11, color: BUI.muted, fixed: false, lines: 3, align: .leading)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        if !game.hutsUnlocked {
+            OutlinedText(text: tr("Откроется на уровне %@", BloomBalance.shared.huts.level), size: 14).padding(12)
+        } else {
+            if lv > 0 { stash(lv) }
+            if let c = game.hutCost(id) { upgrade(lv, c) }
+        }
+    }
+
+    @ViewBuilder private func stash(_ lv: Int) -> some View {
+        TimelineView(.periodic(from: .now, by: 1)) { _ in
+            let got = game.hutStash(id)
+            let fill = game.hutFill(id)
+            Card {
+                VStack(spacing: 8) {
+                    HStack(spacing: 8) {
+                        OutlinedText(text: fill >= 1 ? tr("Домик полон") : tr("Собрано"), size: 13, color: fill >= 1 ? BUI.gold : BUI.cream)
+                        Spacer(minLength: 0)
+                        OutlinedText(text: tr("до %@ ч", Int(game.hutCapSeconds(lv) / 3600)), size: 11, color: BUI.muted)
+                    }
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(BUI.ink).frame(height: 12)
+                        Capsule().fill(BUI.gold).frame(width: max(12, 298 * fill), height: 12)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    if got.isEmpty {
+                        OutlinedText(text: tr("Пока пусто, загляни попозже"), size: 12, color: BUI.muted)
+                    } else {
+                        HStack(spacing: 10) {
+                            ForEach(Array(got.prefix(4).enumerated()), id: \.offset) { _, p in
+                                HStack(spacing: 3) {
+                                    PixelIcon(name: p.0.sprite, size: 22)
+                                    OutlinedText(text: "\(p.1)", size: 13)
+                                }
+                            }
+                        }
+                    }
+                    Button { game.collectHut(id) } label: {
+                        OutlinedText(text: tr("Забрать"), size: 16).frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(BloomButtonStyle(color: got.isEmpty ? BUI.panelHi : BUI.green, edge: got.isEmpty ? BUI.ink : BUI.greenEdge))
+                    .disabled(got.isEmpty)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder private func upgrade(_ lv: Int, _ c: (coins: Int, items: Cost)) -> some View {
+        Card {
+            VStack(spacing: 10) {
+                HStack(spacing: 12) {
+                    PixelIcon(name: "bloom_hut_\(lv + 1)", size: 44)
+                    VStack(alignment: .leading, spacing: 4) {
+                        OutlinedText(text: lv == 0 ? tr("Построить домик") : tr("Уровень %@", lv + 1), size: 14)
+                        OutlinedText(text: tr("Раз в %@ с, копит до %@ ч", Int(game.hutInterval(lv + 1)), Int(game.hutCapSeconds(lv + 1) / 3600)),
+                                     size: 11, color: BUI.muted, fixed: false, lines: 2, align: .leading)
+                        HStack(spacing: 6) {
+                            PixelIcon(name: "bloom_item_coin", size: 18)
+                            OutlinedText(text: "\(c.coins)", size: 13, color: game.coins >= c.coins ? BUI.cream : BUI.red)
+                            CostRow(cost: c.items)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                if game.coins < c.coins {
+                    Button {} label: { OutlinedText(text: tr("Не хватает монет"), size: 15).frame(maxWidth: .infinity) }
+                        .buttonStyle(BloomButtonStyle(color: BUI.panelHi, edge: BUI.ink))
+                        .disabled(true)
+                } else {
+                    ForgeButton(cost: c.items, what: "hut", label: lv == 0 ? tr("Построить") : tr("Улучшить")) { game.upgradeHut(id) }
+                }
+            }
+        }
+    }
+}
+
+/// Waystones: every owned island has one; jump between them.
+struct TeleportView: View {
+    @EnvironmentObject private var game: BloomGame
+    let from: Int
+    private let cols = [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)]
+    var body: some View {
+        OutlinedText(text: tr("Куда отправимся?"), size: 13, color: BUI.muted)
+        LazyVGrid(columns: cols, spacing: 8) {
+            ForEach(game.owned.sorted(), id: \.self) { i in
+                Button { game.teleport(to: i) } label: {
+                    OutlinedText(text: tr(game.island(i).name), size: 13, fixed: false, lines: 2)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 40)
+                }
+                .buttonStyle(BloomButtonStyle(color: i == from ? BUI.panel : BUI.green, edge: i == from ? BUI.ink : BUI.greenEdge))
+                .disabled(i == from)
             }
         }
     }

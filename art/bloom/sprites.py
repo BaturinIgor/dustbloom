@@ -1847,6 +1847,69 @@ def folk():
         for f in range(2):
             islander(n, f)
     puzzle_tiles()
+    automation()
+
+
+# ---------------------------------------------------------------- automation: garden huts (plot + 3 levels), teleport stones
+def hut(lv):
+    cv = Canvas(24, 26)
+    x, y = 12, 26 - BASE - 1
+    if lv == 0:   # an empty plot: corner stakes, a rope and a little sign
+        for sx in (x - 8, x + 8):
+            cv.rect(sx, y - 4, sx, y, 't0'); cv.put(sx, y - 5, 't2')
+        cv.rect(x - 8, y - 3, x + 8, y - 3, 'd3')
+        cv.disc(x, y - 1, 7, 1.6, 'd1'); cv.disc(x, y - 1.4, 5.6, 1, 'd2')
+        cv.rect(x - 1, y - 11, x, y - 2, 't1')
+        cv.rect(x - 5, y - 14, x + 4, y - 9, 'plank'); cv.rect(x - 5, y - 14, x + 4, y - 14, 'd3')
+        cv.rect(x - 3, y - 12, x + 2, y - 12, 't0'); cv.rect(x - 2, y - 10, x + 1, y - 10, 't0')
+        cv.outline('ink'); sprite('bloom_hut_0', cv); return
+    wall = {1: 't1', 2: 't1', 3: 'r1'}[lv]
+    wall_l = {1: 't2', 2: 't2', 3: 'r2'}[lv]
+    roof = {1: 'l1', 2: 'brick', 3: 'gem_d'}[lv]
+    roof_l = {1: 'l2', 2: 'brick_l', 3: 'gem'}[lv]
+    w = 7 if lv < 3 else 8
+    cv.rect(x - w, y - 9, x + w, y, wall); cv.rect(x - w, y - 9, x - w + 1, y, wall_l)
+    if lv < 3:
+        for k in range(-w + 3, w, 3):
+            cv.rect(x + k, y - 9, x + k, y, 't0')
+    else:
+        for yy in range(y - 8, y, 3):
+            cv.rect(x - w, yy, x + w, yy, 'r0')
+    for k in range(8):   # roof
+        cv.rect(x - w - 2 + k, y - 10 - k, x + w + 2 - k, y - 10 - k, roof_l if k % 2 else roof)
+    cv.rect(x - 2, y - 6, x + 1, y, 'd0'); cv.put(x + 1, y - 3, 'gold')
+    cv.rect(x + 4, y - 7, x + 6, y - 5, 'water_l'); cv.put(x + 4, y - 7, 'white')
+    if lv >= 2:   # chimney with smoke, flower boxes
+        cv.rect(x + 4, y - 18, x + 5, y - 14, 'brick_d'); cv.put(x + 5, y - 20, 'u3'); cv.put(x + 6, y - 21, 'u2')
+        for fx_, c in ((x - 6, 'berry'), (x - 4, 'gold'), (x + 3, 'berry_l'), (x + 6, 'gold')):
+            cv.put(fx_, y - 1, 'l2'); cv.put(fx_, y - 2, c)
+    if lv == 3:   # gold trim and a star on top
+        cv.rect(x - w, y - 9, x + w, y - 9, 'gold_d'); cv.put(x, y - 18, 'gold'); cv.put(x, y - 19, 'gold_l')
+        cv.put(x - 1, y - 18, 'gold'); cv.put(x + 1, y - 18, 'gold')
+    cv.outline('ink'); sprite('bloom_hut_%d' % lv, cv)
+
+
+def waystone(f):
+    cv = Canvas(16, 24)
+    x, y = 8, 24 - BASE - 1
+    cv.disc(x, y - 1, 6.5, 2, 'r0'); cv.disc(x, y - 1.4, 5, 1.2, 'r1')
+    cv.rect(x - 4, y - 16, x + 3, y - 2, 'r1'); cv.rect(x - 3, y - 18, x + 2, y - 16, 'r1')
+    cv.rect(x - 4, y - 16, x - 3, y - 2, 'r2'); cv.put(x - 3, y - 17, 'r3')
+    glow = 'gem_l' if f else 'gem'
+    cv.rect(x - 1, y - 14, x, y - 6, glow); cv.rect(x - 2, y - 11, x + 1, y - 10, glow)
+    cv.put(x - 2, y - 14, glow); cv.put(x + 1, y - 7, glow)
+    if f:
+        cv.put(x - 6, y - 12, 'gem_l'); cv.put(x + 6, y - 15, 'gem_l'); cv.put(x + 5, y - 5, 'white')
+    for gx in (x - 5, x + 4):
+        cv.put(gx, y - 1, 'l2'); cv.put(gx, y - 2, 'l3')
+    cv.outline('ink'); sprite('bloom_waystone_%d' % f, cv)
+
+
+def automation():
+    for lv in range(4):
+        hut(lv)
+    for f in range(2):
+        waystone(f)
 
 
 if __name__ == '__main__':

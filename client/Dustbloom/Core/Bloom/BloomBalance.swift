@@ -35,6 +35,11 @@ struct BloomBalance {
     var helperCost: [(BItem, Int, Int)] = []
     var goals: [Goal] = []
     var shop = Shop()
+    /// Garden huts (BloomAutomation.swift): per level 1...3.
+    struct Huts { var level = 8; var interval = [90.0, 60, 40]; var capHours = [2.0, 4, 6]; var coinDiv = 8; var coinMult = [1.0, 2.5, 6]
+        var items: [Cost] = [[(.wood, 25), (.stone, 15)], [(.brick, 10), (.wood, 30)], [(.iron_bar, 6), (.brick, 15)]]; var passBonus = 0.5 }
+    var huts = Huts()
+    var autoCraftLevel = 10
 
     static let shared: BloomBalance = {
         guard let url = Bundle.main.url(forResource: "bloom_balance", withExtension: "json")
@@ -108,6 +113,16 @@ struct BloomBalance {
             Goal(title: tr($0["title"] as? String ?? ""), icon: $0["icon"] as? String ?? "", key: $0["key"] as? String ?? "",
                  target: i($0["target"]) ?? 1, coins: i($0["coins"]) ?? 0, xp: i($0["xp"]) ?? 0)
         }
+        if let h = j["huts"] as? [String: Any] {
+            huts.level = i(h["level"]) ?? huts.level
+            huts.interval = (h["interval"] as? [NSNumber])?.map(\.doubleValue) ?? huts.interval
+            huts.capHours = (h["capHours"] as? [NSNumber])?.map(\.doubleValue) ?? huts.capHours
+            huts.coinDiv = i(h["coinDiv"]) ?? huts.coinDiv
+            huts.coinMult = (h["coinMult"] as? [NSNumber])?.map(\.doubleValue) ?? huts.coinMult
+            if let it = h["items"] as? [Any], it.count == 3 { huts.items = it.map { cost($0) } }
+            huts.passBonus = d(h["passBonus"]) ?? huts.passBonus
+        }
+        autoCraftLevel = i(j["autoCraftLevel"]) ?? autoCraftLevel
         if let s = j["shop"] as? [String: Any] {
             if let f = s["founder"] as? [String: Any] {
                 shop.founderGems = i(f["gems"]) ?? shop.founderGems
