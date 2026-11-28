@@ -107,6 +107,7 @@ final class BloomScene: SKScene {
     private var fpsWorst: TimeInterval = 0
     private var fpsLong = 0
     private var freeze: TimeInterval = 0       // hit-stop: a few frames of stillness that sell a heavy blow
+    private var facingUp = false
     private var vel = CGVector.zero            // hero velocity, eased so starts and stops feel soft
 
     private func buzz(_ g: UIImpactFeedbackGenerator, _ i: CGFloat = 1) { if Haptics.enabled { g.impactOccurred(intensity: i) } }
@@ -133,7 +134,7 @@ final class BloomScene: SKScene {
         // everything a gather/break/pickup can show for the first time: a texture is sent to
         // the GPU on its first draw, which stalled the frame where a crack, stump or puff appeared
         let fx = ["ash", "bee", "chip", "ember", "firefly", "fly", "leaf", "petal", "puff", "sand", "spark", "spore", "star"].map { "bloom_fx_" + $0 }
-        let heroTex = ["idle_0", "idle_1", "run_0", "run_1", "run_2", "run_3"].map { game.heroPrefix + $0 }
+        let heroTex = ["idle_0", "idle_1", "run_0", "run_1", "run_2", "run_3", "back_idle_0", "back_run_0", "back_run_1", "back_run_2", "back_run_3"].map { game.heroPrefix + $0 }
         let helperTex = Set(game.helpers + (game.isFounder ? ["gold"] : [])).flatMap { c in
             ["idle_0", "idle_1", "run_0", "run_1"].map { "bloom_helper_\(c)_" + $0 }
         }
@@ -1177,8 +1178,11 @@ final class BloomScene: SKScene {
             heroPos = p
             if abs(stickVec.dx) > 0.2 { facing = stickVec.dx > 0 ? 1 : -1 }
             else if len <= 0.15, abs(vel.dx) > 4 { facing = vel.dx > 0 ? 1 : -1 }
+            // walking up the screen shows the hero's back
+            if vel.dy > abs(vel.dx) * 0.9 { facingUp = true } else if vel.dy < 0 || abs(vel.dx) > vel.dy * 1.2 { facingUp = false }
+            pickNode.zPosition = facingUp ? -1 : 1
             let f = Int(animClock * 10) % 4
-            heroSprite.texture = tex(game.heroPrefix + "run_\(f)")
+            heroSprite.texture = tex(game.heroPrefix + (facingUp ? "back_" : "") + "run_\(f)")
             collectFlowers()
             dustClock += dt
             if dustClock > 0.17 {
@@ -1193,7 +1197,8 @@ final class BloomScene: SKScene {
                                          .fadeOut(withDuration: 0.3)]), .removeFromParent()]))
             }
         } else {
-            heroSprite.texture = tex(game.heroPrefix + (Int(animClock * 2) % 2 == 0 ? "idle_0" : "idle_1"))
+            heroSprite.texture = tex(game.heroPrefix + (facingUp && !swinging ? "back_idle_0" : (Int(animClock * 2) % 2 == 0 ? "idle_0" : "idle_1")))
+            if swinging { facingUp = false; pickNode.zPosition = 1 }
         }
         heroSprite.xScale = facing
         hero.position = CGPoint(x: (heroPos.x * zoom).rounded() / zoom, y: (heroPos.y * zoom).rounded() / zoom)
