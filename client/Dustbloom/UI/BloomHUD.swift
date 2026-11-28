@@ -405,7 +405,9 @@ struct PanelHost: View {
     var body: some View {
         VStack(spacing: 0) {
             ZStack {
-                OutlinedText(text: title, size: 20, color: BUI.gold)
+                // kept clear of the close button on both sides (stays centred): long titles shrink instead
+                OutlinedText(text: title, size: 20, color: BUI.gold, fixed: false)
+                    .padding(.horizontal, 40)
                 HStack {
                     Spacer()
                     Button { game.panel = nil } label: {
