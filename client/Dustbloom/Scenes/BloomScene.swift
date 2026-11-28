@@ -234,6 +234,10 @@ final class BloomScene: SKScene {
             run(.sequence([.wait(forDuration: 6), .run { [weak self] in self?.spawnChest(near: true) }]))
         }
         #if DEBUG
+        // -bloomHappening flock|golden|coins|wind|meteor|treasure: that one, 5 s after start
+        if let h = UserDefaults.standard.string(forKey: "bloomHappening") {
+            run(.sequence([.wait(forDuration: 5), .run { [weak self] in self?.fireHappening(h) }]))
+        }
         // -bloomChests N: several chests at once, to check each one opens
         let nChests = UserDefaults.standard.integer(forKey: "bloomChests")
         if nChests > 0 {
@@ -1073,6 +1077,7 @@ final class BloomScene: SKScene {
         if logFPS {
             // worst frame and frames over 25 ms show hitches the 2 s average hides
             fpsFrames += 1; fpsClock += raw; fpsWorst = max(fpsWorst, raw); if raw > 0.025 { fpsLong += 1 }
+            if raw > 0.06 { print(String(format: "[slow] %.0f ms at %.1f s", raw * 1000, now)) }
             if fpsClock >= 2 {
                 print(String(format: "[bloom] fps %.1f worst %.0f ms long %d nodes %d", Double(fpsFrames) / fpsClock, fpsWorst * 1000, fpsLong, world.children.count))
                 fpsFrames = 0; fpsClock = 0; fpsWorst = 0; fpsLong = 0
@@ -1115,6 +1120,8 @@ final class BloomScene: SKScene {
     }
 
     private func hitStop(_ t: TimeInterval) {
+        // only while standing and chopping: a stop under a moving finger reads as lag
+        guard hypot(stickVec.dx, stickVec.dy) < 0.1 else { return }
         freeze = max(freeze, t)
         world.speed = 0
     }
@@ -1319,7 +1326,7 @@ final class BloomScene: SKScene {
         flash.run(.sequence([.group([.scale(to: 5, duration: 0.16), .fadeOut(withDuration: 0.16)]), .removeFromParent()]))
         for _ in 0..<10 { spark(at: p, spread: 22) }
         shake(2.6)
-        hitStop(0.04)
+        hitStop(0.03)
         buzz(heavy)
         Sfx.play(.skill, volume: 0.7)
     }
@@ -1411,7 +1418,7 @@ final class BloomScene: SKScene {
         r.shadow.run(.sequence([.fadeOut(withDuration: 0.2), .removeFromParent()]))
         puff(at: p, n: 9)
         shake(r.golden ? 3 : 1.8)
-        hitStop(r.golden ? 0.07 : 0.035)
+        hitStop(r.golden ? 0.05 : 0.025)
         if r.kind.isTree {
             let st = SKSpriteNode(texture: tex(r.kind.stump))
             st.anchorPoint = CGPoint(x: 0.5, y: 2 / 10)
@@ -1758,8 +1765,12 @@ final class BloomScene: SKScene {
         var pool = ["flock", "golden", "coins", "wind", "meteor", "treasure"]
         pool.removeAll { $0 == lastHappening }
         if !chests.isEmpty { pool.removeAll { $0 == "treasure" } }
-        let pick = pool.randomElement() ?? "coins"
+        fireHappening(pool.randomElement() ?? "coins")
+    }
+
+    private func fireHappening(_ pick: String) {
         lastHappening = pick
+        if logFPS { print(String(format: "[event] happening %@ at %.1f s", pick, now)) }
         switch pick {
         case "flock": flock()
         case "golden": goldenThing()

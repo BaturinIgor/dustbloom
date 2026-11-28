@@ -790,6 +790,9 @@ final class BloomGame: ObservableObject {
 
     func showToast(_ t: BloomToast) {
         #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("-showFPS") { print("[event] toast \(t.title)") }
+        #endif
+        #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("-bloomShowcase") { return }  // clean store screenshots
         #endif
         if toast == nil { toast = t } else { toastQueue.append(t) }

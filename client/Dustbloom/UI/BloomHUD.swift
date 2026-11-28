@@ -51,7 +51,7 @@ struct BloomView: View {
             // App Store screenshots: -bloomPanel build|talents|shop|album opens one panel
             if let name = UserDefaults.standard.string(forKey: "bloomPanel") {
                 let p: BloomPanel? = ["build": .build, "talents": .talents, "shop": .shop, "album": .album,
-                                      "daily": .daily, "spring": .spring, "event": .event, "skins": .skins, "feedback": .feedback, "menu": .menu][name]
+                                      "daily": .daily, "spring": .spring, "event": .event, "skins": .skins, "feedback": .feedback, "menu": .menu, "bag": .inventory][name]
                 DispatchQueue.main.asyncAfter(deadline: .now() + 3) { game.panel = p }
             }
             #endif
@@ -185,7 +185,7 @@ struct BloomHUD: View {
             VStack {
                 if let t = game.toast {
                     ToastView(toast: t)
-                        .padding(.top, 118) // below the goal card, so "goal done" doesn't hide the next goal
+                        .padding(.top, 142) // below the goal card, so "goal done" doesn't hide the next goal
                         .transition(.move(edge: .top).combined(with: .opacity))
                         .id(t.id)
                         .task(id: t.id) {
@@ -624,10 +624,15 @@ struct InventoryGrid: View {
     @EnvironmentObject private var game: BloomGame
     var body: some View {
         let cols = Array(repeating: GridItem(.fixed(70), spacing: 8), count: 4)
+        // only what the player has: twenty greyed "0" tiles were noise
+        let have = BItem.allCases.filter { game.count($0) > 0 }
+        if have.isEmpty {
+            OutlinedText(text: tr("Рюкзак пуст"), size: 14, color: BUI.muted).padding(.vertical, 24)
+        }
         LazyVGrid(columns: cols, spacing: 8) {
-            ForEach(BItem.allCases) { i in
+            ForEach(have) { i in
                 VStack(spacing: 2) {
-                    PixelIcon(name: i.sprite, size: 32).opacity(game.count(i) > 0 ? 1 : 0.25)
+                    PixelIcon(name: i.sprite, size: 32)
                     OutlinedText(text: "\(game.count(i))", size: 12)
                 }
                 .frame(width: 70, height: 64)
@@ -1201,7 +1206,9 @@ struct MenuView: View {
                 Text(icon).font(.system(size: 17)).opacity(on ? 1 : 0.45)
                 OutlinedText(text: title, size: 12, color: on ? BUI.cream : BUI.muted)
             }
-            .frame(maxWidth: .infinity, minHeight: 40)
+            // room above the icon and below the word, so neither touches the button's edge
+            .padding(.vertical, 7)
+            .frame(maxWidth: .infinity, minHeight: 54)
         }
         .buttonStyle(BloomButtonStyle(color: on ? BUI.green : BUI.panelHi, edge: on ? BUI.greenEdge : BUI.ink))
     }
