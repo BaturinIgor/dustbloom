@@ -102,6 +102,8 @@ struct BloomSave: Codable {
     var fairDone: [Int] = []
     var axe = 0                            // 0 = no axe yet
     var shovel = false
+    var relics: [String] = []              // dungeon relics, one per cleared dungeon
+    var dungeonRuns: [String: Int] = [:]
 
     init() {}
 
@@ -157,6 +159,8 @@ struct BloomSave: Codable {
         fairDone = try c.decodeIfPresent([Int].self, forKey: .fairDone) ?? []
         axe = try c.decodeIfPresent(Int.self, forKey: .axe) ?? 0
         shovel = try c.decodeIfPresent(Bool.self, forKey: .shovel) ?? false
+        relics = try c.decodeIfPresent([String].self, forKey: .relics) ?? []
+        dungeonRuns = try c.decodeIfPresent([String: Int].self, forKey: .dungeonRuns) ?? [:]
     }
 }
 
@@ -174,6 +178,7 @@ enum BloomPanel: Equatable {
     case event
     case skins
     case menu
+    case dungeon(String)
 }
 
 struct BloomToast: Identifiable, Equatable {
@@ -220,10 +225,13 @@ final class BloomGame: ObservableObject {
     enum Nearby: Equatable {
         case building(BuildKind)
         case island(Int)
+        case dungeon(String)
     }
 
     /// Scene callbacks.
     var onIslandBought: ((Int) -> Void)?
+    var onEnterDungeon: ((String) -> Void)?
+    @Published var inDungeon = false
     var onBuildingPlaced: ((PlacedBuilding) -> Void)?
     var onCrafted: ((BuildKind, BItem, Bool) -> Void)?
     var onGoalClaimed: (() -> Void)?
@@ -292,7 +300,7 @@ final class BloomGame: ObservableObject {
     var pickTier: Int { s.pick }
     var pickLucky: Bool { s.lucky }
     var damage: Int {
-        BloomContent.picks[s.pick].damage + (s.lucky ? 1 : 0) + (hasT("d1") ? 1 : 0) + (pageDone(2) ? 1 : 0)
+        BloomContent.picks[s.pick].damage + (s.lucky ? 1 : 0) + (hasT("d1") ? 1 : 0) + (pageDone(2) ? 1 : 0) + (hasRelic("fang") ? 1 : 0)
     }
     var owned: Set<Int> { Set(s.owned) }
     var buildings: [PlacedBuilding] { s.buildings }
@@ -354,7 +362,8 @@ final class BloomGame: ObservableObject {
     func rollCoins(_ k: GatherKind, mult: Int) -> Int {
         let chance = (BloomBalance.shared.coinChance + 0.06 * Double(mult - 1) + (k.isStone ? 0.1 : 0)) * (hasT("t2") ? 1.5 : 1) * eternalMult("coins")
         let n = Double.random(in: 0..<1) < chance ? Int.random(in: 1...(k.isStone ? 3 : 2)) : 0
-        return golden ? n * 2 : n
+        let c = hasRelic("clover") && n > 0 ? Int((Double(n) * 1.25).rounded(.up)) : n
+        return golden ? c * 2 : c
     }
 
     /// Returns new level if the xp made one.
@@ -571,6 +580,7 @@ final class BloomGame: ObservableObject {
         case "pick": return s.pick
         case "axe": return s.axe
         case "shovel": return s.shovel ? 1 : 0
+        case "relics": return s.relics.count
         case "helpers": return s.helpers.count
         default:
             if key.hasPrefix("build."), let b = BuildKind(rawValue: String(key.dropFirst(6))) { return isBuilt(b) ? 1 : 0 }
@@ -652,7 +662,7 @@ final class BloomGame: ObservableObject {
     @Published var goldenUntil: Date?
     /// Hero health in half-hearts. Not saved: a fresh start is always at full health.
     @Published var hp = 6
-    var maxHP: Int { s.level >= 20 ? 8 : 6 }   // a fourth heart at level 20
+    var maxHP: Int { (s.level >= 20 ? 8 : 6) + (hasRelic("shell") ? 2 : 0) }   // a fourth heart at level 20
     /// Dust creatures roam the islands from this level on.
     var foesOn: Bool { s.level >= 5 }
     var golden: Bool { (goldenUntil ?? .distantPast) > Date() }
@@ -675,7 +685,7 @@ final class BloomGame: ObservableObject {
     }
 
     var comboWindow: Double { BloomContent.comboWindow + (hasT("d3") ? 0.4 : 0) }
-    var critChance: Double { BloomContent.critChance + (hasT("d2") ? 0.06 : 0) }
+    var critChance: Double { BloomContent.critChance + (hasT("d2") ? 0.06 : 0) + (hasRelic("eye") ? 0.08 : 0) }
     var luckyChance: Double { BloomContent.luckyChance + (hasT("c4") ? 0.25 : 0) }
     func secs(_ r: Recipe) -> Double { r.seconds * (hasT("c1") ? 0.75 : 1) * (hasT("c5") ? 0.7 : 1) / eternalMult("craft") }
     /// What the market pays for `n` of an item (market rate, Торговец talent).
@@ -704,7 +714,7 @@ final class BloomGame: ObservableObject {
     var goldenDuration: Double { GoldenHour.duration * (hasT("b4") ? 1.5 : 1) }
     var helperSpeed: CGFloat { hasT("h2") ? 1.4 : 1 }
     var helperDamage: Int { hasT("h3") ? 2 : 1 }
-    var runSpeed: CGFloat { pageDone(0) ? 1.15 : 1 }
+    var runSpeed: CGFloat { (pageDone(0) ? 1.15 : 1) * (hasRelic("feather") ? 1.15 : 1) }
 
     // MARK: - shop & donate
 

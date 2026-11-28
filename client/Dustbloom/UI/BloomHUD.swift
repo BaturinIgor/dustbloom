@@ -160,7 +160,7 @@ struct BloomHUD: View {
                 HStack(alignment: .bottom) {
                     VStack(alignment: .leading, spacing: 12) {
                         if let n = game.nearby { contextButton(n) }
-                        buildButton
+                        if !game.inDungeon { buildButton }
                     }
                     Spacer()
                     bagButton
@@ -287,6 +287,14 @@ struct BloomHUD: View {
                 }
             }
             .buttonStyle(BloomButtonStyle(color: BUI.panelHi, edge: BUI.ink))
+        case .dungeon(let id):
+            Button { game.panel = .dungeon(id); Sfx.play(.select) } label: {
+                HStack(spacing: 6) {
+                    PixelIcon(name: "bloom_cave", size: 28)
+                    OutlinedText(text: tr(BloomDungeons.byId(id)?.title ?? ""), size: 14)
+                }
+            }
+            .buttonStyle(BloomButtonStyle(color: BUI.panelHi, edge: BUI.ink))
         case .island(let id):
             let isl = game.island(id)
             Button { game.panel = .buy(id); Sfx.play(.select) } label: {
@@ -387,6 +395,7 @@ struct PanelHost: View {
         case .event: return tr(game.event.title)
         case .skins: return tr("Облик героя")
         case .menu: return tr("Меню")
+        case .dungeon(let id): return tr(BloomDungeons.byId(id)?.title ?? "")
         }
     }
 
@@ -408,6 +417,7 @@ struct PanelHost: View {
         case .event: EventView()
         case .skins: SkinsView()
         case .menu: MenuView()
+        case .dungeon(let id): DungeonView(id: id)
         }
     }
 }
@@ -1262,5 +1272,49 @@ struct MenuView: View {
             .frame(maxWidth: .infinity, minHeight: 54)
         }
         .buttonStyle(BloomButtonStyle(color: on ? BUI.green : BUI.panelHi, edge: on ? BUI.greenEdge : BUI.ink))
+    }
+}
+
+// MARK: - dungeon entrance
+
+struct DungeonView: View {
+    @EnvironmentObject private var game: BloomGame
+    let id: String
+
+    var body: some View {
+        if let d = BloomDungeons.byId(id) {
+            Card {
+                VStack(spacing: 8) {
+                    OutlinedText(text: tr("Две волны пыльных созданий, затем хозяин пещеры"), size: 12.5, color: BUI.muted, fixed: false, lines: 2)
+                    HStack(spacing: 12) {
+                        PixelIcon(name: "bloom_relic_" + d.relic, size: 44)
+                            .frame(width: 56, height: 56)
+                            .background(RoundedRectangle(cornerRadius: 12).fill(BUI.ink.opacity(0.4)))
+                        VStack(alignment: .leading, spacing: 3) {
+                            OutlinedText(text: tr(d.relicTitle), size: 14, color: BUI.gold)
+                            OutlinedText(text: tr(d.relicText), size: 12, fixed: false, lines: 2, align: .leading)
+                            if game.cleared(d) {
+                                OutlinedText(text: tr("Реликвия уже у тебя"), size: 11, color: BUI.green)
+                            }
+                        }
+                        Spacer(minLength: 0)
+                    }
+                    HStack(spacing: 6) {
+                        OutlinedText(text: tr("Советуем удар: %@", d.advisedDamage), size: 12,
+                                     color: game.damage >= d.advisedDamage ? BUI.green : BUI.red)
+                        OutlinedText(text: "·", size: 12, color: BUI.muted)
+                        OutlinedText(text: tr("У тебя: %@", game.damage), size: 12)
+                    }
+                }
+            }
+            Button {
+                game.panel = nil
+                game.onEnterDungeon?(d.id)
+            } label: {
+                OutlinedText(text: game.cleared(d) ? tr("Пройти ещё раз") : tr("Войти"), size: 16).frame(maxWidth: .infinity)
+            }
+            .buttonStyle(BloomButtonStyle(color: BUI.orange, edge: BUI.orangeEdge))
+            OutlinedText(text: tr("Если устанешь, просто вернёшься домой"), size: 11, color: BUI.muted, fixed: false, lines: 2)
+        }
     }
 }

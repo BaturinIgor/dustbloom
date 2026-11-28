@@ -1402,6 +1402,7 @@ def build_all():
     meta_icons()
     tools2()
     foes()
+    dungeons()
     world = dict(tile=T, islands=[], bridges=[])
     for isl in ISLANDS:
         for dust in (False, True):
@@ -1602,3 +1603,81 @@ def foes():
     for f in range(2):
         foe_slime(f); foe_beetle(f); foe_bat(f); foe_toad(f)
     heart_icons()
+
+
+# ---------------------------------------------------------------- dungeons: cave mouth, floor, wall, portal, relics
+def cave_mouth():
+    cv = Canvas(26, 20)
+    cv.disc(13, 13, 12.5, 8, 'r0'); cv.disc(13, 12, 11, 7, 'r1'); cv.disc(10, 9, 5, 3, 'r2'); cv.put(8, 7, 'r3')
+    cv.disc(13, 16, 6, 5.5, 'obs_d'); cv.rect(7, 16, 19, 19, 'obs_d'); cv.disc(13, 16.5, 4.5, 4, 'ink')
+    cv.rect(9, 17, 17, 19, 'ink')
+    for x, y in ((4, 9), (21, 10), (17, 6)):
+        cv.put(x, y, 'l2'); cv.put(x, y - 1, 'l3')
+    cv.put(11, 15, 'fire1'); cv.put(15, 15, 'fire1')   # eyes in the dark
+    cv.outline('ink')
+    sprite('bloom_cave', cv)
+
+
+def dungeon_tiles():
+    import random as _r
+    for v in range(2):
+        rnd = _r.Random(40 + v)
+        cv = Canvas(16, 16)
+        cv.rect(0, 0, 15, 15, 'ud1')
+        for _ in range(10):
+            x, y = rnd.randrange(16), rnd.randrange(16)
+            cv.put(x, y, 'ud2' if rnd.random() < 0.6 else 'ud0')
+        cv.rect(0, 15, 15, 15, 'ud0'); cv.rect(15, 0, 15, 15, 'ud0')
+        if v == 1:
+            cv.put(4, 6, 'ud0'); cv.put(5, 7, 'ud0'); cv.put(6, 7, 'ud0'); cv.put(7, 8, 'ud0')
+        sprite('bloom_dfloor_%d' % v, cv)
+    cv = Canvas(16, 16)
+    cv.rect(0, 0, 15, 15, 'obs'); cv.rect(0, 0, 15, 3, 'obs_l')
+    for y in (5, 10):
+        cv.rect(0, y, 15, y, 'obs_d')
+    for x, y in ((4, 6), (11, 6), (7, 11), (1, 11), (14, 11)):
+        cv.rect(x, y, x, y + 3, 'obs_d')
+    sprite('bloom_dwall', cv)
+
+
+def portal(f):
+    cv = Canvas(16, 16)
+    cv.disc(8, 8, 7, 7, 'gem_d'); cv.disc(8, 8, 5.5, 5.5, 'gem'); cv.disc(8, 8, 3.5, 3.5, 'gem_l')
+    cv.disc(8, 8, 1.6 + f, 1.6 + f, 'white')
+    for k in range(4):
+        import math as _m
+        a = k * _m.pi / 2 + f * 0.6
+        cv.put(8 + _m.cos(a) * 6, 8 + _m.sin(a) * 6, 'white')
+    cv.outline('ink')
+    sprite('bloom_portal_%d' % f, cv)
+
+
+def relics():
+    cv = Canvas(14, 14)   # fang: +damage
+    for k in range(9):
+        w = max(0, 3 - k // 3)
+        cv.rect(6 - w, 1 + k, 7 + w, 1 + k, 'cream' if k < 7 else 'white')
+    cv.rect(4, 1, 9, 2, 'brick'); cv.put(6, 10, 'white'); cv.put(7, 11, 'white')
+    cv.outline('ink'); sprite('bloom_relic_fang', cv)
+    cv = Canvas(14, 14)   # shell: +heart
+    cv.disc(6.5, 7.5, 5.5, 5, 'berry_d'); cv.disc(6.5, 7, 4.2, 3.8, 'berry'); cv.disc(5, 5.5, 1.6, 1.2, 'berry_l')
+    for x in (4, 6, 8):
+        cv.rect(x, 3, x, 11, 'berry_d')
+    cv.outline('ink'); sprite('bloom_relic_shell', cv)
+    cv = Canvas(14, 14)   # clover: +coins
+    for (x, y) in ((4.5, 4.5), (9, 4.5), (4.5, 9), (9, 9)):
+        cv.disc(x, y, 2.8, 2.8, 'l2'); cv.put(int(x) - 1, int(y) - 1, 'l4')
+    cv.disc(6.8, 6.8, 1.5, 1.5, 'gold'); cv.rect(7, 10, 8, 13, 'l1')
+    cv.outline('ink'); sprite('bloom_relic_clover', cv)
+    cv = Canvas(14, 14)   # feather: +speed
+    for k in range(11):
+        cv.put(2 + k, 12 - k, 't1')
+        cv.rect(3 + k, 12 - k - 3, 3 + k, 12 - k - 1, 'water_l' if k % 3 else 'cloth')
+    cv.outline('ink'); sprite('bloom_relic_feather', cv)
+    cv = Canvas(14, 14)   # eye: +crit
+    cv.disc(6.5, 6.5, 6, 3.6, 'white'); cv.disc(6.5, 6.5, 3, 3, 'fire1'); cv.disc(6.5, 6.5, 1.5, 1.5, 'ink'); cv.put(5, 5, 'white')
+    cv.outline('ink'); sprite('bloom_relic_eye', cv)
+
+
+def dungeons():
+    cave_mouth(); dungeon_tiles(); portal(0); portal(1); relics()

@@ -61,6 +61,7 @@ class Sim:
         self.built = set()
         self.pick, self.lucky = 0, False
         self.axe, self.shovel, self.next_dig, self.gathers = 0, False, 0.0, 0
+        self.relics = set()
         self.helpers = 0            # grown helpers
         self.golden_helper = False  # founder pack helper (does not take a slot)
         self.talents = []
@@ -149,6 +150,7 @@ class Sim:
         if key == "level": return self.level
         if key == "pick": return self.pick
         if key == "axe": return self.axe
+        if key == "relics": return len(self.relics)
         if key == "shovel": return 1 if self.shovel else 0
         if key == "helpers": return self.helpers
         if key.startswith("build."): return 1 if key[6:] in self.built else 0
@@ -384,6 +386,12 @@ class Sim:
             self.advance(4)
             self.coins += self.rng.randint(6, 12) + self.level * 2 + len(self.owned) * 3
             self.stats["dig"] = self.stats.get("dig", 0) + 1
+        # dungeons (BloomDungeons.swift): island, advised damage; a clear takes ~2 minutes and gives coins + a relic
+        for did, isl, adv in (("burrow", 1, 2), ("cave", 2, 3), ("crypt", 6, 5), ("grotto", 8, 7), ("forge", 10, 9)):
+            if did in self.relics or isl not in self.owned or self.damage < adv or self.stats.get("kill", 0) < 5: continue
+            self.advance(120); self.relics.add(did); self.stats["dungeon"] = self.stats.get("dungeon", 0) + 1
+            self.coins += 40 + isl * 25 + self.level * 4; self.log(f"пещера {did}")
+            break
         if "nursery" in self.built and self.helpers < self.max_helpers and self.has(self.helper_cost()):
             self.pay(self.helper_cost()); self.helpers += 1; self.log(f"помощник {self.helpers}"); self.advance(3)
         # next island

@@ -804,6 +804,14 @@
    "xp": 25
   },
   {
+   "title": "Пройди пещеру до конца",
+   "icon": "bloom_cave",
+   "key": "dungeon",
+   "target": 1,
+   "coins": 120,
+   "xp": 40
+  },
+  {
    "title": "Достигни 10 уровня",
    "icon": "bloom_item_coin",
    "key": "level",
@@ -866,6 +874,14 @@
    "target": 25,
    "coins": 160,
    "xp": 45
+  },
+  {
+   "title": "Собери 3 реликвии",
+   "icon": "bloom_relic_fang",
+   "key": "relics",
+   "target": 3,
+   "coins": 250,
+   "xp": 70
   },
   {
    "title": "Достигни 15 уровня",
@@ -938,6 +954,14 @@
    "target": 100,
    "coins": 320,
    "xp": 90
+  },
+  {
+   "title": "Собери все 5 реликвий",
+   "icon": "bloom_relic_eye",
+   "key": "relics",
+   "target": 5,
+   "coins": 600,
+   "xp": 150
   },
   {
    "title": "Выкуй хрустальный топор",

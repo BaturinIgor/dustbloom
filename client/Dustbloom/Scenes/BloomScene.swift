@@ -217,6 +217,7 @@ final class BloomScene: SKScene {
         game.placeBuilding = { [weak self] k in self?.findBuildCell() }
         game.onBuildingPlaced = { [weak self] b in self?.addBuildingNode(b, animated: true) }
         game.onIslandBought = { [weak self] id in self?.bloom(id) }
+        game.onEnterDungeon = { [weak self] id in self?.enterDungeon(id) }
         game.onCrafted = { [weak self] k, item, lucky in self?.crafted(k, item, lucky) }
         game.onGoalClaimed = { [weak self] in self?.goalFX() }
         game.onHelperAdded = { [weak self] c in self?.addHelper(c, animated: true) }
@@ -231,6 +232,7 @@ final class BloomScene: SKScene {
         goldOverlay.zPosition = 4000
         cam.addChild(goldOverlay)
         setUpLife()
+        placeCaves()
         for c in game.helpers { addHelper(c, animated: false) }
         if game.isFounder { addHelper("gold", animated: false) }
         if ProcessInfo.processInfo.arguments.contains("-bloomDemo") {
@@ -248,6 +250,10 @@ final class BloomScene: SKScene {
         // -bloomHP N: start with N half-hearts, to try hurt and faint
         let startHP = UserDefaults.standard.integer(forKey: "bloomHP")
         if startHP > 0 { game.hp = min(startHP, game.maxHP) }
+        // -bloomDungeon burrow|cave|crypt|grotto|forge: walk into that cave 3 s after start
+        if let dn = UserDefaults.standard.string(forKey: "bloomDungeon") {
+            run(.sequence([.wait(forDuration: 3), .run { [weak self] in self?.enterDungeon(dn) }]))
+        }
         // -bloomFoes N [-bloomFoeKind slime|beetle|toad|bat]: N foes near the hero after 3 s
         let nFoes = UserDefaults.standard.integer(forKey: "bloomFoes")
         if nFoes > 0 {
@@ -408,7 +414,7 @@ final class BloomScene: SKScene {
     }
 
     private func freeCell(_ c: Cell) -> Bool {
-        res[c] == nil && buildingNodes[c] == nil && flowers[c] == nil && !chests.contains(where: { $0.cell == c }) && !digSpots.contains(where: { $0.cell == c }) && !nearBridge.contains(c) && land.contains(c) && !bridgeCells.contains(c)
+        res[c] == nil && buildingNodes[c] == nil && flowers[c] == nil && !chests.contains(where: { $0.cell == c }) && !digSpots.contains(where: { $0.cell == c }) && !caveCells.contains(c) && !nearBridge.contains(c) && land.contains(c) && !bridgeCells.contains(c)
     }
 
     private func randomKind(_ id: Int) -> GatherKind {
@@ -560,6 +566,7 @@ final class BloomScene: SKScene {
 
     private func bloom(_ id: Int) {
         happeningMeter += 8
+        run(.sequence([.wait(forDuration: 1.6), .run { [weak self] in self?.placeCaves() }]))
         guard let dust = islandNodes[id] else { return }
         // wave starts at the bridge the hero is next to
         var start = heroPos
@@ -1130,6 +1137,7 @@ final class BloomScene: SKScene {
         checkChest()
         updateDig(dt)
         updateFoes(dt)
+        updateDungeon(dt)
         game.tick(dt: dt)
         game.tickCombo(now: now)
         updateCombo()
@@ -1663,6 +1671,10 @@ final class BloomScene: SKScene {
             let d = hypot(node.position.x - heroPos.x, node.position.y - heroPos.y)
             if d < best { best = d; n = .building(b.kind) }
         }
+        if let c = nearestCave(within: min(best, 24)) {
+            best = 24
+            n = .dungeon(c)
+        }
         // an island sign wins when it is closer than the building (or the building is a bit far)
         best = n == nil ? 26 : min(26, best + 6)
         do {
@@ -1805,7 +1817,7 @@ final class BloomScene: SKScene {
                          v: CGVector(dx: -facing * CGFloat.random(in: 20...34), dy: CGFloat.random(in: -4...6)), life: 0.5, gravity: false)
             }
         }
-        guard happeningMeter >= happeningAt, fishing == nil, goldenLeft <= 0 else { return }
+        guard happeningMeter >= happeningAt, fishing == nil, goldenLeft <= 0, dungeon == nil else { return }
         happeningMeter = 0
         happeningAt = Int.random(in: 18...30)
         var pool = ["flock", "golden", "coins", "wind", "meteor", "treasure"]
@@ -2004,6 +2016,13 @@ final class BloomScene: SKScene {
 
     /// Night strength 0...1 and the tint for the time of day.
     private func applyDayLight() {
+        if dungeon != nil {
+            nightOverlay.color = UIColor(red: 0.1, green: 0.06, blue: 0.2, alpha: 1)
+            nightOverlay.alpha = 0.24
+            heroLight.alpha = 0.55
+            nightLevel = 0
+            return
+        }
         let t = dayClock
         var night: CGFloat = 0
         var tint = UIColor(red: 0.12, green: 0.14, blue: 0.38, alpha: 1)
@@ -2326,6 +2345,10 @@ final class BloomScene: SKScene {
         var wanderAt: TimeInterval = 0
         var knock = CGVector.zero
         var stunUntil: TimeInterval = 0
+        var arena = false
+        var boss = false
+        var scale: CGFloat = 1
+        var speedMul: CGFloat = 1
         init(kind: FoeKind, node: SKSpriteNode, shadow: SKSpriteNode, island: Int, hp: Int, pos: CGPoint) {
             self.kind = kind; self.node = node; self.shadow = shadow; self.island = island
             self.hp = hp; self.pos = pos; self.home = pos; self.wander = pos
@@ -2351,7 +2374,7 @@ final class BloomScene: SKScene {
         let cap = min(6, 1 + game.owned.count / 2)
         if foeTimer <= 0 {
             foeTimer = (nightLevel > 0.6 ? 14 : 28) * Double.random(in: 0.8...1.2)
-            if foes.count < cap, game.foesOn, !fainted { spawnFoe() }
+            if foes.count < cap, game.foesOn, !fainted, dungeon == nil { spawnFoe() }
         }
         for f in foes { moveFoe(f, dt) }
     }
@@ -2394,8 +2417,8 @@ final class BloomScene: SKScene {
         let d = hypot(dx, dy)
         var v = CGVector.zero
         if now >= f.stunUntil {
-            if d < 75, !fainted {
-                v = CGVector(dx: dx / max(d, 0.1) * f.kind.speed, dy: dy / max(d, 0.1) * f.kind.speed)
+            if d < 75 || f.arena, !fainted {
+                v = CGVector(dx: dx / max(d, 0.1) * f.kind.speed * f.speedMul, dy: dy / max(d, 0.1) * f.kind.speed * f.speedMul)
             } else {
                 if now > f.wanderAt || hypot(f.wander.x - f.pos.x, f.wander.y - f.pos.y) < 2 {
                     f.wanderAt = now + Double.random(in: 2...4)
@@ -2420,7 +2443,7 @@ final class BloomScene: SKScene {
         f.node.zPosition = 500 - f.pos.y
         f.shadow.position = CGPoint(x: f.pos.x, y: f.pos.y - 0.5)
         // touch hurts the hero
-        if d < 7, now >= f.stunUntil, now >= hurtUntil, !fainted { hurtHero(f) }
+        if d < 7 * f.scale, now >= f.stunUntil, now >= hurtUntil, !fainted { hurtHero(f) }
     }
 
     private func nearestFoe(within r: CGFloat) -> Foe? {
@@ -2452,12 +2475,15 @@ final class BloomScene: SKScene {
         f.hp -= dmg
         if logFPS { print("[foe] hit \(f.kind.id) for \(dmg)\(crit ? " crit" : ""), hp left \(f.hp)") }
         let dx = f.pos.x - heroPos.x, dy = f.pos.y - heroPos.y, d = max(0.1, hypot(dx, dy))
-        f.knock = CGVector(dx: dx / d * 140, dy: dy / d * 140)
+        f.knock = CGVector(dx: dx / d * 140 / f.scale, dy: dy / d * 140 / f.scale)
         f.stunUntil = now + 0.35
         f.node.run(.sequence([.colorize(with: .white, colorBlendFactor: 0.85, duration: 0),
-                              .colorize(withColorBlendFactor: 0, duration: 0.12)]), withKey: "flash")
-        let sx: CGFloat = f.node.xScale < 0 ? -1 : 1
-        f.node.run(.sequence([.scaleX(to: 1.25 * sx, y: 0.8, duration: 0.05), .scaleX(to: sx, y: 1, duration: 0.1)]), withKey: "squash")
+                              .colorize(with: f.boss ? UIColor(red: 0.55, green: 0.2, blue: 0.35, alpha: 1) : .white,
+                                        colorBlendFactor: f.boss ? 0.25 : 0, duration: 0.12)]), withKey: "flash")
+        let sx: CGFloat = (f.node.xScale < 0 ? -1 : 1) * f.scale
+        if !f.boss || f.node.action(forKey: "squash") == nil {
+            f.node.run(.sequence([.scaleX(to: 1.25 * sx, y: 0.8 * f.scale, duration: 0.05), .scaleX(to: sx, y: f.scale, duration: 0.1)]), withKey: "squash")
+        }
         floatText("\(dmg)", at: CGPoint(x: f.pos.x, y: f.pos.y + 16), color: crit ? UIColor(red: 1, green: 0.85, blue: 0.2, alpha: 1) : .white,
                   size: crit ? 7 : 5.5, rise: 10)
         for _ in 0..<4 { spark(at: CGPoint(x: f.pos.x, y: f.pos.y + 6), spread: 14) }
@@ -2485,6 +2511,7 @@ final class BloomScene: SKScene {
         _ = game.gainXP(f.kind.xp + f.island)
         game.bump("kill")
         happeningMeter += 1
+        if f.boss { bossDefeated(p) }
     }
 
     private func hurtHero(_ f: Foe) {
@@ -2519,6 +2546,7 @@ final class BloomScene: SKScene {
             .fadeOut(withDuration: 0.2),
             .run { [weak self] in
                 guard let self else { return }
+                if self.dungeon != nil { self.teardownDungeon() }
                 self.heroPos = self.spawnPoint()
                 self.hero.position = self.heroPos
                 self.cam.position = self.heroPos
@@ -2540,6 +2568,334 @@ final class BloomScene: SKScene {
         ]))
         game.showToast(BloomToast(title: tr("Ты устал"), subtitle: tr("Отдохнул дома, все сердца снова целы")))
         game.bump("faint")
+    }
+
+    // MARK: - dungeons: a cave on some islands leads to an arena with two waves and a boss
+
+    private var caves: [String: (cell: Cell, node: SKSpriteNode)] = [:]
+    private var caveCells = Set<Cell>()
+    private var dungeon: Dungeon?
+    private var arena: SKNode?
+    private var arenaCells: [Cell] = []
+    private var dungeonWave = 0
+    private var waveDelay: TimeInterval = 0
+    private var returnPos = CGPoint.zero
+    private var bossFoe: Foe?
+    private var bossSlamAt: TimeInterval = 0
+    private var bossSummonAt: TimeInterval = 0
+    private var bossMaxHP = 1
+    private var exitPortal: SKSpriteNode?
+    private let bossBar = SKSpriteNode(color: UIColor(red: 0.17, green: 0.14, blue: 0.25, alpha: 1), size: CGSize(width: 210, height: 16))
+    private let bossFill = SKSpriteNode(color: UIColor(red: 1, green: 0.32, blue: 0.3, alpha: 1), size: CGSize(width: 202, height: 8))
+    private let arenaOrigin = Cell(x: 300, y: 300)
+    private let arenaW = 13, arenaH = 9
+
+    /// One cave mouth per owned dungeon island, on a fixed cell so it never moves between launches.
+    private func placeCaves() {
+        for d in BloomDungeons.all where game.owned.contains(d.island) && caves[d.id] == nil {
+            let cs = cells(of: d.island)
+            let set = Set(cs)
+            let cands = cs.filter { c in
+                set.contains(Cell(x: c.x, y: c.y - 1)) && set.contains(Cell(x: c.x - 1, y: c.y)) && set.contains(Cell(x: c.x + 1, y: c.y))
+                    && !nearBridge.contains(c) && buildingNodes[c] == nil && !bridgeCells.contains(c)
+            }.sorted { ($0.y, -$0.x) > ($1.y, -$1.x) }
+            guard let c = cands.first else { continue }
+            if let r = res[c] { r.node.removeFromParent(); r.shadow.removeFromParent(); res[c] = nil }
+            if let f = flowers[c] { f.removeFromParent(); flowers[c] = nil }
+            let n = SKSpriteNode(texture: tex("bloom_cave"))
+            n.anchorPoint = CGPoint(x: 0.5, y: 2 / 20)
+            let p = basePoint(c)
+            n.position = p
+            n.zPosition = 500 - p.y
+            world.addChild(n)
+            caves[d.id] = (c, n)
+            caveCells.insert(c)
+        }
+    }
+
+    private func nearestCave(within r: CGFloat) -> String? {
+        var best = r, id: String?
+        for (k, v) in caves {
+            let d = hypot(v.node.position.x - heroPos.x, v.node.position.y - heroPos.y)
+            if d < best { best = d; id = k }
+        }
+        return id
+    }
+
+    private func enterDungeon(_ id: String) {
+        guard dungeon == nil, let d = BloomDungeons.byId(id), !fainted else { return }
+        dungeon = d
+        game.inDungeon = true
+        returnPos = heroPos
+        veil {
+            self.buildArena()
+            self.dungeonWave = 0
+            self.waveDelay = 1.2
+            self.game.showToast(BloomToast(title: tr(d.title), subtitle: tr("Волна %@ из %@", 1, 3)))
+        }
+        Sfx.play(.chest, volume: 0.6)
+        game.bump("dungeon.enter")
+    }
+
+    /// Black fade over the screen; `mid` runs while it is fully dark.
+    private func veil(_ mid: @escaping () -> Void) {
+        let v = SKSpriteNode(color: .black, size: CGSize(width: 3000, height: 3000))
+        v.alpha = 0
+        v.zPosition = 4800
+        cam.addChild(v)
+        v.run(.sequence([.fadeIn(withDuration: 0.25), .run(mid), .wait(forDuration: 0.1), .fadeOut(withDuration: 0.35), .removeFromParent()]))
+    }
+
+    private func buildArena() {
+        let a = SKNode()
+        world.addChild(a)
+        arena = a
+        let ox = CGFloat(arenaOrigin.x) * T, oy = CGFloat(arenaOrigin.y) * T
+        let bg = SKSpriteNode(color: UIColor(red: 0.07, green: 0.05, blue: 0.11, alpha: 1), size: CGSize(width: 1600, height: 1400))
+        bg.position = CGPoint(x: ox + CGFloat(arenaW) * T / 2, y: oy + CGFloat(arenaH) * T / 2)
+        bg.zPosition = -1095
+        a.addChild(bg)
+        for x in 0..<arenaW {
+            for y in 0..<arenaH {
+                let c = Cell(x: arenaOrigin.x + x, y: arenaOrigin.y + y)
+                let f = SKSpriteNode(texture: tex((x * 7 + y * 3) % 5 == 0 ? "bloom_dfloor_1" : "bloom_dfloor_0"))
+                f.anchorPoint = .zero
+                f.position = CGPoint(x: CGFloat(c.x) * T, y: CGFloat(c.y) * T)
+                f.zPosition = -1000
+                a.addChild(f)
+                land.insert(c)
+                arenaCells.append(c)
+            }
+        }
+        // walls all round; the top row is taller so the room reads as a cave
+        for x in -1...arenaW {
+            for y in [-1, arenaH, arenaH + 1] {
+                let w = SKSpriteNode(texture: tex("bloom_dwall"))
+                w.anchorPoint = .zero
+                w.position = CGPoint(x: ox + CGFloat(x) * T, y: oy + CGFloat(y) * T)
+                w.zPosition = y < 0 ? 900 : -990
+                if y == arenaH + 1 { w.color = .black; w.colorBlendFactor = 0.35 }
+                a.addChild(w)
+            }
+        }
+        for y in 0..<arenaH {
+            for x in [-1, arenaW] {
+                let w = SKSpriteNode(texture: tex("bloom_dwall"))
+                w.anchorPoint = .zero
+                w.position = CGPoint(x: ox + CGFloat(x) * T, y: oy + CGFloat(y) * T)
+                w.zPosition = -990
+                a.addChild(w)
+            }
+        }
+        // torches: warm light in the corners
+        for (x, y) in [(0, arenaH - 1), (arenaW - 1, arenaH - 1), (0, 0), (arenaW - 1, 0)] {
+            let g = SKSpriteNode(texture: glowTexture)
+            g.blendMode = .add
+            g.color = UIColor(red: 1, green: 0.6, blue: 0.25, alpha: 1)
+            g.colorBlendFactor = 1
+            g.alpha = 0.7
+            g.setScale(1.1)
+            g.position = CGPoint(x: ox + CGFloat(x) * T + 8, y: oy + CGFloat(y) * T + 10)
+            g.zPosition = 3950
+            g.run(.repeatForever(.sequence([.fadeAlpha(to: 0.5, duration: 0.4), .fadeAlpha(to: 0.75, duration: 0.5)])))
+            a.addChild(g)
+        }
+        heroPos = CGPoint(x: ox + CGFloat(arenaW / 2) * T + 8, y: oy + T + 6)
+        hero.position = heroPos
+        cam.position = heroPos
+        vel = .zero
+        applyDayLight()
+    }
+
+    private func arenaPoint(margin: Int = 1) -> CGPoint {
+        let x = Int.random(in: margin..<(arenaW - margin)), y = Int.random(in: max(margin, 3)..<(arenaH - margin))
+        return CGPoint(x: CGFloat(arenaOrigin.x + x) * T + 8, y: CGFloat(arenaOrigin.y + y) * T + 6)
+    }
+
+    @discardableResult
+    private func spawnArenaFoe(_ kindId: String, at p: CGPoint, hpMul: Double, scale: CGFloat = 1) -> Foe? {
+        guard let d = dungeon, let kind = Self.foeKinds[kindId] else { return nil }
+        let t0 = tex("bloom_foe_\(kind.id)_0")
+        let n = SKSpriteNode(texture: t0)
+        n.anchorPoint = CGPoint(x: 0.5, y: kind.flies ? 0 : 1 / t0.size().height)
+        n.position = p
+        n.zPosition = 500 - p.y
+        let sh = SKSpriteNode(texture: tex("bloom_shadow"))
+        sh.position = CGPoint(x: p.x, y: p.y - 0.5)
+        sh.zPosition = -800
+        sh.setScale(0.8 * scale)
+        world.addChild(sh)
+        world.addChild(n)
+        n.run(.repeatForever(.animate(with: [t0, tex("bloom_foe_\(kind.id)_1")], timePerFrame: kind.frame / Double(scale))), withKey: "anim")
+        let hp = Int((Double(kind.hp) * (1 + Double(d.island) * 0.4) * hpMul).rounded())
+        let f = Foe(kind: kind, node: n, shadow: sh, island: d.island, hp: hp, pos: p)
+        f.arena = true
+        f.scale = scale
+        foes.append(f)
+        n.setScale(0.1 * scale); n.alpha = 0
+        n.run(.group([.fadeIn(withDuration: 0.25), .sequence([.scale(to: 1.2 * scale, duration: 0.18), .scale(to: scale, duration: 0.1)])]))
+        puff(at: p, n: 6)
+        return f
+    }
+
+    private func updateDungeon(_ dt: TimeInterval) {
+        guard let d = dungeon, arena != nil else { return }
+        if let portal = exitPortal {
+            if hypot(portal.position.x - heroPos.x, portal.position.y - heroPos.y) < 9 { leaveDungeon() }
+            return
+        }
+        if let b = bossFoe, b.hp > 0 {
+            bossFill.xScale = max(0, CGFloat(b.hp) / CGFloat(bossMaxHP))
+            if now > bossSlamAt { bossSlamAt = now + 4.2; bossSlam(b) }
+            if now > bossSummonAt {
+                bossSummonAt = now + 9
+                for _ in 0..<2 {
+                    let p = CGPoint(x: b.pos.x + CGFloat.random(in: -24...24), y: b.pos.y + CGFloat.random(in: -14...14))
+                    if land.contains(Cell(x: Int(floor(p.x / T)), y: Int(floor(p.y / T)))) { spawnArenaFoe(d.foe, at: p, hpMul: 0.6) }
+                }
+            }
+            return
+        }
+        guard !foes.contains(where: { $0.arena }), bossFoe == nil else { return }
+        waveDelay -= dt
+        guard waveDelay <= 0 else { return }
+        waveDelay = 1.5
+        dungeonWave += 1
+        switch dungeonWave {
+        case 1:
+            for _ in 0..<4 { spawnArenaFoe(d.foe, at: arenaPoint(), hpMul: 1) }
+        case 2:
+            game.showToast(BloomToast(title: tr(d.title), subtitle: tr("Волна %@ из %@", 2, 3)))
+            for i in 0..<6 { spawnArenaFoe(i % 3 == 2 && d.foe != "bat" ? "bat" : d.foe, at: arenaPoint(), hpMul: 1.1) }
+        case 3:
+            let p = CGPoint(x: CGFloat(arenaOrigin.x + arenaW / 2) * T + 8, y: CGFloat(arenaOrigin.y + arenaH - 3) * T + 6)
+            guard let b = spawnArenaFoe(d.foe, at: p, hpMul: 9, scale: 2.4) else { return }
+            b.boss = true
+            b.speedMul = 0.6
+            b.node.color = UIColor(red: 0.55, green: 0.2, blue: 0.35, alpha: 1)
+            b.node.colorBlendFactor = 0.25
+            bossFoe = b
+            bossMaxHP = b.hp
+            bossSlamAt = now + 3
+            bossSummonAt = now + 7
+            bossBar.position = CGPoint(x: 0, y: -size.height / 2 + 64)
+            bossBar.zPosition = 4700
+            bossFill.anchorPoint = CGPoint(x: 0, y: 0.5)
+            bossFill.position = CGPoint(x: -101, y: 0)
+            bossFill.xScale = 1
+            if bossFill.parent == nil { bossBar.addChild(bossFill) }
+            if bossBar.parent == nil { cam.addChild(bossBar) }
+            bossBar.alpha = 0
+            bossBar.run(.fadeIn(withDuration: 0.3))
+            shake(4)
+            buzz(heavy)
+            Sfx.play(.boss, volume: 0.8)
+            game.showToast(BloomToast(title: tr("Хозяин пещеры!"), subtitle: tr("Отходи, когда вокруг него краснеет земля")))
+        default: break
+        }
+    }
+
+    /// Wind-up ring, then a ground slam: stand outside the ring.
+    private func bossSlam(_ b: Foe) {
+        b.stunUntil = now + 1.1
+        let r: CGFloat = 30
+        let ring = SKShapeNode(circleOfRadius: r)
+        ring.fillColor = UIColor(red: 1, green: 0.2, blue: 0.2, alpha: 0.22)
+        ring.strokeColor = UIColor(red: 1, green: 0.35, blue: 0.3, alpha: 0.9)
+        ring.lineWidth = 1
+        ring.position = b.pos
+        ring.yScale = 0.6
+        ring.zPosition = -700
+        ring.setScale(0.15)
+        world.addChild(ring)
+        b.node.run(.sequence([.scaleX(to: (b.node.xScale < 0 ? -1 : 1) * b.scale * 0.85, y: b.scale * 1.2, duration: 0.85),
+                              .scaleX(to: (b.node.xScale < 0 ? -1 : 1) * b.scale * 1.25, y: b.scale * 0.75, duration: 0.06),
+                              .scale(to: b.scale, duration: 0.15)]), withKey: "squash")
+        ring.run(.sequence([.group([.scaleX(to: 1, duration: 0.9), .scaleY(to: 0.6, duration: 0.9)]),
+                            .run { [weak self, weak b] in
+                                guard let self, let b, b.hp > 0 else { return }
+                                self.puff(at: b.pos, n: 14)
+                                for _ in 0..<10 {
+                                    self.particle("bloom_fx_chip", at: b.pos, v: CGVector(dx: CGFloat.random(in: -40...40), dy: CGFloat.random(in: 10...30)), life: 0.5)
+                                }
+                                self.shake(4.5)
+                                self.buzz(self.heavy)
+                                Sfx.play(.boss, volume: 0.6)
+                                let dx = self.heroPos.x - b.pos.x, dy = (self.heroPos.y - b.pos.y) / 0.6
+                                if hypot(dx, dy) < r, self.now >= self.hurtUntil, !self.fainted { self.hurtHero(b) }
+                            },
+                            .fadeOut(withDuration: 0.2), .removeFromParent()]))
+    }
+
+    private func bossDefeated(_ p: CGPoint) {
+        guard let d = dungeon else { return }
+        bossFoe = nil
+        bossBar.run(.sequence([.fadeOut(withDuration: 0.3), .removeFromParent()]))
+        // the minions crumble with their master
+        for f in foes where f.arena {
+            foes.removeAll { $0 === f }
+            puff(at: f.pos, n: 5)
+            f.node.run(.sequence([.group([.scale(to: 0.1, duration: 0.15), .fadeOut(withDuration: 0.15)]), .removeFromParent()]))
+            f.shadow.run(.sequence([.fadeOut(withDuration: 0.15), .removeFromParent()]))
+        }
+        let r = game.dungeonCleared(d)
+        for _ in 0..<30 { spark(at: CGPoint(x: p.x, y: p.y + 10), spread: 40, gold: true) }
+        hitStop(0.08)
+        shake(5)
+        Sfx.play(.victory)
+        if r.relic {
+            let icon = SKSpriteNode(texture: tex("bloom_relic_" + d.relic))
+            icon.position = CGPoint(x: p.x, y: p.y + 10)
+            icon.zPosition = 3300
+            icon.setScale(0.2)
+            world.addChild(icon)
+            icon.run(.sequence([.group([.scale(to: 1.6, duration: 0.35), .moveBy(x: 0, y: 18, duration: 0.35)]), .wait(forDuration: 1.2),
+                                .group([.move(to: CGPoint(x: heroPos.x, y: heroPos.y + 12), duration: 0.35), .scale(to: 0.3, duration: 0.35)]),
+                                .removeFromParent()]))
+            game.showToast(BloomToast(title: tr("Реликвия: %@", tr(d.relicTitle)), subtitle: tr(d.relicText)))
+        } else {
+            game.showToast(BloomToast(title: tr("Пещера пройдена"), subtitle: tr("+%@ монет", r.coins)))
+        }
+        emit(nil, max(8, r.coins / 4), from: p, maxPieces: 8, spread: 22)
+        // the way out
+        let portal = SKSpriteNode(texture: tex("bloom_portal_0"))
+        portal.position = CGPoint(x: CGFloat(arenaOrigin.x + arenaW / 2) * T + 8, y: CGFloat(arenaOrigin.y + arenaH / 2) * T + 8)
+        portal.zPosition = -850
+        portal.setScale(0.1)
+        arena?.addChild(portal)
+        portal.run(.sequence([.wait(forDuration: 1), .scale(to: 1.2, duration: 0.3),
+                              .repeatForever(.animate(with: [tex("bloom_portal_0"), tex("bloom_portal_1")], timePerFrame: 0.2))]))
+        exitPortal = portal
+    }
+
+    private func leaveDungeon() {
+        guard dungeon != nil else { return }
+        exitPortal = nil
+        veil {
+            self.teardownDungeon()
+            self.heroPos = self.returnPos
+            self.hero.position = self.heroPos
+            self.cam.position = self.heroPos
+        }
+    }
+
+    /// Removes the arena and its foes; the hero is placed by the caller.
+    private func teardownDungeon() {
+        for f in foes where f.arena {
+            f.node.removeFromParent(); f.shadow.removeFromParent()
+        }
+        foes.removeAll { $0.arena }
+        for c in arenaCells { land.remove(c) }
+        arenaCells = []
+        arena?.removeFromParent()
+        arena = nil
+        exitPortal = nil
+        bossFoe = nil
+        bossBar.removeFromParent()
+        dungeon = nil
+        game.inDungeon = false
+        vel = .zero
+        applyDayLight()
     }
 
     // MARK: - golden hour (our own event: everything turns gold, drops double)
