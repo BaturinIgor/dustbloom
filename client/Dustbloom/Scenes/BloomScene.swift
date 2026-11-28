@@ -106,6 +106,7 @@ final class BloomScene: SKScene {
     private var fpsClock: TimeInterval = 0
     private var fpsWorst: TimeInterval = 0
     private var fpsLong = 0
+    private var fpsOver17 = 0
     private var freeze: TimeInterval = 0       // hit-stop: a few frames of stillness that sell a heavy blow
     private var facingUp = false
     private var vel = CGVector.zero            // hero velocity, eased so starts and stops feel soft
@@ -260,6 +261,18 @@ final class BloomScene: SKScene {
             let k = UserDefaults.standard.string(forKey: "bloomFoeKind")
             run(.sequence([.wait(forDuration: 3), .run { [weak self] in for _ in 0..<nFoes { self?.spawnFoe(kind: k, near: true) } }]))
         }
+        // -bloomPanelCycle: open and close market, backpack and anvil in turn (panel-opening profiling)
+        if ProcessInfo.processInfo.arguments.contains("-bloomPanelCycle") {
+            let ps: [BloomPanel] = [.building(.market), .inventory, .building(.anvil), .build]
+            var i = 0
+            run(.repeatForever(.sequence([.wait(forDuration: 1.5), .run { [weak self] in
+                guard let self else { return }
+                if self.game.panel == nil {
+                    if self.logFPS { print(String(format: "[panel] open %d at %.2f", i % ps.count, self.now)) }
+                    self.game.panel = ps[i % ps.count]; i += 1
+                } else { self.game.panel = nil }
+            }])))
+        }
         // -bloomChests N: several chests at once, to check each one opens
         let nChests = UserDefaults.standard.integer(forKey: "bloomChests")
         if nChests > 0 {
@@ -363,10 +376,9 @@ final class BloomScene: SKScene {
             coin.setScale(0.6)
             coin.position = CGPoint(x: -5, y: 11)
             s.addChild(coin)
-            let l = label(game.islandPrice(locked).compact, size: 6, color: UIColor(red: 0.17, green: 0.14, blue: 0.25, alpha: 1), stroke: nil)
-            l.horizontalAlignmentMode = .left
-            l.verticalAlignmentMode = .center
-            l.position = CGPoint(x: -1.5, y: 10.5)
+            let l = textSprite(game.islandPrice(locked).compact, size: 6, color: UIColor(red: 0.17, green: 0.14, blue: 0.25, alpha: 1),
+                               alignLeft: true, outline: false)
+            l.position = CGPoint(x: -1.5, y: 8.5)
             s.addChild(l)
             s.run(.repeatForever(.sequence([.moveBy(x: 0, y: 1.5, duration: 0.8), .moveBy(x: 0, y: -1.5, duration: 0.8)])))
             world.addChild(s)
@@ -646,12 +658,12 @@ final class BloomScene: SKScene {
     /// combo and crit; these keep a small cache, so play shows only textures already on the GPU.
     private var textCache: [String: SKTexture] = [:]
 
-    private func textTexture(_ s: String, size: CGFloat, color: UIColor) -> SKTexture {
-        let key = "\(s)|\(size)|\(color.hashValue)"
+    private func textTexture(_ s: String, size: CGFloat, color: UIColor, outline: Bool = true) -> SKTexture {
+        let key = "\(s)|\(size)|\(color.hashValue)|\(outline)"
         if let t = textCache[key] { return t }
         let f = UIFont(name: "Rubik-Bold", size: size * zoom) ?? .boldSystemFont(ofSize: size * zoom)
-        let attrs: [NSAttributedString.Key: Any] = [.font: f, .foregroundColor: color,
-                                                    .strokeColor: UIColor(red: 0.17, green: 0.14, blue: 0.25, alpha: 1), .strokeWidth: -5]
+        var attrs: [NSAttributedString.Key: Any] = [.font: f, .foregroundColor: color]
+        if outline { attrs[.strokeColor] = UIColor(red: 0.17, green: 0.14, blue: 0.25, alpha: 1); attrs[.strokeWidth] = -5 }
         let str = NSAttributedString(string: s, attributes: attrs)
         let pad: CGFloat = 2
         let w = ceil(str.size().width) + pad * 2, h = ceil(f.ascender - f.descender) + pad * 2
@@ -671,14 +683,14 @@ final class BloomScene: SKScene {
 
     /// Same look as `label`, baseline at y = 0. Digits and signs are separate cached glyphs,
     /// so "+17" after "+16" needs no new texture.
-    private func textSprite(_ s: String, size: CGFloat, color: UIColor, alignLeft: Bool = false, glyphs: Bool = false) -> SKNode {
+    private func textSprite(_ s: String, size: CGFloat, color: UIColor, alignLeft: Bool = false, glyphs: Bool = false, outline: Bool = true) -> SKNode {
         let f = UIFont(name: "Rubik-Bold", size: size * zoom) ?? .boldSystemFont(ofSize: size * zoom)
         let parts = glyphs ? s.map(String.init) : [s]
         let node = SKNode()
         var x: CGFloat = 0
         var sprites: [SKSpriteNode] = []
         for part in parts {
-            let t = textTexture(part, size: size, color: color)
+            let t = textTexture(part, size: size, color: color, outline: outline)
             let sp = SKSpriteNode(texture: t)
             // the 2 pt padding sits on every side; glyphs overlap by it so the outline joins up
             sp.anchorPoint = CGPoint(x: 0, y: (2 - f.descender) / t.size().height)
@@ -763,8 +775,13 @@ final class BloomScene: SKScene {
     private var eventPicks: [SKSpriteNode] = []
     private var eventPickTimer: TimeInterval = 10
 
+    // the week's event changes once a week: work it out (a calendar calculation) once a second, not twice a frame
+    private var eventIdCache = ""
+    private var eventIdAt: TimeInterval = -1
+
     private func updateEventPickups(_ dt: TimeInterval) {
-        let starfall = game.eventIs("starfall"), festival = game.eventIs("festival")
+        if now - eventIdAt > 1 { eventIdAt = now; eventIdCache = game.event.id }
+        let starfall = eventIdCache == "starfall", festival = eventIdCache == "festival"
         guard starfall || festival else { return }
         for n in eventPicks where hypot(n.position.x - heroPos.x, n.position.y - heroPos.y - 3) < 9 {
             collectEventPick(n)
@@ -879,7 +896,7 @@ final class BloomScene: SKScene {
         fish.position = CGPoint(x: -half - 10, y: 0)
         for n in [frame, back, zone, gold, fish, f.marker] as [SKNode] { f.bar.addChild(n) }
         if game.life("gather.pond") < 8 {
-            let hint = label(tr("Жми, когда стрелка в зелёном"), size: 4.5, color: .white)
+            let hint = textSprite(tr("Жми, когда стрелка в зелёном"), size: 4.5, color: .white)
             hint.position = CGPoint(x: 0, y: 7)
             f.bar.addChild(hint)
         }
@@ -1114,11 +1131,11 @@ final class BloomScene: SKScene {
         now += dt
         if logFPS {
             // worst frame and frames over 25 ms show hitches the 2 s average hides
-            fpsFrames += 1; fpsClock += raw; fpsWorst = max(fpsWorst, raw); if raw > 0.025 { fpsLong += 1 }
+            fpsFrames += 1; fpsClock += raw; fpsWorst = max(fpsWorst, raw); if raw > 0.025 { fpsLong += 1 }; if raw > 0.0175 { fpsOver17 += 1 }
             if raw > 0.06 { print(String(format: "[slow] %.0f ms at %.1f s", raw * 1000, now)) }
             if fpsClock >= 2 {
-                print(String(format: "[bloom] fps %.1f worst %.0f ms long %d nodes %d", Double(fpsFrames) / fpsClock, fpsWorst * 1000, fpsLong, world.children.count))
-                fpsFrames = 0; fpsClock = 0; fpsWorst = 0; fpsLong = 0
+                print(String(format: "[bloom] fps %.1f worst %.0f ms long %d nodes %d over17 %d", Double(fpsFrames) / fpsClock, fpsWorst * 1000, fpsLong, world.children.count, fpsOver17))
+                fpsFrames = 0; fpsClock = 0; fpsWorst = 0; fpsLong = 0; fpsOver17 = 0
             }
         }
         if freeze > 0 {
@@ -2177,11 +2194,11 @@ final class BloomScene: SKScene {
         b.run(flap, withKey: "flap")
         let land = SKAction.move(to: p, duration: 1.4)
         land.timingMode = .easeOut
+        let perched = tex("bloom_fx_bird_1")
         b.run(.sequence([land, .run { [weak b] in
             guard let b else { return }
             b.removeAction(forKey: "flap")
-            b.texture = SKTexture(imageNamed: "bloom_fx_bird_1")
-            b.texture?.filteringMode = .nearest
+            b.texture = perched   // cached: a fresh SKTexture uploaded to the GPU on every landing
             b.zPosition = 500 - p.y
             // peck and hop about
             b.run(.repeatForever(.sequence([
