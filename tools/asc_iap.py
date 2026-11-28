@@ -21,6 +21,8 @@ API = "https://api.appstoreconnect.apple.com"
 REVIEW_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "store", "review")
 BUNDLE_ID = "game.dustbloom.app"
 
+BUNDLES = {"bloom.brave", "bloom.crafter", "bloom.digger", "bloom.islandpack", "bloom.friend", "bloom.level10", "bloom.level20"}
+
 # productId, type, USD price, reference name, ru (name, description), en (name, description)
 PRODUCTS = [
     ("bloom.founder", "NON_CONSUMABLE", "4.99", "Founder Pack",
@@ -53,6 +55,14 @@ PRODUCTS = [
     ("bloom.eventpass", "CONSUMABLE", "2.99", "Event Pass",
      ("Пропуск события", "Все награды события этой недели"),
      ("Event Pass", "All rewards of this week's event")),
+    # donate 2: bundles (shop "Bundles" section, also offered by a glowing button at the right moment)
+    ("bloom.brave", "NON_CONSUMABLE", "1.99", "Brave Heart", None, None),
+    ("bloom.crafter", "NON_CONSUMABLE", "4.99", "Jack of All Trades", None, None),
+    ("bloom.digger", "NON_CONSUMABLE", "2.99", "Treasure Hunter", None, None),
+    ("bloom.islandpack", "CONSUMABLE", "2.99", "Island Within Reach", None, None),
+    ("bloom.friend", "NON_CONSUMABLE", "3.99", "Island Friend", None, None),
+    ("bloom.level10", "NON_CONSUMABLE", "4.99", "Level 10 Bundle", None, None),
+    ("bloom.level20", "NON_CONSUMABLE", "9.99", "Level 20 Bundle", None, None),
 ]
 
 
@@ -113,8 +123,11 @@ def main():
             iap_id = c.req("POST", "/v2/inAppPurchases", {"data": {
                 "type": "inAppPurchases",
                 "attributes": {"name": ref, "productId": pid, "inAppPurchaseType": kind,
-                               "reviewNote": "Bought in the in-game shop (gift button, top right). "
-                                             "Test: open the shop and tap the price button."},
+                               "reviewNote": ("Shop (gift button, top right) -> section Bundles -> price button. "
+                                              "It is also offered by a glowing button under the shop button.")
+                               if pid in BUNDLES else
+                               "Bought in the in-game shop (gift button, top right). "
+                               "Test: open the shop and tap the price button."},
                 "relationships": {"app": {"data": {"type": "apps", "id": app_id}}}}})["data"]["id"]
             print("  created", iap_id)
 
@@ -181,6 +194,8 @@ def main():
             shot = None
         if not shot:
             name = "event.png" if pid == "bloom.eventpass" else "shop.png"
+            if pid in BUNDLES and os.path.exists(os.path.join(REVIEW_DIR, "bundles.png")):
+                name = "bundles.png"
             data = open(os.path.join(REVIEW_DIR, name), "rb").read()
             j = c.req("POST", "/v1/inAppPurchaseAppStoreReviewScreenshots", {"data": {
                 "type": "inAppPurchaseAppStoreReviewScreenshots",

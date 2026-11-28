@@ -51,9 +51,10 @@ PUZZLES = [("p1", 1, 3), ("p2", 3, 4), ("p3", 4, 4), ("p4", 5, 5), ("p5", 7, 5),
 
 
 class Persona:
-    def __init__(self, name, ads=False, founder=False, pass_=False, gems_per_hour=0, label=""):
+    def __init__(self, name, ads=False, founder=False, pass_=False, gems_per_hour=0, label="", perks=(), island_packs=0):
         self.name, self.ads, self.founder, self.pass_ = name, ads, founder, pass_
         self.gems_per_hour, self.label = gems_per_hour, label
+        self.perks, self.island_packs = set(perks), island_packs   # donate 2 bundles (BloomOffers.swift)
 
 
 PERSONAS = [
@@ -61,6 +62,9 @@ PERSONAS = [
     Persona("f2p_ads", ads=True, label="Без доната, смотрит рекламу"),
     Persona("minnow", ads=True, founder=True, label="Набор основателя $4.99"),
     Persona("dolphin", ads=True, founder=True, pass_=True, label="Основатель + Пропуск ($12)"),
+    Persona("crafter5", perks=("crafter",), label="Мастер на все руки $4.99"),
+    Persona("month30", ads=True, founder=True, pass_=True, perks=("crafter", "digger", "brave"), island_packs=2,
+            label="Основатель, пропуск, 3 набора, 2 острова (~$32)"),
     Persona("whale", ads=True, founder=True, pass_=True, gems_per_hour=400, label="Кит (~$40+)"),
 ]
 
@@ -408,7 +412,7 @@ class Sim:
             # walk to the mound and dig: a few seconds, coins and some goods
             self.next_dig = self.t + BAL["shovel"]["every"] * self.rng.uniform(0.8, 1.3)
             self.advance(4)
-            self.coins += self.rng.randint(6, 12) + self.level * 2 + len(self.owned) * 3
+            self.coins += (self.rng.randint(6, 12) + self.level * 2 + len(self.owned) * 3) * (2 if "digger" in self.p.perks else 1)
             self.stats["dig"] = self.stats.get("dig", 0) + 1
         # islanders: hand in a step when the bot has it (a short walk), coins grow with the next island
         for nid, isl, steps in ISLANDERS:
@@ -443,6 +447,10 @@ class Sim:
             self.pay(self.helper_cost()); self.helpers += 1; self.log(f"помощник {self.helpers}"); self.advance(3)
         # next island
         nxt = len(self.owned)
+        # island pack: coins for most of the next island, bought when the player is far short (twice per game)
+        if nxt < len(self.prices) and nxt >= 4 and self.p.island_packs > self.stats.get("islandpack", 0) and self.coins * 2 < self.prices[nxt]:
+            self.coins += int(self.prices[nxt] * 0.6); self.stats["islandpack"] = self.stats.get("islandpack", 0) + 1
+            self.log("набор «Остров ближе»")
         if nxt < len(self.prices):
             # whales top up coins with gems for the island
             if self.p.gems_per_hour and self.coins < self.island_price(nxt):
@@ -465,7 +473,7 @@ class Sim:
             n = min(short, min(self.cnt(i) // c for i, c in cost))
             if n <= 0: continue
             self.pay(cost, n)
-            secs = r["seconds"] * (0.75 if self.has_t("c1") else 1) * (0.7 if self.has_t("c5") else 1)
+            secs = r["seconds"] * (0.75 if self.has_t("c1") else 1) * (0.7 if self.has_t("c5") else 1) * (0.5 if "crafter" in self.p.perks else 1)
             self.queues.append((self.t + secs * n, it, n)); busy.add(r["at"])
             self.advance(2)
         # sell surplus when the market is up and an island is the next big thing

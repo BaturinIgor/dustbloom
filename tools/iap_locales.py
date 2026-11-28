@@ -122,3 +122,110 @@ def table():
             assert len(n) <= 30 and len(d) <= 45, (loc, pid, n, d, len(d))
             out[pid].append((loc, n, d))
     return out
+
+
+# Donate 2 bundles (same order as IDS3). Name <= 30, description <= 45.
+IDS3 = ["bloom.brave", "bloom.crafter", "bloom.digger", "bloom.islandpack", "bloom.friend", "bloom.level10", "bloom.level20"]
+L3 = {
+ "en-US": [("Brave Heart", "+2 hearts for good and 100 dew"), ("Jack of All Trades", "All buildings work twice as fast, for good"),
+           ("Treasure Hunter", "Golden shovel: double treasure, 200 dew"), ("Island Within Reach", "Coins toward the next island and 100 dew"),
+           ("Island Friend", "Friend gifts x2 for good, Bumble companion"), ("Level 10 Bundle", "Rose Garden look, 300 dew, wood and stone"),
+           ("Level 20 Bundle", "Night look, Owlet companion, 800 dew")],
+ "ru": [("Сердце смельчака", "+2 сердца навсегда и 100 росинок"), ("Мастер на все руки", "Все здания вдвое быстрее навсегда"),
+        ("Кладоискатель", "Золотая лопата: клады ×2, 200 росинок"), ("Остров ближе", "Монеты на новый остров и 100 росинок"),
+        ("Друг острова", "Подарки друзей ×2 и спутник Шмелик"), ("Набор 10 уровня", "Облик, 300 росинок, дерево и камень"),
+        ("Набор 20 уровня", "Ночной облик, Совушка, 800 росинок")],
+ "uk": [("Серце сміливця", "+2 серця назавжди і 100 росинок"), ("Майстер на всі руки", "Усі будівлі вдвічі швидші назавжди"),
+        ("Шукач скарбів", "Золота лопата: скарби ×2, 200 росинок"), ("Острів ближче", "Монети на новий острів і 100 росинок"),
+        ("Друг острова", "Подарунки друзів ×2 і супутник Джмелик"), ("Набір 10 рівня", "Образ, 300 росинок, дерево і камінь"),
+        ("Набір 20 рівня", "Нічний образ, Совуня, 800 росинок")],
+ "de-DE": [("Mutiges Herz", "+2 Herzen für immer und 100 Tau"), ("Alleskönner", "Alle Gebäude für immer doppelt so schnell"),
+           ("Schatzsucher", "Goldene Schaufel: Schätze x2, 200 Tau"), ("Insel in Reichweite", "Münzen für die nächste Insel und 100 Tau"),
+           ("Inselfreund", "Freundesgeschenke x2 und Begleiter Hummel"), ("Paket Stufe 10", "Rosengarten-Look, 300 Tau, Holz, Stein"),
+           ("Paket Stufe 20", "Nacht-Look, Eulchen, 800 Tau")],
+ "fr-FR": [("Cœur vaillant", "+2 cœurs pour toujours et 100 rosée"), ("Touche-à-tout", "Bâtiments deux fois plus rapides"),
+           ("Chasseur de trésors", "Pelle dorée : trésors x2, 200 rosée"), ("L'île à portée", "Pièces pour la prochaine île, 100 rosée"),
+           ("Ami de l'île", "Cadeaux d'amis x2 et compagnon Bourdon"), ("Pack niveau 10", "Look Roseraie, 300 rosée, bois, pierre"),
+           ("Pack niveau 20", "Look Nuit, Hibou, 800 rosée")],
+ "es-ES": [("Corazón valiente", "+2 corazones para siempre y 100 rocío"), ("Manitas", "Edificios el doble de rápidos"),
+           ("Cazatesoros", "Pala dorada: tesoros x2, 200 rocío"), ("La isla al alcance", "Monedas para la próxima isla y 100 rocío"),
+           ("Amigo de la isla", "Regalos de amigos x2 y Abejorro"), ("Pack de nivel 10", "Aspecto Rosaleda, 300 rocío y recursos"),
+           ("Pack de nivel 20", "Aspecto Noche, Buhito, 800 rocío")],
+ "es-MX": [("Corazón valiente", "+2 corazones para siempre y 100 rocío"), ("Todero", "Edificios el doble de rápidos"),
+           ("Cazatesoros", "Pala dorada: tesoros x2, 200 rocío"), ("La isla al alcance", "Monedas para la próxima isla y 100 rocío"),
+           ("Amigo de la isla", "Regalos de amigos x2 y Abejorro"), ("Paquete nivel 10", "Aspecto Rosaleda, 300 rocío y recursos"),
+           ("Paquete nivel 20", "Aspecto Noche, Buhito, 800 rocío")],
+ "it": [("Cuore coraggioso", "+2 cuori per sempre e 100 rugiada"), ("Tuttofare", "Edifici il doppio più veloci, per sempre"),
+        ("Cacciatore di tesori", "Pala d'oro: tesori x2, 200 rugiada"), ("L'isola a portata", "Monete per la prossima isola e 100 rugiada"),
+        ("Amico dell'isola", "Regali degli amici x2 e Bombo"), ("Pacchetto livello 10", "Aspetto Roseto, 300 rugiada e risorse"),
+        ("Pacchetto livello 20", "Aspetto Notte, Gufetto, 800 rugiada")],
+ "pt-BR": [("Coração valente", "+2 corações para sempre e 100 orvalho"), ("Faz-tudo", "Prédios duas vezes mais rápidos"),
+           ("Caçador de tesouros", "Pá dourada: tesouros x2, 200 orvalho"), ("Ilha ao alcance", "Moedas para a próxima ilha e 100 orvalho"),
+           ("Amigo da ilha", "Presentes de amigos x2 e Zangão"), ("Pacote nível 10", "Visual Roseiral, 300 orvalho e recursos"),
+           ("Pacote nível 20", "Visual Noite, Corujinha, 800 orvalho")],
+ "pt-PT": [("Coração valente", "+2 corações para sempre e 100 orvalho"), ("Faz-tudo", "Edifícios duas vezes mais rápidos"),
+           ("Caçador de tesouros", "Pá dourada: tesouros x2, 200 orvalho"), ("Ilha ao alcance", "Moedas para a próxima ilha e 100 orvalho"),
+           ("Amigo da ilha", "Presentes de amigos x2 e Zangão"), ("Pacote nível 10", "Visual Roseiral, 300 orvalho e recursos"),
+           ("Pacote nível 20", "Visual Noite, Corujinha, 800 orvalho")],
+ "nl-NL": [("Dapper hart", "+2 harten voor altijd en 100 dauw"), ("Manusje-van-alles", "Gebouwen voor altijd twee keer zo snel"),
+           ("Schatzoeker", "Gouden schep: schatten x2, 200 dauw"), ("Eiland binnen bereik", "Munten voor het volgende eiland, 100 dauw"),
+           ("Eilandvriend", "Cadeaus van vrienden x2 en Hommel"), ("Pakket level 10", "Rozentuin-look, 300 dauw, hout, steen"),
+           ("Pakket level 20", "Nacht-look, Uiltje, 800 dauw")],
+ "pl": [("Dzielne serce", "+2 serca na zawsze i 100 rosy"), ("Złota rączka", "Budynki dwa razy szybsze na zawsze"),
+        ("Poszukiwacz skarbów", "Złota łopata: skarby x2, 200 rosy"), ("Wyspa w zasięgu", "Monety na następną wyspę i 100 rosy"),
+        ("Przyjaciel wyspy", "Prezenty przyjaciół x2 i Trzmielik"), ("Pakiet poziomu 10", "Wygląd Różany ogród, 300 rosy, surowce"),
+        ("Pakiet poziomu 20", "Wygląd Nocny, Sówka, 800 rosy")],
+ "tr": [("Cesur kalp", "Kalıcı +2 kalp ve 100 çiy"), ("Her işin ustası", "Binalar kalıcı olarak iki kat hızlı"),
+        ("Hazine avcısı", "Altın kürek: hazine x2, 200 çiy"), ("Ada yakında", "Sonraki ada için altın ve 100 çiy"),
+        ("Ada dostu", "Arkadaş hediyeleri x2 ve Bombus"), ("Seviye 10 paketi", "Gül Bahçesi görünümü, 300 çiy, kaynak"),
+        ("Seviye 20 paketi", "Gece görünümü, Baykuşçuk, 800 çiy")],
+ "ja": [("勇気のハート", "ずっとハート+2、しずく100"), ("なんでも屋", "建物がずっと2倍速く"),
+        ("トレジャーハンター", "金のシャベル:お宝2倍、しずく200"), ("島がもうすぐ", "次の島のためのコインとしずく100"),
+        ("島の友だち", "友だちのプレゼント2倍とおともブンブ"), ("レベル10セット", "バラ園の見た目、しずく300、木と石"),
+        ("レベル20セット", "夜の見た目、フクロウ、しずく800")],
+ "ko": [("용감한 마음", "영구 하트 +2와 이슬 100"), ("만능 장인", "모든 건물 영구 두 배 속도"),
+        ("보물 사냥꾼", "황금 삽: 보물 두 배, 이슬 200"), ("섬이 가까이", "다음 섬을 위한 코인과 이슬 100"),
+        ("섬의 친구", "친구 선물 두 배와 동료 붕붕"), ("10레벨 패키지", "장미 정원 외형, 이슬 300, 나무와 돌"),
+        ("20레벨 패키지", "밤 외형, 부엉이, 이슬 800")],
+ "zh-Hans": [("勇敢之心", "永久+2颗心和100露珠"), ("全能工匠", "所有建筑永久双倍速度"),
+             ("寻宝人", "金铲子：宝藏翻倍，200露珠"), ("小岛近在眼前", "下一座岛的金币和100露珠"),
+             ("小岛之友", "朋友礼物翻倍和伙伴嗡嗡"), ("10级礼包", "玫瑰园造型、300露珠、木头和石头"),
+             ("20级礼包", "夜晚造型、小猫头鹰、800露珠")],
+ "zh-Hant": [("勇敢之心", "永久+2顆心和100露珠"), ("全能工匠", "所有建築永久雙倍速度"),
+             ("尋寶人", "金鏟子：寶藏加倍，200露珠"), ("小島近在眼前", "下一座島的金幣和100露珠"),
+             ("小島之友", "朋友禮物加倍和夥伴嗡嗡"), ("10級禮包", "玫瑰園造型、300露珠、木頭和石頭"),
+             ("20級禮包", "夜晚造型、小貓頭鷹、800露珠")],
+ "ar-SA": [("قلب شجاع", "+2 قلب للأبد و100 ندى"), ("صاحب الصنعة", "كل المباني أسرع بمرتين للأبد"),
+           ("صائد الكنوز", "مجرفة ذهبية: كنوز ×2 و200 ندى"), ("الجزيرة في متناولك", "عملات للجزيرة التالية و100 ندى"),
+           ("صديق الجزيرة", "هدايا الأصدقاء ×2 والرفيق طنّان"), ("حزمة المستوى 10", "مظهر حديقة الورد و300 ندى وموارد"),
+           ("حزمة المستوى 20", "المظهر الليلي والبومة و800 ندى")],
+ "th": [("หัวใจกล้าหาญ", "+2 หัวใจถาวร และน้ำค้าง 100"), ("ช่างสารพัด", "ทุกอาคารเร็วขึ้นสองเท่าถาวร"),
+        ("นักล่าสมบัติ", "พลั่วทอง: สมบัติ ×2 น้ำค้าง 200"), ("เกาะใกล้เข้ามา", "เหรียญสำหรับเกาะถัดไปและน้ำค้าง 100"),
+        ("เพื่อนแห่งเกาะ", "ของขวัญเพื่อน ×2 และผึ้งน้อย"), ("แพ็กเลเวล 10", "ชุดสวนกุหลาบ น้ำค้าง 300 ไม้และหิน"),
+        ("แพ็กเลเวล 20", "ชุดราตรี นกฮูกน้อย น้ำค้าง 800")],
+ "vi": [("Trái tim dũng cảm", "+2 tim vĩnh viễn và 100 sương"), ("Đa năng", "Mọi công trình nhanh gấp đôi mãi mãi"),
+        ("Thợ săn kho báu", "Xẻng vàng: kho báu x2, 200 sương"), ("Đảo trong tầm tay", "Xu cho đảo tiếp theo và 100 sương"),
+        ("Bạn của đảo", "Quà bạn bè x2 và Ong Nghệ"), ("Gói cấp 10", "Vườn Hồng, 300 sương, gỗ và đá"),
+        ("Gói cấp 20", "Trang phục Đêm, Cú Nhỏ, 800 sương")],
+ "id": [("Hati pemberani", "+2 hati selamanya dan 100 embun"), ("Serba bisa", "Semua bangunan 2x lebih cepat selamanya"),
+        ("Pemburu harta", "Sekop emas: harta x2, 200 embun"), ("Pulau makin dekat", "Koin untuk pulau berikutnya, 100 embun"),
+        ("Teman pulau", "Hadiah teman x2 dan teman Kumbang"), ("Paket level 10", "Taman Mawar, 300 embun, kayu, batu"),
+        ("Paket level 20", "Tampilan Malam, Burung Hantu, 800 embun")],
+ "sv": [("Modigt hjärta", "+2 hjärtan för alltid och 100 dagg"), ("Tusenkonstnär", "Alla byggnader dubbelt så snabba"),
+        ("Skattjägare", "Gyllene spade: skatter x2, 200 dagg"), ("Ön inom räckhåll", "Mynt till nästa ö och 100 dagg"),
+        ("Övän", "Vängåvor x2 och följeslagaren Humla"), ("Paket nivå 10", "Rosengård-stil, 300 dagg, trä och sten"),
+        ("Paket nivå 20", "Natt-stil, Ugglan, 800 dagg")],
+}
+_old_table2 = table
+
+
+def table():
+    out = _old_table2()
+    for pid in IDS3:
+        out[pid] = []
+    for loc, rows in L3.items():
+        assert len(rows) == len(IDS3), loc
+        for pid, (n, d) in zip(IDS3, rows):
+            assert len(n) <= 30 and len(d) <= 45, (loc, pid, n, d, len(d))
+            out[pid].append((loc, n, d))
+    return out

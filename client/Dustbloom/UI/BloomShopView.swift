@@ -37,6 +37,8 @@ struct ShopView: View {
                 }
             }
             .buttonStyle(.plain)
+            section(tr("Наборы"))
+            ForEach(BloomOffers.all) { o in bundleCard(o) }
             section(tr("Пропуск цветения"))
             passCard
             if !game.hasSlot {
@@ -219,6 +221,22 @@ struct ShopView: View {
         }
     }
 
+    // MARK: bundles (the same ones the moment button offers; always here so they can be found)
+
+    private func bundleCard(_ o: MomentOffer) -> some View {
+        Card {
+            HStack(spacing: 10) {
+                PixelIcon(name: o.icon, size: 34).frame(width: 40)
+                VStack(alignment: .leading, spacing: 2) {
+                    OutlinedText(text: tr(o.title), size: 13, fixed: false, align: .leading)
+                    OutlinedText(text: tr(o.text), size: 10.5, color: BUI.muted, fixed: false, lines: 2, align: .leading)
+                }
+                Spacer(minLength: 0)
+                BuyButton(product: o.product, wide: false)
+            }
+        }
+    }
+
     // MARK: pass and jar
 
     private var passCard: some View {
@@ -296,6 +314,7 @@ struct BuyButton: View {
         let owned = (product == .founder && game.isFounder) || (product == .starter && game.starterBought)
             || (product == .slot && game.hasSlot) || (product == .eventPass && game.eventPassActive)
             || (!BloomOffers.perk(product).isEmpty && game.hasPerk(BloomOffers.perk(product)))
+            || (product == .islandPack && game.s.islandPacks >= 2)
         Button {
             guard !owned, store.busy == nil else { return }
             Sfx.play(.select)
