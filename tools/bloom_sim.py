@@ -339,6 +339,9 @@ class Sim:
             self.destroy(k, isl, min(BAL["combo"]["max"], 1 + self.combo // BAL["combo"]["hitsPerStep"]))
             self.gathers += 1
             if self.gathers % 24 == 0: self.stats["happening"] = self.stats.get("happening", 0) + 1
+            # dust creatures from level 5: roughly one fight per 12 gathers, a few seconds each
+            if self.level >= 5 and self.gathers % 12 == 0:
+                self.advance(3); self.stats["kill"] = self.stats.get("kill", 0) + 1; self.coins += 3 + len(self.owned) * 2
         # flowers along the way
         if self.flowers and self.rng.random() < 0.25:
             self.flowers -= 1; self.add("flower", 1)

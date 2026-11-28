@@ -202,7 +202,8 @@ struct BloomHUD: View {
     }
 
     private var topBar: some View {
-        HStack(spacing: 0) {
+        HStack(alignment: .top, spacing: 0) {
+            VStack(alignment: .leading, spacing: 2) {
             // level + xp
             ZStack(alignment: .leading) {
                 Capsule().fill(BUI.ink.opacity(0.85)).frame(width: 170, height: 30).padding(.leading, 22)
@@ -216,6 +217,18 @@ struct BloomHUD: View {
                     Circle().fill(BUI.gold).frame(width: 38, height: 38)
                     Text("\(game.level)").font(DText.font(19)).foregroundStyle(BUI.ink)
                 }
+            }
+            // hearts, once dust creatures roam (level 5)
+            if game.foesOn {
+                HStack(spacing: 3) {
+                    ForEach(0..<(game.maxHP / 2), id: \.self) { i in
+                        let left = game.hp - i * 2
+                        PixelIcon(name: left >= 2 ? "bloom_ui_heart_full" : (left == 1 ? "bloom_ui_heart_half" : "bloom_ui_heart_empty"), size: 20)
+                    }
+                }
+                .padding(.leading, 50)
+                .animation(.spring(response: 0.25, dampingFraction: 0.5), value: game.hp)
+            }
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 6) {

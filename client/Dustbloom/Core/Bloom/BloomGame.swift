@@ -650,6 +650,11 @@ final class BloomGame: ObservableObject {
     // MARK: - talents
 
     @Published var goldenUntil: Date?
+    /// Hero health in half-hearts. Not saved: a fresh start is always at full health.
+    @Published var hp = 6
+    var maxHP: Int { s.level >= 20 ? 8 : 6 }   // a fourth heart at level 20
+    /// Dust creatures roam the islands from this level on.
+    var foesOn: Bool { s.level >= 5 }
     var golden: Bool { (goldenUntil ?? .distantPast) > Date() }
     var onTalentsChanged: (() -> Void)?
 

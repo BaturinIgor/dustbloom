@@ -133,6 +133,7 @@ final class BloomScene: SKScene {
             + BItem.allCases.map(\.sprite) + GatherKind.allCases.flatMap { $0.isTree ? [$0.stump] : [] }
         // everything a gather/break/pickup can show for the first time: a texture is sent to
         // the GPU on its first draw, which stalled the frame where a crack, stump or puff appeared
+        let foeTex = ["slime", "beetle", "toad", "bat"].flatMap { ["bloom_foe_\($0)_0", "bloom_foe_\($0)_1"] }
         let fx = ["ash", "bee", "chip", "ember", "firefly", "fly", "leaf", "petal", "puff", "sand", "spark", "spore", "star"].map { "bloom_fx_" + $0 }
         let heroTex = ["idle_0", "idle_1", "run_0", "run_1", "run_2", "run_3", "back_idle_0", "back_run_0", "back_run_1", "back_run_2", "back_run_3"].map { game.heroPrefix + $0 }
         let helperTex = Set(game.helpers + (game.isFounder ? ["gold"] : [])).flatMap { c in
@@ -141,7 +142,7 @@ final class BloomScene: SKScene {
         let props = GatherKind.allCases.map(\.sprite) + ["bloom_crack_1", "bloom_crack_2", "bloom_chest_closed", "bloom_chest_open",
                      "bloom_shadow", "bloom_tuft", "bloom_flower_white", "bloom_flower_pink", "bloom_flower_yellow", "bloom_flower_blue"]
             + (0...5).map { "bloom_pick_\($0)" } + BloomAlbum.pages.flatMap { $0.finds.map { "bloom_find_" + $0.id } }
-        SKTexture.preload(Array(Set(burst + fx + heroTex + helperTex + props)).map(tex)) {}
+        SKTexture.preload(Array(Set(burst + fx + heroTex + helperTex + props + foeTex)).map(tex)) {}
         warmTextures()
         addChild(world)
         cam.setScale(1 / zoom)
@@ -1119,6 +1120,7 @@ final class BloomScene: SKScene {
         updateHelpers(dt)
         checkChest()
         updateDig(dt)
+        updateFoes(dt)
         game.tick(dt: dt)
         game.tickCombo(now: now)
         updateCombo()
@@ -1162,7 +1164,7 @@ final class BloomScene: SKScene {
     }
 
     private func moveHero(_ dt: TimeInterval) {
-        let len = hypot(stickVec.dx, stickVec.dy)
+        let len = fainted ? 0 : hypot(stickVec.dx, stickVec.dy)
         // ease towards the stick: quick to start (about 0.1 s), a touch softer to stop
         let speed: CGFloat = 54 * game.runSpeed * windBoost * min(1, len * 1.35)
         let want = len > 0.15 ? CGVector(dx: stickVec.dx / len * speed, dy: stickVec.dy / len * speed) : .zero
@@ -1276,7 +1278,9 @@ final class BloomScene: SKScene {
     private func mine(_ dt: TimeInterval) {
         hitTimer += dt
         if fishing != nil { return }
-        guard !swinging, !digging, hitTimer >= 0.3, let r = target() else { return }
+        guard !swinging, !digging, hitTimer >= 0.3, !fainted else { return }
+        if let f = nearestFoe(within: 17) { swingAt(f); return }
+        guard let r = target() else { return }
         if r.kind == .pond {
             // ponds are fished, not hit: stand still next to one and the cast starts
             if stickVec == .zero, now > fishCooldown { startFishing(r) }
@@ -2276,6 +2280,245 @@ final class BloomScene: SKScene {
         Sfx.play(.chest, volume: 0.7)
         happeningMeter += 2
         heldTool = ""
+    }
+
+    // MARK: - foes: dust creatures that roam the islands
+    // They walk up to the hero; the hero fights them the same way it gathers: stand
+    // close and the swings come by themselves. Losing all hearts costs nothing but a walk home.
+
+    private struct FoeKind {
+        let id: String, hp: Int, speed: CGFloat, dmg: Int, xp: Int, flies: Bool, frame: Double
+    }
+    private static let foeKinds: [String: FoeKind] = [
+        "slime": FoeKind(id: "slime", hp: 6, speed: 20, dmg: 1, xp: 3, flies: false, frame: 0.28),
+        "beetle": FoeKind(id: "beetle", hp: 12, speed: 17, dmg: 2, xp: 5, flies: false, frame: 0.16),
+        "toad": FoeKind(id: "toad", hp: 16, speed: 28, dmg: 2, xp: 7, flies: false, frame: 0.35),
+        "bat": FoeKind(id: "bat", hp: 10, speed: 34, dmg: 2, xp: 6, flies: true, frame: 0.12),
+    ]
+    private func foeKind(forIsland id: Int) -> String {
+        if nightLevel > 0.6, game.level >= 8, Int.random(in: 0..<3) == 0 { return "bat" }
+        switch id {
+        case 2, 4, 5: return "beetle"
+        case 7, 8, 9: return "toad"
+        case 10, 11: return "bat"
+        default: return "slime"
+        }
+    }
+
+    private final class Foe {
+        let kind: FoeKind
+        let node: SKSpriteNode
+        let shadow: SKSpriteNode
+        let island: Int
+        var hp: Int
+        var pos: CGPoint
+        let home: CGPoint
+        var wander: CGPoint
+        var wanderAt: TimeInterval = 0
+        var knock = CGVector.zero
+        var stunUntil: TimeInterval = 0
+        init(kind: FoeKind, node: SKSpriteNode, shadow: SKSpriteNode, island: Int, hp: Int, pos: CGPoint) {
+            self.kind = kind; self.node = node; self.shadow = shadow; self.island = island
+            self.hp = hp; self.pos = pos; self.home = pos; self.wander = pos
+        }
+    }
+
+    private var foes: [Foe] = []
+    private var foeTimer: TimeInterval = 12
+    private var hurtUntil: TimeInterval = 0
+    private var lastHurt: TimeInterval = -100
+    private var regenClock: TimeInterval = 0
+    private var fainted = false
+    private var foeIntroShown = UserDefaults.standard.bool(forKey: "dustbloom.foeIntro")
+
+    private func updateFoes(_ dt: TimeInterval) {
+        // health comes back on its own when nothing has hit you for a while
+        if game.hp < game.maxHP, now - lastHurt > 8, !fainted {
+            regenClock += dt
+            if regenClock > 3 { regenClock = 0; game.hp += 1 }
+        }
+        guard game.foesOn || !foes.isEmpty else { return }
+        foeTimer -= dt
+        let cap = min(6, 1 + game.owned.count / 2)
+        if foeTimer <= 0 {
+            foeTimer = (nightLevel > 0.6 ? 14 : 28) * Double.random(in: 0.8...1.2)
+            if foes.count < cap, game.foesOn, !fainted { spawnFoe() }
+        }
+        for f in foes { moveFoe(f, dt) }
+    }
+
+    private func spawnFoe() {
+        let cands = game.owned.flatMap { id in cells(of: id).filter(freeCell).map { ($0, id) } }.filter {
+            let d = hypot(basePoint($0.0).x - heroPos.x, basePoint($0.0).y - heroPos.y)
+            return d > 50 && d < 120
+        }
+        guard let pick = cands.randomElement(), let kind = Self.foeKinds[foeKind(forIsland: pick.1)] else { return }
+        let p = basePoint(pick.0)
+        let t0 = tex("bloom_foe_\(kind.id)_0")
+        let n = SKSpriteNode(texture: t0)
+        n.anchorPoint = CGPoint(x: 0.5, y: kind.flies ? 0 : 1 / t0.size().height)
+        n.position = p
+        n.zPosition = 500 - p.y
+        let sh = SKSpriteNode(texture: tex("bloom_shadow"))
+        sh.position = CGPoint(x: p.x, y: p.y - 0.5)
+        sh.zPosition = -800
+        sh.setScale(0.8)
+        world.addChild(sh)
+        world.addChild(n)
+        n.run(.repeatForever(.animate(with: [t0, tex("bloom_foe_\(kind.id)_1")], timePerFrame: kind.frame)), withKey: "anim")
+        // tougher on later islands
+        let hp = Int((Double(kind.hp) * (1 + Double(pick.1) * 0.55)).rounded())
+        foes.append(Foe(kind: kind, node: n, shadow: sh, island: pick.1, hp: hp, pos: p))
+        // rises out of the dust
+        n.setScale(0.1); n.alpha = 0
+        n.run(.group([.fadeIn(withDuration: 0.25), .sequence([.scale(to: 1.2, duration: 0.18), .scale(to: 1, duration: 0.1)])]))
+        puff(at: p, n: 6)
+        if !foeIntroShown {
+            foeIntroShown = true
+            UserDefaults.standard.set(true, forKey: "dustbloom.foeIntro")
+            game.showToast(BloomToast(title: tr("Пыльные создания!"), subtitle: tr("Подойди и бей их, как ресурсы")))
+        }
+    }
+
+    private func moveFoe(_ f: Foe, _ dt: TimeInterval) {
+        let dx = heroPos.x - f.pos.x, dy = heroPos.y - f.pos.y
+        let d = hypot(dx, dy)
+        var v = CGVector.zero
+        if now >= f.stunUntil {
+            if d < 75, !fainted {
+                v = CGVector(dx: dx / max(d, 0.1) * f.kind.speed, dy: dy / max(d, 0.1) * f.kind.speed)
+            } else {
+                if now > f.wanderAt || hypot(f.wander.x - f.pos.x, f.wander.y - f.pos.y) < 2 {
+                    f.wanderAt = now + Double.random(in: 2...4)
+                    f.wander = CGPoint(x: f.home.x + CGFloat.random(in: -24...24), y: f.home.y + CGFloat.random(in: -16...16))
+                }
+                let wx = f.wander.x - f.pos.x, wy = f.wander.y - f.pos.y, wd = max(0.1, hypot(wx, wy))
+                v = CGVector(dx: wx / wd * f.kind.speed * 0.45, dy: wy / wd * f.kind.speed * 0.45)
+            }
+        }
+        v.dx += f.knock.dx; v.dy += f.knock.dy
+        f.knock.dx *= 0.82; f.knock.dy *= 0.82
+        let step = CGPoint(x: f.pos.x + v.dx * CGFloat(dt), y: f.pos.y + v.dy * CGFloat(dt))
+        if f.kind.flies {
+            f.pos = step
+        } else {
+            if canStand(CGPoint(x: step.x, y: f.pos.y)) { f.pos.x = step.x }
+            if canStand(CGPoint(x: f.pos.x, y: step.y)) { f.pos.y = step.y }
+        }
+        if abs(v.dx) > 2 { f.node.xScale = abs(f.node.xScale) * (v.dx > 0 ? 1 : -1) }
+        let bob: CGFloat = f.kind.flies ? 8 + sin(CGFloat(now) * 6 + f.home.x) * 2 : 0
+        f.node.position = CGPoint(x: (f.pos.x * zoom).rounded() / zoom, y: ((f.pos.y + bob) * zoom).rounded() / zoom)
+        f.node.zPosition = 500 - f.pos.y
+        f.shadow.position = CGPoint(x: f.pos.x, y: f.pos.y - 0.5)
+        // touch hurts the hero
+        if d < 7, now >= f.stunUntil, now >= hurtUntil, !fainted { hurtHero(f) }
+    }
+
+    private func nearestFoe(within r: CGFloat) -> Foe? {
+        foes.filter { $0.hp > 0 && hypot($0.pos.x - heroPos.x, $0.pos.y - heroPos.y) < r }
+            .min { hypot($0.pos.x - heroPos.x, $0.pos.y - heroPos.y) < hypot($1.pos.x - heroPos.x, $1.pos.y - heroPos.y) }
+    }
+
+    private func swingAt(_ f: Foe) {
+        hitTimer = 0
+        swinging = true
+        let tool = "bloom_pick_\(game.pickTier)"
+        if heldTool != tool { heldTool = tool; pickNode.texture = tex(tool) }
+        if abs(f.pos.x - heroPos.x) > 1 { facing = f.pos.x > heroPos.x ? 1 : -1 }
+        heroSprite.xScale = facing
+        pickNode.run(.sequence([
+            .rotate(toAngle: 0.9, duration: 0.06),
+            .rotate(toAngle: -1.5, duration: 0.05),
+            .run { [weak self] in self?.hitFoe(f) },
+            .rotate(toAngle: -0.5, duration: 0.1),
+            .run { [weak self] in self?.swinging = false },
+        ]))
+        heroSprite.run(.sequence([.scaleY(to: 0.9, duration: 0.05), .scaleY(to: 1, duration: 0.09)]))
+    }
+
+    private func hitFoe(_ f: Foe) {
+        guard f.hp > 0, foes.contains(where: { $0 === f }) else { return }
+        let crit = Double.random(in: 0..<1) < game.critChance
+        let dmg = crit ? game.damage * 2 + 1 : game.damage
+        f.hp -= dmg
+        let dx = f.pos.x - heroPos.x, dy = f.pos.y - heroPos.y, d = max(0.1, hypot(dx, dy))
+        f.knock = CGVector(dx: dx / d * 140, dy: dy / d * 140)
+        f.stunUntil = now + 0.35
+        f.node.run(.sequence([.colorize(with: .white, colorBlendFactor: 0.85, duration: 0),
+                              .colorize(withColorBlendFactor: 0, duration: 0.12)]), withKey: "flash")
+        let sx: CGFloat = f.node.xScale < 0 ? -1 : 1
+        f.node.run(.sequence([.scaleX(to: 1.25 * sx, y: 0.8, duration: 0.05), .scaleX(to: sx, y: 1, duration: 0.1)]), withKey: "squash")
+        floatText("\(dmg)", at: CGPoint(x: f.pos.x, y: f.pos.y + 16), color: crit ? UIColor(red: 1, green: 0.85, blue: 0.2, alpha: 1) : .white,
+                  size: crit ? 7 : 5.5, rise: 10)
+        for _ in 0..<4 { spark(at: CGPoint(x: f.pos.x, y: f.pos.y + 6), spread: 14) }
+        shake(crit ? 2.4 : 1.2)
+        buzz(light, 0.7)
+        Sfx.playThrottled(.hit, gap: 0.05, volume: 0.7)
+        if f.hp <= 0 { killFoe(f) }
+    }
+
+    private func killFoe(_ f: Foe) {
+        foes.removeAll { $0 === f }
+        let p = f.pos
+        f.node.removeAllActions()
+        f.node.run(.sequence([.group([.scale(to: 1.4, duration: 0.08), .fadeAlpha(to: 0.6, duration: 0.08)]),
+                              .group([.scale(to: 0.1, duration: 0.12), .fadeOut(withDuration: 0.12)]), .removeFromParent()]))
+        f.shadow.run(.sequence([.fadeOut(withDuration: 0.2), .removeFromParent()]))
+        puff(at: p, n: 10)
+        for _ in 0..<8 { spark(at: CGPoint(x: p.x, y: p.y + 6), spread: 20, gold: true) }
+        shake(2.2)
+        buzz(medium)
+        Sfx.play(.poof, volume: 0.8)
+        emit(nil, Int.random(in: 2...4) + f.island * 2, from: p, maxPieces: 4, spread: 14)
+        for (item, n) in game.roll(randomKind(f.island), mult: 1) { emit(item, n, from: p) }
+        _ = game.gainXP(f.kind.xp + f.island)
+        game.bump("kill")
+        happeningMeter += 1
+    }
+
+    private func hurtHero(_ f: Foe) {
+        hurtUntil = now + 1.1
+        lastHurt = now
+        regenClock = 0
+        game.hp = max(0, game.hp - f.kind.dmg)
+        // push the hero back and the foe away
+        let dx = heroPos.x - f.pos.x, dy = heroPos.y - f.pos.y, d = max(0.1, hypot(dx, dy))
+        vel = CGVector(dx: dx / d * 120, dy: dy / d * 120)
+        f.knock = CGVector(dx: -dx / d * 80, dy: -dy / d * 80)
+        f.stunUntil = now + 0.5
+        heroSprite.run(.sequence([.colorize(with: UIColor(red: 1, green: 0.25, blue: 0.25, alpha: 1), colorBlendFactor: 0.8, duration: 0),
+                                  .colorize(withColorBlendFactor: 0, duration: 0.25)]), withKey: "hurt")
+        hero.run(.repeat(.sequence([.fadeAlpha(to: 0.35, duration: 0.09), .fadeAlpha(to: 1, duration: 0.09)]), count: 5), withKey: "blink")
+        shake(3)
+        buzz(heavy)
+        Sfx.play(.defeat, volume: 0.35)
+        if game.hp <= 0 { faint() }
+    }
+
+    /// Out of hearts: the hero flops, then wakes up at home with full health. Nothing is lost.
+    private func faint() {
+        fainted = true
+        vel = .zero
+        hero.removeAction(forKey: "blink")
+        hero.run(.sequence([
+            .group([.rotate(toAngle: -facing * 1.3, duration: 0.25), .fadeAlpha(to: 0.5, duration: 0.25)]),
+            .wait(forDuration: 0.8),
+            .fadeOut(withDuration: 0.2),
+            .run { [weak self] in
+                guard let self else { return }
+                self.heroPos = self.spawnPoint()
+                self.hero.position = self.heroPos
+                self.cam.position = self.heroPos
+                self.hero.zRotation = 0
+                self.game.hp = self.game.maxHP
+                self.fainted = false
+                self.hurtUntil = self.now + 2
+                self.puff(at: self.heroPos, n: 8)
+            },
+            .fadeIn(withDuration: 0.3),
+        ]))
+        game.showToast(BloomToast(title: tr("Ты устал"), subtitle: tr("Отдохнул дома, все сердца снова целы")))
+        game.bump("faint")
     }
 
     // MARK: - golden hour (our own event: everything turns gold, drops double)

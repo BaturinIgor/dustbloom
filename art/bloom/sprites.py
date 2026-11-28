@@ -1401,6 +1401,7 @@ def build_all():
     hero_skins()
     meta_icons()
     tools2()
+    foes()
     world = dict(tile=T, islands=[], bridges=[])
     for isl in ISLANDS:
         for dust in (False, True):
@@ -1514,3 +1515,90 @@ def tools2():
     for t in range(1, 5):
         axe(t)
     shovel(); dig_spot()
+
+
+# ---------------------------------------------------------------- foes: dust creatures that roam the islands
+def foe_slime(f):
+    """Dust slime: a squishy blob of grey dust with a sprout of mould. f 0/1 = squash/stretch."""
+    cv = Canvas(14, 12)
+    h = 4.2 if f == 0 else 4.8
+    w = 6.0 if f == 0 else 5.4
+    cv.disc(7, 11 - h * 0.85, w + 0.6, h * 0.85, 'sand_d'); cv.disc(6.2, 10.6 - h * 0.85, w * 0.65, h * 0.5, 'sand')
+    cv.put(4, int(11 - h * 1.4), 'sand_l'); cv.put(5, int(11 - h * 1.5), 'sand_l')
+    cv.rect(2, 10, 12, 10, 'd2')
+    ey = int(11 - h)
+    cv.rect(4, ey, 5, ey + 1, 'ink'); cv.rect(8, ey, 9, ey + 1, 'ink'); cv.put(4, ey, 'white'); cv.put(8, ey, 'white')
+    cv.put(6, ey + 2, 'ink'); cv.put(7, ey + 2, 'ink')
+    cv.put(9, int(11 - 2 * h), 'l2'); cv.put(10, int(11 - 2 * h) - 1, 'l3')
+    cv.outline('ink')
+    sprite('bloom_foe_slime_%d' % f, cv)
+
+
+def foe_beetle(f):
+    """Thorn beetle: a round shell with thorns, little legs alternate."""
+    cv = Canvas(15, 12)
+    cv.disc(7.5, 6.5, 6, 4.2, 'brick_d'); cv.disc(7, 5.6, 4.6, 3, 'brick'); cv.put(5, 4, 'brick_l'); cv.put(6, 4, 'brick_l')
+    cv.rect(7, 3, 7, 9, 'brick_d')
+    for x in (3, 7, 11):
+        cv.put(x, 2, 'l1'); cv.put(x, 1, 'l3')
+    cv.disc(13, 7.5, 1.8, 1.6, 'ink'); cv.put(13, 7, 'white')
+    legs = (2, 6, 10) if f == 0 else (4, 8, 12)
+    for x in legs:
+        cv.put(x, 11, 'ink'); cv.put(x, 10, 'ink')
+    cv.outline('ink')
+    sprite('bloom_foe_beetle_%d' % f, cv)
+
+
+def foe_bat(f):
+    """Ash bat: flies at night and on the fire mountain."""
+    cv = Canvas(16, 11)
+    cv.disc(8, 6, 3, 3, 'obs_l'); cv.put(7, 5, 'fire1'); cv.put(9, 5, 'fire1')
+    cv.put(6, 2, 'obs_l'); cv.put(10, 2, 'obs_l')
+    if f == 0:
+        for k in range(5):
+            cv.rect(1 + k, 3 + k // 2, 1 + k, 6, 'obs'); cv.rect(14 - k, 3 + k // 2, 14 - k, 6, 'obs')
+    else:
+        for k in range(5):
+            cv.rect(1 + k, 6, 1 + k, 9 - k // 2, 'obs'); cv.rect(14 - k, 6, 14 - k, 9 - k // 2, 'obs')
+    cv.put(8, 8, 'white')
+    cv.outline('ink')
+    sprite('bloom_foe_bat_%d' % f, cv)
+
+
+def foe_toad(f):
+    """Bog toad: hops; f 1 = mid-hop."""
+    cv = Canvas(14, 13)
+    y = 12 if f == 0 else 10
+    cv.disc(7, y - 4, 5.6, 3.8, 'l1'); cv.disc(7, y - 3, 4, 2.4, 'l3')
+    cv.disc(4, y - 8, 1.8, 1.8, 'l1'); cv.disc(10, y - 8, 1.8, 1.8, 'l1')
+    cv.put(4, y - 8, 'ink'); cv.put(10, y - 8, 'ink'); cv.put(4, y - 9, 'white'); cv.put(10, y - 9, 'white')
+    cv.rect(5, y - 4, 9, y - 4, 'l0')
+    cv.put(3, y - 5, 'berry'); cv.put(11, y - 6, 'berry')
+    if f == 1:
+        cv.rect(2, y, 3, y + 1, 'l1'); cv.rect(11, y, 12, y + 1, 'l1')
+    cv.outline('ink')
+    sprite('bloom_foe_toad_%d' % f, cv)
+
+
+def heart_icons():
+    for name, fill in (('full', 2), ('half', 1), ('empty', 0)):
+        cv = Canvas(11, 10)
+        shape = [(1, 1), (2, 0), (3, 0), (4, 1), (5, 2), (6, 1), (7, 0), (8, 0), (9, 1)]
+        for y in range(10):
+            for x in range(11):
+                dx = x - 5
+                inside = (y >= 2 and abs(dx) <= 4 - max(0, y - 5)) or (y in (0, 1) and abs(abs(dx) - 2.5) <= 1.5 - (1 - y))
+                if not inside:
+                    continue
+                c = 'ud1'
+                if fill == 2 or (fill == 1 and x <= 5):
+                    c = 'berry_l' if (y <= 2 and dx < 0) else 'berry'
+                cv.put(x, y, c)
+        cv.outline('ink')
+        sprite('bloom_ui_heart_' + name, cv)
+
+
+def foes():
+    for f in range(2):
+        foe_slime(f); foe_beetle(f); foe_bat(f); foe_toad(f)
+    heart_icons()

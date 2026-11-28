@@ -796,6 +796,14 @@
    "xp": 25
   },
   {
+   "title": "Победи 5 пыльных созданий",
+   "icon": "bloom_foe_slime_0",
+   "key": "kill",
+   "target": 5,
+   "coins": 80,
+   "xp": 25
+  },
+  {
    "title": "Достигни 10 уровня",
    "icon": "bloom_item_coin",
    "key": "level",
@@ -850,6 +858,14 @@
    "target": 10,
    "coins": 150,
    "xp": 40
+  },
+  {
+   "title": "Победи 25 пыльных созданий",
+   "icon": "bloom_foe_beetle_0",
+   "key": "kill",
+   "target": 25,
+   "coins": 160,
+   "xp": 45
   },
   {
    "title": "Достигни 15 уровня",
@@ -914,6 +930,14 @@
    "target": 25,
    "coins": 300,
    "xp": 80
+  },
+  {
+   "title": "Победи 100 пыльных созданий",
+   "icon": "bloom_foe_bat_0",
+   "key": "kill",
+   "target": 100,
+   "coins": 320,
+   "xp": 90
   },
   {
    "title": "Выкуй хрустальный топор",
