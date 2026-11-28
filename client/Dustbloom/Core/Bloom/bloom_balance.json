@@ -248,10 +248,10 @@
   0,
   150,
   1000,
-  3500,
-  9000,
-  20000,
-  40000,
+  2500,
+  4500,
+  10000,
+  30000,
   70000,
   110000,
   170000,
@@ -700,6 +700,14 @@
    "xp": 15
   },
   {
+   "title": "Выкуй каменный топор",
+   "icon": "bloom_axe_1",
+   "key": "axe",
+   "target": 1,
+   "coins": 25,
+   "xp": 10
+  },
+  {
    "title": "Построй питомник",
    "icon": "bloom_nursery",
    "key": "build.nursery",
@@ -764,6 +772,54 @@
    "xp": 30
   },
   {
+   "title": "Выкуй лопату",
+   "icon": "bloom_shovel",
+   "key": "shovel",
+   "target": 1,
+   "coins": 60,
+   "xp": 20
+  },
+  {
+   "title": "Выкопай 3 клада",
+   "icon": "bloom_dig",
+   "key": "dig",
+   "target": 3,
+   "coins": 70,
+   "xp": 20
+  },
+  {
+   "title": "Застань 3 события",
+   "icon": "bloom_ui_event",
+   "key": "happening",
+   "target": 3,
+   "coins": 80,
+   "xp": 25
+  },
+  {
+   "title": "Достигни 10 уровня",
+   "icon": "bloom_item_coin",
+   "key": "level",
+   "target": 10,
+   "coins": 100,
+   "xp": 0
+  },
+  {
+   "title": "Выкуй железный топор",
+   "icon": "bloom_axe_2",
+   "key": "axe",
+   "target": 2,
+   "coins": 100,
+   "xp": 30
+  },
+  {
+   "title": "Достигни 12 уровня",
+   "icon": "bloom_item_coin",
+   "key": "level",
+   "target": 12,
+   "coins": 120,
+   "xp": 0
+  },
+  {
    "title": "Владей 5 островами",
    "icon": "bloom_sign",
    "key": "islands",
@@ -788,6 +844,46 @@
    "xp": 50
   },
   {
+   "title": "Выкопай 10 кладов",
+   "icon": "bloom_dig",
+   "key": "dig",
+   "target": 10,
+   "coins": 150,
+   "xp": 40
+  },
+  {
+   "title": "Достигни 15 уровня",
+   "icon": "bloom_item_coin",
+   "key": "level",
+   "target": 15,
+   "coins": 150,
+   "xp": 0
+  },
+  {
+   "title": "Выкуй золотой топор",
+   "icon": "bloom_axe_3",
+   "key": "axe",
+   "target": 3,
+   "coins": 180,
+   "xp": 50
+  },
+  {
+   "title": "Застань 10 событий",
+   "icon": "bloom_ui_event",
+   "key": "happening",
+   "target": 10,
+   "coins": 180,
+   "xp": 50
+  },
+  {
+   "title": "Достигни 18 уровня",
+   "icon": "bloom_item_coin",
+   "key": "level",
+   "target": 18,
+   "coins": 220,
+   "xp": 0
+  },
+  {
    "title": "Владей 6 островами",
    "icon": "bloom_sign",
    "key": "islands",
@@ -802,6 +898,30 @@
    "target": 10,
    "coins": 200,
    "xp": 80
+  },
+  {
+   "title": "Достигни 20 уровня",
+   "icon": "bloom_item_coin",
+   "key": "level",
+   "target": 20,
+   "coins": 250,
+   "xp": 0
+  },
+  {
+   "title": "Выкопай 25 кладов",
+   "icon": "bloom_dig",
+   "key": "dig",
+   "target": 25,
+   "coins": 300,
+   "xp": 80
+  },
+  {
+   "title": "Выкуй хрустальный топор",
+   "icon": "bloom_axe_4",
+   "key": "axe",
+   "target": 4,
+   "coins": 350,
+   "xp": 90
   },
   {
    "title": "Набери 30 песка",

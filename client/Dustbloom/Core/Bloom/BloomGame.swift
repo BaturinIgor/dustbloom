@@ -569,6 +569,8 @@ final class BloomGame: ObservableObject {
         case "islands": return s.owned.count
         case "level": return s.level
         case "pick": return s.pick
+        case "axe": return s.axe
+        case "shovel": return s.shovel ? 1 : 0
         case "helpers": return s.helpers.count
         default:
             if key.hasPrefix("build."), let b = BuildKind(rawValue: String(key.dropFirst(6))) { return isBuilt(b) ? 1 : 0 }
