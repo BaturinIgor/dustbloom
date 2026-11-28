@@ -1348,9 +1348,11 @@ struct IslanderView: View {
                         PixelIcon(name: "bloom_npc_\(n.id)_0", size: 52)
                             .frame(width: 60, height: 60)
                             .background(RoundedRectangle(cornerRadius: 12).fill(BUI.ink.opacity(0.4)))
+                        // takes all the width beside the portrait: with a Spacer next to it the line wrapped
+                        // at half the card and left an empty strip on the right
                         OutlinedText(text: friend ? tr("Заходи каждый день, у меня для тебя подарок!") : tr(n.steps[k].line),
                                      size: 13, fixed: false, lines: 3, align: .leading)
-                        Spacer(minLength: 0)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     HStack(spacing: 6) {
                         ForEach(0..<n.steps.count, id: \.self) { i in
