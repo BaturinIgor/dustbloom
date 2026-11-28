@@ -1,3 +1,4 @@
+import QuartzCore
 import Foundation
 
 /// Weekly events, hero skins and the extra shop offers (starter pack, helper slot, event pass).
@@ -92,7 +93,16 @@ enum BloomEvents {
 extension BloomGame {
     // MARK: - weekly event
 
-    var event: BloomEvent { BloomEvents.current() }
+    /// The week's event, worked out at most once a second: it's a calendar calculation, and selling a
+    /// stack or rolling drops asked for it once per item (hundreds of times in one frame).
+    var event: BloomEvent {
+        let t = CACurrentMediaTime()
+        if let c = Self.eventCache, t - c.at < 1 { return c.event }
+        let e = BloomEvents.current()
+        Self.eventCache = (e, t)
+        return e
+    }
+    nonisolated(unsafe) private static var eventCache: (event: BloomEvent, at: CFTimeInterval)?
     var eventKey: String { "w\(BloomEvents.weekIndex())" }
     func eventIs(_ id: String) -> Bool { event.id == id }
     var eventPoints: Int { s.eventWeek == eventKey ? s.eventPoints : 0 }
