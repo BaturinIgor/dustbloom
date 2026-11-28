@@ -456,8 +456,8 @@ def shadow():
 
 # ---------------------------------------------------------------- buildings
 def furnace(f):
-    cv = Canvas(20, 26)
-    x, y = 10, 26 - BASE - 1
+    cv = Canvas(26, 26)
+    x, y = 12, 26 - BASE - 1
     cv.rect(x - 7, y - 13, x + 7, y, 'r1')
     cv.rect(x - 7, y - 13, x + 7, y - 12, 'r2')
     for (a, b) in ((-5, -9), (2, -10), (-1, -5), (4, -4), (-6, -3), (5, -8)):
@@ -1403,6 +1403,7 @@ def build_all():
     tools2()
     foes()
     dungeons()
+    folk()
     world = dict(tile=T, islands=[], bridges=[])
     for isl in ISLANDS:
         for dust in (False, True):
@@ -1460,18 +1461,6 @@ def preview(world, path):
         paste('bloom_shadow', x, y - 3)
         paste('bloom_' + k, x, y)
     im.resize((W * S, H * S), Image.NEAREST).save(path)
-
-
-if __name__ == '__main__':
-    world = build_all()
-    for name, im in SPRITES.items():
-        save_imageset(name, im)
-    os.makedirs(os.path.dirname(WORLD_JSON), exist_ok=True)
-    with open(WORLD_JSON, 'w') as f:
-        json.dump(world, f, ensure_ascii=False, indent=1)
-    print(len(SPRITES), 'sprites')
-    if len(sys.argv) > 1:
-        preview(world, sys.argv[1])
 
 
 # ---------------------------------------------------------------- tools 2: axes, shovel, dig spot
@@ -1681,3 +1670,125 @@ def relics():
 
 def dungeons():
     cave_mouth(); dungeon_tiles(); portal(0); portal(1); relics()
+
+
+# ---------------------------------------------------------------- islanders and floor puzzles (stage 6)
+
+C.update(folk_y="#f2d98c", folk_yd="#cfae5e", folk_g="#8ccf6a", folk_gd="#5c9a44", folk_o="#f0a868", folk_od="#c27440",
+         folk_p="#ffb0c8", folk_pd="#e07896", folk_t="#e2bf8a", folk_td="#b08a58", folk_b="#bfe4ff", folk_bd="#86b4dc",
+         folk_s="#f6e2b0", folk_sd="#d0b47a", folk_c="#9fb8cc", folk_cd="#6e88a0", folk_m="#a8d8a0", folk_md="#70a868",
+         folk_h="#ffd860", folk_hd="#d8a830")
+
+FOLK = {
+    'olha': ('folk_y', 'folk_yd'), 'bor': ('folk_g', 'folk_gd'), 'grom': ('folk_o', 'folk_od'),
+    'tosya': ('folk_p', 'folk_pd'), 'zlat': ('folk_t', 'folk_td'), 'inei': ('folk_b', 'folk_bd'),
+    'yan': ('folk_s', 'folk_sd'), 'karas': ('folk_c', 'folk_cd'), 'moh': ('folk_m', 'folk_md'),
+    'pchel': ('folk_h', 'folk_hd'),
+}
+
+
+def islander(nid, f):
+    """An islander: a round seed-folk with little arms and their own hat or tool. f 0/1 = breathing."""
+    body, dark = FOLK[nid]
+    cv = Canvas(26, 26)
+    x, y = 12, 26 - BASE - 1
+    b = f
+    cv.rect(x - 4, y - 1, x - 2, y, dark); cv.rect(x + 2, y - 1, x + 4, y, dark)          # feet
+    cv.disc(x, y - 7 + b * 0.5, 6.2, 6.4 - b * 0.4, body)                               # body
+    for yy in range(int(y - 6), int(y - 1)):
+        cv.put(x + 5, yy, dark); cv.put(x + 4, yy + 1, dark)
+    cv.rect(x - 4, y - 2, x + 4, y - 2, dark)
+    cv.put(x - 4, y - 11, 'white'); cv.put(x - 3, y - 12, 'white')
+    cv.rect(x - 8, y - 7, x - 7, y - 5, dark); cv.rect(x + 7, y - 7, x + 8, y - 5, dark)   # arms
+    ey = int(y - 9 + b)
+    if f == 1 and nid in ('olha', 'karas'):
+        cv.rect(x - 3, ey, x - 2, ey, 'ink'); cv.rect(x + 2, ey, x + 3, ey, 'ink')       # squint smile
+    else:
+        cv.put(x - 2, ey, 'ink'); cv.put(x - 2, ey - 1, 'ink'); cv.put(x + 2, ey, 'ink'); cv.put(x + 2, ey - 1, 'ink')
+    cv.put(x - 1, ey + 2, 'ink'); cv.put(x, ey + 3, 'ink'); cv.put(x + 1, ey + 2, 'ink')
+    cv.put(x - 4, ey + 2, 'cheek'); cv.put(x + 4, ey + 2, 'cheek')
+    top = int(y - 13 + b)
+    if nid == 'olha':      # red dotted headscarf and a cane
+        cv.disc(x, top + 1, 6.4, 2.6, 'berry'); cv.rect(x - 6, top + 2, x + 6, top + 3, 'berry_d')
+        for dx in (-3, 1, 4): cv.put(x + dx, top, 'white')
+        cv.rect(x + 9, y - 9, x + 9, y, 't1'); cv.rect(x + 8, y - 10, x + 9, y - 10, 't1')
+    elif nid == 'bor':     # ranger hat with a feather
+        cv.rect(x - 7, top + 2, x + 7, top + 2, 'p0'); cv.disc(x, top, 4.4, 2.6, 'p1'); cv.put(x - 1, top - 1, 'p2')
+        cv.rect(x + 4, top - 4, x + 4, top - 1, 'berry'); cv.put(x + 5, top - 5, 'berry_l')
+    elif nid == 'grom':    # leather apron, hammer
+        cv.rect(x - 3, y - 7, x + 3, y - 2, 't0'); cv.rect(x - 2, y - 7, x + 2, y - 7, 't1')
+        cv.rect(x + 9, y - 10, x + 9, y - 3, 't1'); cv.rect(x + 8, y - 12, x + 11, y - 10, 'r1'); cv.put(x + 8, y - 12, 'r3')
+        cv.rect(x - 2, top + 1, x + 2, top + 1, dark)
+    elif nid == 'tosya':   # two bows
+        for dx in (-5, 5):
+            cv.disc(x + dx - 1.3, top + 1, 1.5, 1.3, 'berry'); cv.disc(x + dx + 1.3, top + 1, 1.5, 1.3, 'berry'); cv.put(x + dx, top + 1, 'berry_d')
+    elif nid == 'zlat':    # miner helmet with lamp
+        cv.disc(x, top + 1, 6, 3, 'gold'); cv.rect(x - 7, top + 3, x + 7, top + 3, 'gold_d'); cv.put(x - 2, top - 1, 'gold_l')
+        cv.disc(x, top + 1, 1.6, 1.4, 'white'); cv.put(x, top + 1, 'gold_l')
+    elif nid == 'inei':    # star crown and a wand
+        cv.rect(x - 4, top + 1, x + 4, top + 2, 'gem_l')
+        for dx in (-4, 0, 4): cv.put(x + dx, top, 'gem_l'); cv.put(x + dx, top - 1, 'white')
+        cv.rect(x - 9, y - 11, x - 9, y - 5, 'gold_d'); cv.disc(x - 9, y - 12, 1.6, 1.6, 'gold_l'); cv.put(x - 9, y - 12, 'white')
+    elif nid == 'yan':     # glass-blower goggles and a glass bubble
+        cv.rect(x - 6, ey - 1, x + 6, ey - 1, 't0')
+        cv.disc(x - 2.5, ey - 1, 1.9, 1.7, 'gem'); cv.disc(x + 2.5, ey - 1, 1.9, 1.7, 'gem'); cv.put(x - 3, ey - 2, 'white'); cv.put(x + 2, ey - 2, 'white')
+        cv.disc(x + 10, y - 9, 2, 2, 'water_l'); cv.put(x + 9, y - 10, 'white')
+    elif nid == 'karas':   # bucket hat and a fishing rod
+        cv.rect(x - 7, top + 2, x + 7, top + 2, 'cloth_d'); cv.disc(x, top + 0.5, 4.6, 2.4, 'cloth')
+        for k in range(9): cv.put(x + 8 + k * 0.5, y - 6 - k, 't1')
+        cv.rect(x + 13, y - 15, x + 13, y - 10, 'white')
+    elif nid == 'moh':     # a mushroom cap for a hat
+        cv.disc(x, top, 7, 3.4, 'berry'); cv.rect(x - 7, top + 1, x + 7, top + 2, 'berry_d')
+        for dx, dy in ((-3, -1), (2, -2), (4, 0)): cv.put(x + dx, top + dy, 'white')
+    elif nid == 'pchel':   # beekeeper hat with veil, a bee
+        cv.rect(x - 7, top + 2, x + 7, top + 2, 'canvas_w'); cv.disc(x, top + 0.5, 4.6, 2.4, 'canvas_w')
+        for xx in range(x - 6, x + 7, 2): cv.put(xx, top + 3, 'cotton_d'); cv.put(xx + 1, top + 4, 'cotton_d')
+        cv.rect(x + 10, y - 15, x + 11, y - 14, 'gold'); cv.put(x + 10, y - 16, 'white'); cv.put(x + 12, y - 15, 'ink')
+    cv.outline('ink')
+    sprite('bloom_npc_%s_%d' % (nid, f), cv)
+
+
+def puzzle_tiles():
+    def slab(cv, c0, c1, c2):
+        cv.rect(1, 3, 14, 14, c0); cv.rect(1, 2, 14, 12, c1); cv.rect(2, 2, 13, 3, c2)
+    cv = Canvas(16, 16); slab(cv, 'r0', 'r1', 'r2')                       # pressure plate, off
+    cv.disc(7.5, 7.5, 3.4, 3, 'r0'); cv.disc(7.5, 7, 2.4, 2, 'r2'); cv.outline('ink'); sprite('bloom_plate_0', cv)
+    cv = Canvas(16, 16); slab(cv, 'gold_d', 'gold', 'gold_l')             # pressure plate, lit
+    cv.disc(7.5, 7.5, 3.4, 3, 'gold_d'); cv.disc(7.5, 7, 2.4, 2, 'white'); cv.outline('ink'); sprite('bloom_plate_1', cv)
+    for f, (c0, c1, c2, g) in enumerate((('ud0', 'ud1', 'ud2', 'ud3'), ('r1', 'r3', 'white', 'white'))):
+        cv = Canvas(16, 16); slab(cv, c0, c1, c2)                         # rune tile: dim / flashing (tinted in code)
+        for px, py in ((7, 4), (7, 5), (7, 6), (7, 7), (7, 8), (7, 9), (5, 6), (9, 6), (4, 9), (10, 9), (6, 10), (8, 10)):
+            cv.put(px, py, g if f else 'ud3')
+        cv.outline('ink'); sprite('bloom_rune_%d' % f, cv)
+    for f in range(2):
+        cv = Canvas(16, 16); slab(cv, 'r0', 'r1', 'r2')                   # floor lantern bowl: dark / burning
+        cv.disc(7.5, 8, 4.4, 2.6, 'obs_d'); cv.disc(7.5, 7.4, 3.4, 1.6, 'ink' if not f else 'fire0')
+        if f:
+            cv.disc(7.5, 5.5, 2.4, 3, 'fire1'); cv.disc(7.5, 5.5, 1.3, 2, 'fire2'); cv.put(7, 3, 'white')
+        cv.outline('ink'); sprite('bloom_lamp_%d' % f, cv)
+    cv = Canvas(11, 13)                                                     # "!" quest bubble
+    cv.disc(5, 5, 5, 5, 'gold'); cv.disc(4, 4, 3, 3, 'gold_l'); cv.rect(4, 10, 6, 10, 'gold'); cv.put(5, 11, 'gold')
+    cv.rect(5, 2, 5, 6, 'ink'); cv.put(5, 8, 'ink'); cv.outline('ink'); sprite('bloom_bubble_quest', cv)
+    cv = Canvas(11, 13)                                                     # gift bubble
+    cv.disc(5, 5, 5, 5, 'white'); cv.rect(4, 10, 6, 10, 'white'); cv.put(5, 11, 'white')
+    cv.rect(2, 4, 8, 8, 'berry'); cv.rect(2, 4, 8, 4, 'berry_l'); cv.rect(5, 3, 5, 8, 'gold'); cv.put(4, 2, 'gold'); cv.put(6, 2, 'gold')
+    cv.outline('ink'); sprite('bloom_bubble_gift', cv)
+
+
+def folk():
+    for n in FOLK:
+        for f in range(2):
+            islander(n, f)
+    puzzle_tiles()
+
+
+if __name__ == '__main__':
+    world = build_all()
+    for name, im in SPRITES.items():
+        save_imageset(name, im)
+    os.makedirs(os.path.dirname(WORLD_JSON), exist_ok=True)
+    with open(WORLD_JSON, 'w') as f:
+        json.dump(world, f, ensure_ascii=False, indent=1)
+    print(len(SPRITES), 'sprites')
+    if len(sys.argv) > 1:
+        preview(world, sys.argv[1])

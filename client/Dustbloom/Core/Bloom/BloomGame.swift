@@ -104,6 +104,9 @@ struct BloomSave: Codable {
     var shovel = false
     var relics: [String] = []              // dungeon relics, one per cleared dungeon
     var dungeonRuns: [String: Int] = [:]
+    var quests: [String: Int] = [:]        // islander id -> steps done (BloomQuests.swift)
+    var giftDay: [String: String] = [:]    // islander id -> day the friend gift was taken
+    var puzzles: [String] = []             // floor puzzles solved
 
     init() {}
 
@@ -161,6 +164,9 @@ struct BloomSave: Codable {
         shovel = try c.decodeIfPresent(Bool.self, forKey: .shovel) ?? false
         relics = try c.decodeIfPresent([String].self, forKey: .relics) ?? []
         dungeonRuns = try c.decodeIfPresent([String: Int].self, forKey: .dungeonRuns) ?? [:]
+        quests = try c.decodeIfPresent([String: Int].self, forKey: .quests) ?? [:]
+        giftDay = try c.decodeIfPresent([String: String].self, forKey: .giftDay) ?? [:]
+        puzzles = try c.decodeIfPresent([String].self, forKey: .puzzles) ?? []
     }
 }
 
@@ -179,6 +185,7 @@ enum BloomPanel: Equatable {
     case skins
     case menu
     case dungeon(String)
+    case islander(String)
 }
 
 struct BloomToast: Identifiable, Equatable {
@@ -228,6 +235,7 @@ final class BloomGame: ObservableObject {
         case building(BuildKind)
         case island(Int)
         case dungeon(String)
+        case islander(String)
     }
 
     /// Scene callbacks.
@@ -585,6 +593,8 @@ final class BloomGame: ObservableObject {
         case "axe": return s.axe
         case "shovel": return s.shovel ? 1 : 0
         case "relics": return s.relics.count
+        case "friends": return friendCount
+        case "puzzles": return s.puzzles.count
         case "helpers": return s.helpers.count
         default:
             if key.hasPrefix("build."), let b = BuildKind(rawValue: String(key.dropFirst(6))) { return isBuilt(b) ? 1 : 0 }

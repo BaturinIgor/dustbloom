@@ -51,7 +51,7 @@ struct BloomView: View {
             // App Store screenshots: -bloomPanel build|talents|shop|album opens one panel
             if let name = UserDefaults.standard.string(forKey: "bloomPanel") {
                 let p: BloomPanel? = ["build": .build, "talents": .talents, "shop": .shop, "album": .album,
-                                      "daily": .daily, "spring": .spring, "event": .event, "skins": .skins, "feedback": .feedback, "menu": .menu, "bag": .inventory, "anvil": .building(.anvil)][name] ?? (name.hasPrefix("cave:") ? .dungeon(String(name.dropFirst(5))) : nil)
+                                      "daily": .daily, "spring": .spring, "event": .event, "skins": .skins, "feedback": .feedback, "menu": .menu, "bag": .inventory, "anvil": .building(.anvil)][name] ?? (name.hasPrefix("cave:") ? .dungeon(String(name.dropFirst(5))) : name.hasPrefix("npc:") ? .islander(String(name.dropFirst(4))) : nil)
                 DispatchQueue.main.asyncAfter(deadline: .now() + 3) { game.panel = p }
             }
             #endif
@@ -298,6 +298,14 @@ struct BloomHUD: View {
                 }
             }
             .buttonStyle(BloomButtonStyle(color: BUI.panelHi, edge: BUI.ink))
+        case .islander(let id):
+            Button { game.panel = .islander(id); Sfx.play(.select) } label: {
+                HStack(spacing: 6) {
+                    PixelIcon(name: "bloom_npc_\(id)_0", size: 28)
+                    OutlinedText(text: tr(BloomQuests.islander(id)?.name ?? ""), size: 14)
+                }
+            }
+            .buttonStyle(BloomButtonStyle(color: BUI.panelHi, edge: BUI.ink))
         case .island(let id):
             let isl = game.island(id)
             Button { game.panel = .buy(id); Sfx.play(.select) } label: {
@@ -399,6 +407,7 @@ struct PanelHost: View {
         case .skins: return tr("Облик героя")
         case .menu: return tr("Меню")
         case .dungeon(let id): return tr(BloomDungeons.byId(id)?.title ?? "")
+        case .islander(let id): return tr(BloomQuests.islander(id)?.name ?? "")
         }
     }
 
@@ -421,6 +430,7 @@ struct PanelHost: View {
         case .skins: SkinsView()
         case .menu: MenuView()
         case .dungeon(let id): DungeonView(id: id)
+        case .islander(let id): IslanderView(id: id)
         }
     }
 }
@@ -1318,6 +1328,99 @@ struct DungeonView: View {
             }
             .buttonStyle(BloomButtonStyle(color: BUI.orange, edge: BUI.orangeEdge))
             OutlinedText(text: tr("Если устанешь, просто вернёшься домой"), size: 11, color: BUI.muted, fixed: false, lines: 2)
+        }
+    }
+}
+
+// MARK: - islanders
+
+struct IslanderView: View {
+    @EnvironmentObject private var game: BloomGame
+    let id: String
+
+    var body: some View {
+        if let n = BloomQuests.islander(id) {
+            let k = game.questStep(n.id)
+            let friend = game.isFriend(n)
+            Card {
+                VStack(spacing: 10) {
+                    HStack(spacing: 12) {
+                        PixelIcon(name: "bloom_npc_\(n.id)_0", size: 52)
+                            .frame(width: 60, height: 60)
+                            .background(RoundedRectangle(cornerRadius: 12).fill(BUI.ink.opacity(0.4)))
+                        OutlinedText(text: friend ? tr("Заходи каждый день, у меня для тебя подарок!") : tr(n.steps[k].line),
+                                     size: 13, fixed: false, lines: 3, align: .leading)
+                        Spacer(minLength: 0)
+                    }
+                    HStack(spacing: 6) {
+                        ForEach(0..<n.steps.count, id: \.self) { i in
+                            Circle().fill(i < k ? BUI.green : BUI.ink.opacity(0.5)).frame(width: 12, height: 12)
+                                .overlay(Circle().stroke(BUI.ink, lineWidth: 2))
+                        }
+                    }
+                    if !friend { request(n.steps[k]) }
+                }
+            }
+            if friend {
+                let ready = game.giftReady(n)
+                Button { game.takeGift(n) } label: {
+                    HStack(spacing: 6) {
+                        PixelIcon(name: "bloom_bubble_gift", size: 20)
+                        OutlinedText(text: ready ? tr("Забрать подарок") : tr("Подарок будет завтра"), size: 16)
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(BloomButtonStyle(color: ready ? BUI.green : BUI.panelHi, edge: ready ? BUI.greenEdge : BUI.ink))
+                .disabled(!ready)
+            } else {
+                let step = n.steps[k]
+                let ready = game.canHandIn(step)
+                let r = game.questReward(n, step: k)
+                Button { game.handIn(n) } label: {
+                    HStack(spacing: 8) {
+                        OutlinedText(text: step.build != nil ? tr("Готово") : tr("Отдать"), size: 16)
+                        PixelIcon(name: "bloom_item_coin", size: 18)
+                        OutlinedText(text: "\(r.coins)", size: 14)
+                        PixelIcon(name: "bloom_item_gem", size: 18)
+                        OutlinedText(text: "\(r.gems)", size: 14)
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(BloomButtonStyle(color: ready ? BUI.orange : BUI.panelHi, edge: ready ? BUI.orangeEdge : BUI.ink))
+                .disabled(!ready)
+                OutlinedText(text: tr("Друг раз в день дарит подарок"), size: 11, color: BUI.muted, fixed: false, lines: 2)
+            }
+        }
+    }
+
+    @ViewBuilder private func request(_ step: QuestStep) -> some View {
+        if let b = step.build {
+            let done = game.isBuilt(b)
+            HStack(spacing: 8) {
+                PixelIcon(name: b.sprite, size: 30).frame(width: 34)
+                OutlinedText(text: tr("Построй: %@", b.title), size: 13, fixed: false)
+                Spacer(minLength: 0)
+                OutlinedText(text: done ? "✓" : "0 / 1", size: 13, color: done ? BUI.green : BUI.muted)
+            }
+            .padding(.horizontal, 10)
+            .frame(height: 44)
+            .background(RoundedRectangle(cornerRadius: 12).fill(BUI.panelHi))
+        } else {
+            VStack(spacing: 6) {
+                ForEach(Array(step.items.enumerated()), id: \.offset) { _, pair in
+                    let (item, need) = pair
+                    let have = game.count(item)
+                    HStack(spacing: 8) {
+                        PixelIcon(name: item.sprite, size: 26).frame(width: 34)
+                        OutlinedText(text: item.title, size: 13, fixed: false)
+                        Spacer(minLength: 0)
+                        OutlinedText(text: "\(min(have, need)) / \(need)", size: 13, color: have >= need ? BUI.green : BUI.muted)
+                    }
+                    .padding(.horizontal, 10)
+                    .frame(height: 44)
+                    .background(RoundedRectangle(cornerRadius: 12).fill(BUI.panelHi))
+                }
+            }
         }
     }
 }

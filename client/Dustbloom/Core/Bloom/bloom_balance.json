@@ -732,6 +732,14 @@
    "xp": 20
   },
   {
+   "title": "Подружись с жителем острова",
+   "icon": "bloom_npc_olha_0",
+   "key": "friends",
+   "target": 1,
+   "coins": 40,
+   "xp": 20
+  },
+  {
    "title": "Сделай комбо ×5",
    "icon": "bloom_fx_spark",
    "key": "combo",
@@ -842,6 +850,14 @@
    "target": 5,
    "coins": 100,
    "xp": 40
+  },
+  {
+   "title": "Реши 2 загадки островов",
+   "icon": "bloom_plate_1",
+   "key": "puzzles",
+   "target": 2,
+   "coins": 120,
+   "xp": 60
   },
   {
    "title": "Добудь 20 золотой руды",
@@ -956,14 +972,6 @@
    "xp": 90
   },
   {
-   "title": "Собери все 5 реликвий",
-   "icon": "bloom_relic_eye",
-   "key": "relics",
-   "target": 5,
-   "coins": 600,
-   "xp": 150
-  },
-  {
    "title": "Выкуй хрустальный топор",
    "icon": "bloom_axe_4",
    "key": "axe",
@@ -994,6 +1002,14 @@
    "target": 7,
    "coins": 400,
    "xp": 110
+  },
+  {
+   "title": "Подружись с 4 жителями",
+   "icon": "bloom_npc_grom_0",
+   "key": "friends",
+   "target": 4,
+   "coins": 400,
+   "xp": 150
   },
   {
    "title": "Поймай 20 рыб",
@@ -1082,6 +1098,22 @@
    "target": 10,
    "coins": 1800,
    "xp": 270
+  },
+  {
+   "title": "Собери все 5 реликвий",
+   "icon": "bloom_relic_eye",
+   "key": "relics",
+   "target": 5,
+   "coins": 600,
+   "xp": 150
+  },
+  {
+   "title": "Реши 6 загадок островов",
+   "icon": "bloom_rune_1",
+   "key": "puzzles",
+   "target": 6,
+   "coins": 1500,
+   "xp": 400
   },
   {
    "title": "Добудь 20 обсидиана",

@@ -235,6 +235,7 @@ final class BloomScene: SKScene {
         cam.addChild(goldOverlay)
         setUpLife()
         placeCaves()
+        placeFolk()
         for c in game.helpers { addHelper(c, animated: false) }
         if game.isFounder { addHelper("gold", animated: false) }
         if ProcessInfo.processInfo.arguments.contains("-bloomDemo") {
@@ -255,6 +256,10 @@ final class BloomScene: SKScene {
         // -bloomDungeon burrow|cave|crypt|grotto|forge: walk into that cave 3 s after start
         if let dn = UserDefaults.standard.string(forKey: "bloomDungeon") {
             run(.sequence([.wait(forDuration: 3), .run { [weak self] in self?.enterDungeon(dn) }]))
+        }
+        // -bloomGoTo npc:olha|puzzle:p1 : stand next to that islander or puzzle (needs its island, e.g. -bloomAll)
+        if let to = UserDefaults.standard.string(forKey: "bloomGoTo") {
+            run(.sequence([.wait(forDuration: 1.5), .run { [weak self] in self?.debugGoTo(to) }]))
         }
         // -bloomFoes N [-bloomFoeKind slime|beetle|toad|bat]: N foes near the hero after 3 s
         let nFoes = UserDefaults.standard.integer(forKey: "bloomFoes")
@@ -433,7 +438,7 @@ final class BloomScene: SKScene {
     }
 
     private func freeCell(_ c: Cell) -> Bool {
-        res[c] == nil && buildingNodes[c] == nil && flowers[c] == nil && !chests.contains(where: { $0.cell == c }) && !digSpots.contains(where: { $0.cell == c }) && !caveCells.contains(c) && !nearBridge.contains(c) && land.contains(c) && !bridgeCells.contains(c)
+        res[c] == nil && buildingNodes[c] == nil && flowers[c] == nil && !chests.contains(where: { $0.cell == c }) && !digSpots.contains(where: { $0.cell == c }) && !caveCells.contains(c) && !folkCells.contains(c) && !nearBridge.contains(c) && land.contains(c) && !bridgeCells.contains(c)
     }
 
     private func randomKind(_ id: Int) -> GatherKind {
@@ -581,7 +586,7 @@ final class BloomScene: SKScene {
 
     private func bloom(_ id: Int) {
         happeningMeter += 8
-        run(.sequence([.wait(forDuration: 1.6), .run { [weak self] in self?.placeCaves() }]))
+        run(.sequence([.wait(forDuration: 1.6), .run { [weak self] in self?.placeCaves(); self?.placeFolk() }]))
         guard let dust = islandNodes[id] else { return }
         // wave starts at the bridge the hero is next to
         var start = heroPos
@@ -1158,6 +1163,7 @@ final class BloomScene: SKScene {
         updateDig(dt)
         updateFoes(dt)
         updateDungeon(dt)
+        updateFolk(dt)
         game.tick(dt: dt)
         game.tickCombo(now: now)
         updateCombo()
@@ -1699,6 +1705,10 @@ final class BloomScene: SKScene {
         if let c = nearestCave(within: min(best, 24)) {
             best = 24
             n = .dungeon(c)
+        }
+        if let f = nearestFolk(within: min(best, 22)) {
+            best = 22
+            n = .islander(f)
         }
         // an island sign wins when it is closer than the building (or the building is a bit far)
         best = n == nil ? 26 : min(26, best + 6)
@@ -2984,6 +2994,311 @@ final class BloomScene: SKScene {
         applyDayLight()
     }
 
+    // MARK: - islanders and floor puzzles
+
+    private var folkNodes: [String: (cell: Cell, node: SKSpriteNode, bubble: SKSpriteNode)] = [:]
+    private var folkCells = Set<Cell>()
+    private final class Puzzle {
+        let def: FloorPuzzle
+        var tiles: [(cell: Cell, node: SKSpriteNode)] = []
+        var lit: [Bool] = []
+        var on: Int?                  // tile the hero stands on
+        var timer: Double = 0         // plates: time left; runes: showing / input pause
+        var order: [Int] = []         // runes: the order to repeat
+        var step = 0                  // runes: how far the hero got (-1 = showing)
+        var solved = false
+        init(_ d: FloorPuzzle) { def = d }
+    }
+    private var puzzles: [String: Puzzle] = [:]
+    private var folkTimer: Double = 0
+    private let runeColors: [UIColor] = [UIColor(red: 1, green: 0.45, blue: 0.5, alpha: 1), UIColor(red: 0.45, green: 0.75, blue: 1, alpha: 1),
+                                         UIColor(red: 1, green: 0.85, blue: 0.3, alpha: 1), UIColor(red: 0.55, green: 0.9, blue: 0.45, alpha: 1),
+                                         UIColor(red: 0.8, green: 0.55, blue: 1, alpha: 1), UIColor(red: 1, green: 0.65, blue: 0.3, alpha: 1)]
+
+    private func roomy(_ c: Cell, _ set: Set<Cell>) -> Bool {
+        set.contains(c) && !nearBridge.contains(c) && !bridgeCells.contains(c) && buildingNodes[c] == nil && !caveCells.contains(c) && !folkCells.contains(c)
+            && !caves.values.contains { abs($0.cell.x - c.x) <= 1 && abs($0.cell.y - c.y) <= 1 }
+    }
+
+    private func clearCell(_ c: Cell) {
+        if let r = res[c] { r.node.removeFromParent(); r.shadow.removeFromParent(); res[c] = nil }
+        if let f = flowers[c] { f.removeFromParent(); flowers[c] = nil }
+        if let i = digSpots.firstIndex(where: { $0.cell == c }) { digSpots[i].node.removeFromParent(); digSpots.remove(at: i) }
+    }
+
+    /// Islanders and puzzles take fixed cells on owned islands, so they stand in the same place every launch.
+    private func placeFolk() {
+        for n in BloomQuests.islanders where game.owned.contains(n.island) && folkNodes[n.id] == nil {
+            let cs = cells(of: n.island)
+            let set = Set(cs)
+            let mid = CGPoint(x: CGFloat(cs.map(\.x).reduce(0, +)) / CGFloat(max(1, cs.count)), y: CGFloat(cs.map(\.y).reduce(0, +)) / CGFloat(max(1, cs.count)))
+            // close to the middle, with open ground around so the hero can walk up from any side
+            let cands = cs.filter { c in roomy(c, set) && roomy(Cell(x: c.x, y: c.y - 1), set) && roomy(Cell(x: c.x - 1, y: c.y), set) && roomy(Cell(x: c.x + 1, y: c.y), set) }
+                .sorted { a, b in
+                    let da = hypot(CGFloat(a.x) - mid.x + 1.5, CGFloat(a.y) - mid.y), db = hypot(CGFloat(b.x) - mid.x + 1.5, CGFloat(b.y) - mid.y)
+                    return da != db ? da < db : (a.x, a.y) < (b.x, b.y)
+                }
+            guard let c = cands.first else { continue }
+            clearCell(c)
+            let node = SKSpriteNode(texture: tex("bloom_npc_\(n.id)_0"))
+            node.anchorPoint = CGPoint(x: 0.5, y: 3 / 26)
+            let p = basePoint(c)
+            node.position = p
+            node.zPosition = 500 - p.y
+            node.run(.repeatForever(.animate(with: [tex("bloom_npc_\(n.id)_0"), tex("bloom_npc_\(n.id)_1")], timePerFrame: 0.55 + Double(n.island % 3) * 0.07)))
+            world.addChild(node)
+            let bubble = SKSpriteNode(texture: tex("bloom_bubble_quest"))
+            bubble.anchorPoint = CGPoint(x: 0.5, y: 0)
+            bubble.position = CGPoint(x: 0, y: 23)
+            bubble.run(.repeatForever(.sequence([.moveBy(x: 0, y: 2, duration: 0.5), .moveBy(x: 0, y: -2, duration: 0.5)])))
+            node.addChild(bubble)
+            folkNodes[n.id] = (c, node, bubble)
+            folkCells.insert(c)
+            refreshBubble(n)
+        }
+        for d in BloomQuests.puzzles where game.owned.contains(d.island) && puzzles[d.id] == nil { placePuzzle(d) }
+    }
+
+    private func refreshBubble(_ n: Islander) {
+        guard let f = folkNodes[n.id] else { return }
+        if game.isFriend(n) {
+            f.bubble.texture = tex("bloom_bubble_gift")
+            f.bubble.isHidden = !game.giftReady(n)
+        } else {
+            f.bubble.texture = tex("bloom_bubble_quest")
+            f.bubble.isHidden = false
+            f.bubble.alpha = game.canHandIn(n.steps[game.questStep(n.id)]) ? 1 : 0.55
+        }
+    }
+
+    private func placePuzzle(_ d: FloorPuzzle) {
+        let cs = cells(of: d.island)
+        let set = Set(cs)
+        // shapes: a row for lanterns, a 2-wide block for runes, a loose ring for plates
+        let w = d.kind == .runes ? (d.size + 1) / 2 : d.size
+        let h = d.kind == .runes ? 2 : 1
+        var spots: [Cell] = []
+        if d.kind == .plates {
+            let ok = cs.filter { roomy($0, set) }.sorted { ($0.y, $0.x) < ($1.y, $1.x) }
+            guard ok.count >= d.size * 3 else { return }
+            // spread over the island: every k-th open cell, never two side by side
+            let k = ok.count / d.size
+            for i in 0..<d.size {
+                if let c = ok[(i * k + k / 2)...].first(where: { c in !spots.contains { abs($0.x - c.x) + abs($0.y - c.y) < 2 } }) { spots.append(c) }
+            }
+            guard spots.count == d.size else { return }
+        } else {
+            let starts = cs.sorted { ($0.y, $0.x) > ($1.y, $1.x) }
+            for st in starts {
+                var block: [Cell] = []
+                for yy in 0..<h { for xx in 0..<w { block.append(Cell(x: st.x + xx, y: st.y - yy)) } }
+                // a free ring around the block keeps it readable and reachable
+                let ring = (-1...w).flatMap { xx in (-h...1).map { yy in Cell(x: st.x + xx, y: st.y + yy) } }
+                if block.allSatisfy({ roomy($0, set) }) && ring.filter({ !set.contains($0) }).count <= w {
+                    spots = Array(block.prefix(d.kind == .runes ? d.size : w)); break
+                }
+            }
+            guard !spots.isEmpty else { return }
+        }
+        let pz = Puzzle(d)
+        pz.solved = game.puzzleSolved(d.id)
+        for c in spots {
+            clearCell(c)
+            let n = SKSpriteNode(texture: tex(tileTex(d.kind, lit: pz.solved)))
+            let p = CGPoint(x: CGFloat(c.x) * T + 8, y: CGFloat(c.y) * T + 8)
+            n.position = p
+            n.zPosition = -860
+            world.addChild(n)
+            pz.tiles.append((c, n))
+            folkCells.insert(c)
+        }
+        pz.lit = Array(repeating: pz.solved, count: spots.count)
+        if d.kind == .runes { for (i, t) in pz.tiles.enumerated() { tint(t.node, i, bright: pz.solved) } }
+        if d.kind == .lanterns && !pz.solved { scramble(pz) }
+        puzzles[d.id] = pz
+    }
+
+    private func tileTex(_ k: FloorPuzzle.Kind, lit: Bool) -> String {
+        switch k {
+        case .plates: return lit ? "bloom_plate_1" : "bloom_plate_0"
+        case .runes: return lit ? "bloom_rune_1" : "bloom_rune_0"
+        case .lanterns: return lit ? "bloom_lamp_1" : "bloom_lamp_0"
+        }
+    }
+
+    private func tint(_ n: SKSpriteNode, _ i: Int, bright: Bool) {
+        n.texture = tex(bright ? "bloom_rune_1" : "bloom_rune_0")
+        n.color = runeColors[i % runeColors.count]
+        n.colorBlendFactor = bright ? 0.55 : 0.35
+    }
+
+    /// Lanterns start from all-dark and get a few random presses, so a solution always exists.
+    private func scramble(_ pz: Puzzle) {
+        let n = pz.lit.count
+        pz.lit = Array(repeating: true, count: n)
+        repeat {
+            for _ in 0..<(n + 2) { flip(pz, Int.random(in: 0..<n), fx: false) }
+        } while pz.lit.allSatisfy { $0 } || pz.lit.filter { $0 }.count > n - 2
+        for (i, t) in pz.tiles.enumerated() { t.node.texture = tex(tileTex(.lanterns, lit: pz.lit[i])) }
+    }
+
+    private func flip(_ pz: Puzzle, _ i: Int, fx: Bool) {
+        for j in [i - 1, i, i + 1] where j >= 0 && j < pz.lit.count {
+            pz.lit[j].toggle()
+            if fx {
+                pz.tiles[j].node.texture = tex(tileTex(.lanterns, lit: pz.lit[j]))
+                if pz.lit[j] { spark(at: CGPoint(x: pz.tiles[j].node.position.x, y: pz.tiles[j].node.position.y + 6), spread: 6) }
+                else { puff(at: pz.tiles[j].node.position, n: 2) }
+            }
+        }
+    }
+
+    private func updateFolk(_ dt: TimeInterval) {
+        guard dungeon == nil else { return }
+        folkTimer += dt
+        if folkTimer > 1 {
+            folkTimer = 0
+            for n in BloomQuests.islanders where folkNodes[n.id] != nil { refreshBubble(n) }
+        }
+        let hc = heroCell
+        for pz in puzzles.values where !pz.solved {
+            // only puzzles near the hero do any work
+            guard let first = pz.tiles.first, abs(first.cell.x - hc.x) < 14, abs(first.cell.y - hc.y) < 14 else { continue }
+            let idx = pz.tiles.firstIndex { $0.cell == hc }
+            let entered = idx != nil && idx != pz.on
+            pz.on = idx
+            switch pz.def.kind {
+            case .plates:
+                if pz.lit.contains(true) {
+                    pz.timer -= dt
+                    if pz.timer <= 0 { resetPlates(pz) }
+                }
+                if entered, let i = idx, !pz.lit[i] {
+                    if !pz.lit.contains(true) {
+                        pz.timer = pz.def.seconds
+                        game.showToast(BloomToast(title: tr("Загадка острова"), subtitle: BloomQuests.rule(pz.def)))
+                    }
+                    pz.lit[i] = true
+                    pz.tiles[i].node.texture = tex("bloom_plate_1")
+                    pz.tiles[i].node.run(.sequence([.scale(to: 1.15, duration: 0.06), .scale(to: 1, duration: 0.1)]))
+                    spark(at: CGPoint(x: pz.tiles[i].node.position.x, y: pz.tiles[i].node.position.y + 6), spread: 6, gold: true)
+                    Sfx.play(.select, volume: 0.6)
+                    buzz(light)
+                    floatText("\(pz.lit.filter { $0 }.count)/\(pz.lit.count)", at: CGPoint(x: heroPos.x, y: heroPos.y + 22), color: UIColor(red: 1, green: 0.85, blue: 0.3, alpha: 1))
+                    if pz.lit.allSatisfy({ $0 }) { solve(pz) }
+                }
+            case .lanterns:
+                if entered, let i = idx {
+                    if pz.timer == 0 {
+                        pz.timer = 1
+                        game.showToast(BloomToast(title: tr("Загадка острова"), subtitle: BloomQuests.rule(pz.def)))
+                    }
+                    flip(pz, i, fx: true)
+                    Sfx.play(.select, volume: 0.6)
+                    buzz(light)
+                    if pz.lit.allSatisfy({ $0 }) { solve(pz) }
+                }
+            case .runes:
+                updateRunes(pz, entered: entered ? idx : nil, dt)
+            }
+        }
+    }
+
+    private func resetPlates(_ pz: Puzzle) {
+        pz.lit = pz.lit.map { _ in false }
+        for t in pz.tiles { t.node.texture = tex("bloom_plate_0"); puff(at: t.node.position, n: 2) }
+        Sfx.play(.error, volume: 0.5)
+        floatText(tr("Время вышло!"), at: CGPoint(x: heroPos.x, y: heroPos.y + 22), color: UIColor(red: 1, green: 0.5, blue: 0.5, alpha: 1))
+    }
+
+    /// Runes: step on any rune to see the order, then walk it. A wrong rune shows the order again.
+    private func updateRunes(_ pz: Puzzle, entered: Int?, _ dt: TimeInterval) {
+        if pz.step < 0 {
+            pz.timer -= dt
+            if pz.timer <= 0 { pz.step = 0 }
+            return
+        }
+        guard let i = entered else { return }
+        if pz.order.isEmpty {
+            pz.order = (0..<pz.def.size).map { _ in Int.random(in: 0..<pz.tiles.count) }
+            // no rune twice in a row: stepping again on the tile you stand on is awkward
+            for k in 1..<pz.order.count where pz.order[k] == pz.order[k - 1] { pz.order[k] = (pz.order[k] + 1) % pz.tiles.count }
+            game.showToast(BloomToast(title: tr("Загадка острова"), subtitle: BloomQuests.rule(pz.def)))
+            showOrder(pz)
+            return
+        }
+        let t = pz.tiles[i].node
+        if pz.order[pz.step] == i {
+            pz.step += 1
+            tint(t, i, bright: true)
+            t.run(.sequence([.wait(forDuration: 0.3), .run { [weak self] in if pz.solved == false { self?.tint(t, i, bright: false) } }]))
+            Sfx.play(.select, volume: 0.6)
+            buzz(light)
+            spark(at: CGPoint(x: t.position.x, y: t.position.y + 6), spread: 6)
+            if pz.step >= pz.order.count { solve(pz) }
+        } else {
+            Sfx.play(.error, volume: 0.5)
+            buzz(heavy)
+            shake(1.5)
+            floatText(tr("Не тот порядок"), at: CGPoint(x: heroPos.x, y: heroPos.y + 22), color: UIColor(red: 1, green: 0.5, blue: 0.5, alpha: 1))
+            showOrder(pz)
+        }
+    }
+
+    private func showOrder(_ pz: Puzzle) {
+        pz.step = -1
+        let beat = 0.55
+        pz.timer = 0.6 + beat * Double(pz.order.count)
+        for (k, i) in pz.order.enumerated() {
+            let t = pz.tiles[i].node
+            t.run(.sequence([.wait(forDuration: 0.6 + beat * Double(k)), .run { [weak self] in
+                self?.tint(t, i, bright: true)
+                Sfx.play(.select, volume: 0.35)
+            }, .scale(to: 1.12, duration: 0.08), .scale(to: 1, duration: 0.12), .wait(forDuration: beat - 0.25), .run { [weak self] in
+                self?.tint(t, i, bright: false)
+            }]))
+        }
+    }
+
+    private func solve(_ pz: Puzzle) {
+        pz.solved = true
+        let r = game.puzzleSolvedReward(pz.def)
+        let c = pz.tiles.reduce(CGPoint.zero) { CGPoint(x: $0.x + $1.node.position.x, y: $0.y + $1.node.position.y) }
+        let mid = CGPoint(x: c.x / CGFloat(pz.tiles.count), y: c.y / CGFloat(pz.tiles.count))
+        for (i, t) in pz.tiles.enumerated() {
+            t.node.run(.sequence([.wait(forDuration: 0.08 * Double(i)), .run { [weak self] in
+                guard let self else { return }
+                if pz.def.kind == .runes { self.tint(t.node, i, bright: true) } else { t.node.texture = self.tex(self.tileTex(pz.def.kind, lit: true)) }
+                self.spark(at: CGPoint(x: t.node.position.x, y: t.node.position.y + 6), spread: 10, gold: true)
+            }, .scale(to: 1.2, duration: 0.08), .scale(to: 1, duration: 0.12)]))
+        }
+        for _ in 0..<20 { spark(at: CGPoint(x: mid.x, y: mid.y + 8), spread: 30, gold: true) }
+        hitStop(0.06)
+        shake(3)
+        Sfx.play(.victory)
+        buzz(heavy)
+        emit(nil, max(6, r.coins / 4), from: mid, maxPieces: 8, spread: 20)
+        game.showToast(BloomToast(title: tr("Загадка решена!"), subtitle: tr("+%@ монет, +%@ росинок", r.coins, r.gems)))
+    }
+
+    private func debugGoTo(_ to: String) {
+        var c: Cell?
+        if to.hasPrefix("npc:") { c = folkNodes[String(to.dropFirst(4))]?.cell }
+        if to.hasPrefix("puzzle:"), let pz = puzzles[String(to.dropFirst(7))] { c = pz.tiles.first?.cell }
+        guard let c else { print("[bloom] goTo \(to): not placed"); return }
+        heroPos = CGPoint(x: CGFloat(c.x) * T + 8, y: CGFloat(c.y - 1) * T + 8)
+        print("[bloom] goTo \(to) at \(c.x),\(c.y)")
+    }
+
+    private func nearestFolk(within r: CGFloat) -> String? {
+        var best = r, id: String?
+        for (k, v) in folkNodes {
+            let d = hypot(v.node.position.x - heroPos.x, v.node.position.y - heroPos.y)
+            if d < best { best = d; id = k }
+        }
+        return id
+    }
+
     // MARK: - golden hour (our own event: everything turns gold, drops double)
 
     private let goldOverlay = SKSpriteNode()
@@ -3062,6 +3377,14 @@ final class BloomScene: SKScene {
         } else if g.key == "islands" {
             let near = signs.values.min { hypot($0.position.x - heroPos.x, $0.position.y - heroPos.y) < hypot($1.position.x - heroPos.x, $1.position.y - heroPos.y) }
             return near.map { CGPoint(x: $0.position.x, y: $0.position.y + 26) }
+        } else if g.key == "friends" || g.key == "puzzles" {
+            // the nearest islander still asking, or the nearest unsolved puzzle
+            let pts: [CGPoint] = g.key == "friends"
+                ? BloomQuests.islanders.filter { !game.isFriend($0) }.compactMap { folkNodes[$0.id].map { CGPoint(x: $0.node.position.x, y: $0.node.position.y + 34) } }
+                : puzzles.values.filter { !$0.solved }.compactMap { $0.tiles.first.map { CGPoint(x: $0.node.position.x, y: $0.node.position.y + 14) } }
+            guard let p = pts.min(by: { hypot($0.x - heroPos.x, $0.y - heroPos.y) < hypot($1.x - heroPos.x, $1.y - heroPos.y) }),
+                  hypot(p.x - heroPos.x, p.y - heroPos.y) > 30 else { return nil }
+            return p
         } else { return nil }
         let best = res.values.filter { kinds.contains($0.kind) }
             .min { hypot($0.node.position.x - heroPos.x, $0.node.position.y - heroPos.y) < hypot($1.node.position.x - heroPos.x, $1.node.position.y - heroPos.y) }

@@ -34,6 +34,22 @@ def talent_cost(tid):
     return 2 if int(tid[1]) >= 4 else 1
 
 
+# BloomQuests.swift mirror: (id, island, steps); a step is items [[item, n]] or a building name
+ISLANDERS = [
+    ("olha", 0, [[["wood", 15]], [["berry", 12]], "furnace"]),
+    ("bor", 1, [[["cotton", 12]], [["wood", 40]], [["cloth", 6]]]),
+    ("grom", 2, [[["iron_ore", 15]], [["brick", 12]], [["iron_bar", 5]]]),
+    ("tosya", 3, [[["berry", 25]], [["cotton", 20]], "market"]),
+    ("zlat", 4, [[["gold_ore", 10]], [["gold_bar", 4]], [["gold_bar", 8], ["brick", 10]]]),
+    ("inei", 5, [[["crystal", 6]], [["iron_bar", 8]], [["crystal", 12], ["gold_bar", 3]]]),
+    ("yan", 6, [[["sand", 30]], [["glass", 10]], "smokehouse"]),
+    ("karas", 7, [[["fish", 12]], [["smoked_fish", 6]], [["smoked_fish", 12], ["berry", 20]]]),
+    ("moh", 8, [[["mushroom", 15]], [["mushroom", 30], ["wood", 40]], [["elixir", 3]]]),
+    ("pchel", 9, [[["honey", 12]], "cauldron", [["jam", 8]]]),
+]
+PUZZLES = [("p1", 1, 3), ("p2", 3, 4), ("p3", 4, 4), ("p4", 5, 5), ("p5", 7, 5), ("p6", 9, 6), ("p7", 10, 6), ("p8", 11, 6)]
+
+
 class Persona:
     def __init__(self, name, ads=False, founder=False, pass_=False, gems_per_hour=0, label=""):
         self.name, self.ads, self.founder, self.pass_ = name, ads, founder, pass_
@@ -62,6 +78,8 @@ class Sim:
         self.pick, self.lucky = 0, False
         self.axe, self.shovel, self.next_dig, self.gathers = 0, False, 0.0, 0
         self.relics = set()
+        self.quests = {}            # islander -> steps done (BloomQuests.swift)
+        self.puzzles = set()
         self.helpers = 0            # grown helpers
         self.golden_helper = False  # founder pack helper (does not take a slot)
         self.talents = []
@@ -151,6 +169,8 @@ class Sim:
         if key == "pick": return self.pick
         if key == "axe": return self.axe
         if key == "relics": return len(self.relics)
+        if key == "friends": return sum(1 for n in ISLANDERS if self.quests.get(n[0], 0) >= len(n[2]))
+        if key == "puzzles": return len(self.puzzles)
         if key == "shovel": return 1 if self.shovel else 0
         if key == "helpers": return self.helpers
         if key.startswith("build."): return 1 if key[6:] in self.built else 0
@@ -261,6 +281,10 @@ class Sim:
         if self.axe + 1 < len(BAL["axes"]): want([tuple(x) for x in BAL["axes"][self.axe + 1]["cost"]])
         if not self.shovel: want([tuple(x) for x in BAL["shovel"]["cost"]])
         if "nursery" in self.built and self.helpers < self.max_helpers: want(self.helper_cost())
+        # the current ask of each islander on an owned island
+        for nid, isl, steps in ISLANDERS:
+            k = self.quests.get(nid, 0)
+            if isl in self.owned and k < len(steps) and isinstance(steps[k], list): want([tuple(x) for x in steps[k]])
         if self.goal < len(BAL["goals"]):
             g = BAL["goals"][self.goal]; k = g["key"]
             if k.startswith(("item.", "craft.")):
@@ -386,6 +410,29 @@ class Sim:
             self.advance(4)
             self.coins += self.rng.randint(6, 12) + self.level * 2 + len(self.owned) * 3
             self.stats["dig"] = self.stats.get("dig", 0) + 1
+        # islanders: hand in a step when the bot has it (a short walk), coins grow with the next island
+        for nid, isl, steps in ISLANDERS:
+            k = self.quests.get(nid, 0)
+            if isl not in self.owned or k >= len(steps): continue
+            st = steps[k]
+            if isinstance(st, str):
+                if st not in self.built: continue
+            else:
+                c = [tuple(x) for x in st]
+                if not self.has(c): continue
+                self.pay(c)
+            self.quests[nid] = k + 1
+            self.advance(8)
+            self.coins += max(30, self.prices[min(isl + 1, len(self.prices) - 1)] // 30) * (k + 1)
+            self.gain_xp(max(8, self.xp_to_next(self.level) * (k + 2) // 12))
+            self.log(f"житель {nid} {k + 1}")
+        # floor puzzles: about 40 s each once the island is owned
+        for pid, isl, size in PUZZLES:
+            if pid in self.puzzles or isl not in self.owned or self.level < 3: continue
+            self.advance(40); self.puzzles.add(pid)
+            self.coins += max(40, self.prices[min(isl + 1, len(self.prices) - 1)] // 15)
+            self.gain_xp(max(10, self.xp_to_next(self.level) // 4)); self.log(f"загадка {pid}")
+            break
         # dungeons (BloomDungeons.swift): island, advised damage; a clear takes ~2 minutes and gives coins + a relic
         for did, isl, adv in (("burrow", 1, 2), ("cave", 2, 3), ("crypt", 6, 5), ("grotto", 8, 7), ("forge", 10, 9)):
             if did in self.relics or isl not in self.owned or self.damage < adv or self.stats.get("kill", 0) < 5: continue
