@@ -10,7 +10,7 @@ struct DefenseView: View {
     var body: some View {
         ZStack {
             SpriteView(scene: scene, preferredFramesPerSecond: 60,
-                       debugOptions: ProcessInfo.processInfo.arguments.contains("-showFPS") ? [.showsFPS, .showsNodeCount, .showsDrawCount] : [])
+                       debugOptions: ProcessInfo.processInfo.arguments.contains("-showStats") ? [.showsFPS, .showsNodeCount, .showsDrawCount] : [])
                 .ignoresSafeArea()
             DefenseHUD(onSquadChange: { scene.refreshSquad() })
             if let r = game.offline {

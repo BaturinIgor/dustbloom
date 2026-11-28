@@ -68,7 +68,7 @@ private struct BloomSceneHost: View, Equatable {
     static func == (a: Self, b: Self) -> Bool { a.scene === b.scene }
     var body: some View {
         SpriteView(scene: scene, preferredFramesPerSecond: 60,
-                   debugOptions: ProcessInfo.processInfo.arguments.contains("-showFPS") ? [.showsFPS, .showsNodeCount, .showsDrawCount] : [])
+                   debugOptions: ProcessInfo.processInfo.arguments.contains("-showStats") ? [.showsFPS, .showsNodeCount, .showsDrawCount] : [])
     }
 }
 
@@ -179,6 +179,9 @@ struct BloomHUD: View {
                     .onTapGesture { game.panel = nil }
                     .transition(.opacity)
                 PanelHost(panel: p)
+                    // flattened into one layer while it animates: scaling dozens of outlined texts
+                    // re-rendered every one of them on each frame of the pop-in
+                    .compositingGroup()
                     .transition(.scale(scale: 0.85).combined(with: .opacity))
             }
             // toasts sit above panels so they never look dimmed
