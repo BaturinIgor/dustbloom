@@ -52,7 +52,21 @@ struct BloomView: View {
             if let name = UserDefaults.standard.string(forKey: "bloomPanel") {
                 let p: BloomPanel? = ["build": .build, "talents": .talents, "shop": .shop, "album": .album,
                                       "daily": .daily, "spring": .spring, "event": .event, "skins": .skins, "feedback": .feedback, "menu": .menu, "bag": .inventory, "anvil": .building(.anvil)][name] ?? (name.hasPrefix("cave:") ? .dungeon(String(name.dropFirst(5))) : name.hasPrefix("npc:") ? .islander(String(name.dropFirst(4))) : nil)
-                DispatchQueue.main.asyncAfter(deadline: .now() + 3) { game.panel = p }
+                let more: BloomPanel? = name == "decor" ? .decor : name == "furnace" ? .building(.furnace)
+                    : name.hasPrefix("offer:") ? .offer(String(name.dropFirst(6))) : nil
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3) { game.panel = p ?? more }
+            }
+            // -bloomOffer brave: show that moment offer's button now (debug)
+            if let o = UserDefaults.standard.string(forKey: "bloomOffer") {
+                game.s.offers[o] = Date()
+            }
+            // -bloomBuy brave,friend: grant those products as if bought (debug, local)
+            if let list = UserDefaults.standard.string(forKey: "bloomBuy") {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                    for id in list.split(separator: ",") {
+                        if let p = ShopProduct.allCases.first(where: { $0.rawValue == "bloom." + id || $0.rawValue == String(id) }) { game.grant(p) }
+                    }
+                }
             }
             #endif
         }
