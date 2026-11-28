@@ -1994,15 +1994,33 @@ final class BloomScene: SKScene {
         for g in nightLights { g.alpha = night * 0.8 }
     }
 
+    /// Grass and flowers that lean in the wind. One loop moves only those inside the camera,
+    /// instead of a forever-action on every tuft of every island (that cost frames on big farms).
+    private var swayers: [(node: SKNode, phase: CGFloat)] = []
+    private var swayClock: TimeInterval = 0
+
     private func sway(_ n: SKNode, phase: CGFloat) {
-        let a: CGFloat = 0.09
-        let d = 1.6
-        n.zRotation = -a
-        n.run(.sequence([.wait(forDuration: Double(phase.truncatingRemainder(dividingBy: 1.6))),
-                         .repeatForever(.sequence([.rotate(toAngle: a, duration: d), .rotate(toAngle: -a, duration: d)]))]))
+        swayers.append((n, phase))
+    }
+
+    private func updateSway(_ dt: TimeInterval) {
+        swayClock += dt
+        let hw = size.width / zoom / 2 + 16, hh = size.height / zoom / 2 + 24
+        let c = cam.position
+        let w = CGFloat(swayClock) * .pi / 1.6      // a full lean there and back in 3.2 s
+        var i = 0
+        while i < swayers.count {
+            let (n, ph) = swayers[i]
+            if n.parent == nil { swayers.swapAt(i, swayers.count - 1); swayers.removeLast(); continue }
+            if abs(n.position.x - c.x) < hw, abs(n.position.y - c.y) < hh {
+                n.zRotation = 0.09 * sin(w + ph * 2)
+            }
+            i += 1
+        }
     }
 
     private func updateLife(_ dt: TimeInterval) {
+        updateSway(dt)
         dayClock += dt / dayLength
         if dayClock >= 1 { dayClock -= 1 }
         lifeTimer += dt
